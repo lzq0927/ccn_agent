@@ -1,7 +1,17 @@
 Process: PDU_Session_Release
-Description: PDU会话释放
+Description: PDU会话释放 (3GPP TS 23.502)
 
-Flow: UE -> gNB -> AMF -> SMF -> UPF -> SMF -> PCF -> SMF -> AMF -> gNB -> UE
+Flow:
+  1. UE -> gNB: ULInformationTransfer / PDU Session Release Request
+  2. gNB -> AMF: InitialUEMessage (NAS-PDU)
+  3. AMF -> SMF: Nsmf_PDUSession_ReleaseSMContext Request
+  4. SMF -> UPF: N4 Session Release Request
+  5. UPF -> SMF: N4 Session Release Response
+  6. SMF -> PCF: Npcf_SMPolicyControl_Update Request
+  7. PCF -> SMF: Npcf_SMPolicyControl_Update Response
+  8. SMF -> AMF: Nsmf_PDUSession_ReleaseSMContext Response
+  9. AMF -> gNB: DL NAS Transport / PDU Session Release Command
+  10. gNB -> UE: DLInformationTransfer / PDU Session Release Command
 
 Required NE types: gNB, AMF, SMF, UPF, PCF
 

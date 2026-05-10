@@ -1,7 +1,19 @@
 Process: PDU_Session_Establishment
-Description: PDU会话建立
+Description: PDU会话建立 (3GPP TS 23.502)
 
-Flow: UE -> gNB -> AMF -> SMF -> UDM -> SMF -> PCF -> SMF -> UPF -> SMF -> AMF -> gNB -> UE
+Flow:
+  1. UE -> gNB: ULInformationTransfer / PDU Session Establishment Request
+  2. gNB -> AMF: InitialUEMessage (NAS-PDU)
+  3. AMF -> SMF: Nsmf_PDUSession_CreateSMContext Request
+  4. SMF -> UDM: Nudm_SDM_Get / PDU Session Subscription Data
+  5. UDM -> SMF: Nudm_SDM_Get Response
+  6. SMF -> PCF: Npcf_SMPolicyControl_Create Request
+  7. PCF -> SMF: Npcf_SMPolicyControl_Create Response
+  8. SMF -> UPF: N4 Session Establishment Request
+  9. UPF -> SMF: N4 Session Establishment Response
+  10. SMF -> AMF: Nsmf_PDUSession_CreateSMContext Response
+  11. AMF -> gNB: DL NAS Transport / PDU Session Establishment Accept
+  12. gNB -> UE: DLInformationTransfer / PDU Session Establishment Accept
 
 Required NE types: gNB, AMF, SMF, UDM, PCF, UPF
 

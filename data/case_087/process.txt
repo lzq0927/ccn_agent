@@ -1,7 +1,17 @@
 Process: Registration
-Description: 注册
+Description: 注册流程 (3GPP TS 23.502)
 
-Flow: UE -> gNB -> AMF -> AUSF -> UDM -> AUSF -> AMF -> UDM -> AMF -> gNB -> UE
+Flow:
+  1. UE -> gNB: ULInformationTransfer / Registration Request
+  2. gNB -> AMF: InitialUEMessage (NAS-PDU)
+  3. AMF -> AUSF: Nausf_UEAuthentication_Authenticate Request
+  4. AUSF -> UDM: Nudm_Authentication / Get Auth Data
+  5. UDM -> AUSF: Nudm_Authentication Response / Auth Data
+  6. AUSF -> AMF: Nausf_UEAuthentication_Authenticate Response
+  7. AMF -> UDM: Nudm_SDM_Get / Subscribe Data
+  8. UDM -> AMF: Nudm_SDM_Get Response
+  9. AMF -> gNB: DL NAS Transport / Registration Accept
+  10. gNB -> UE: DLInformationTransfer / Registration Accept
 
 Required NE types: gNB, AMF, AUSF, UDM
 

@@ -1,7 +1,15 @@
 Process: Service_Request
-Description: 服务请求
+Description: 服务请求 (3GPP TS 23.502)
 
-Flow: UE -> gNB -> AMF -> SMF -> UPF -> SMF -> AMF -> gNB -> UE
+Flow:
+  1. UE -> gNB: ULInformationTransfer / Service Request
+  2. gNB -> AMF: InitialUEMessage (NAS-PDU)
+  3. AMF -> SMF: Nsmf_PDUSession_UpdateSMContext Request
+  4. SMF -> UPF: N4 Session Modification Request
+  5. UPF -> SMF: N4 Session Modification Response
+  6. SMF -> AMF: Nsmf_PDUSession_UpdateSMContext Response
+  7. AMF -> gNB: DL NAS Transport / Service Accept
+  8. gNB -> UE: DLInformationTransfer / Service Accept
 
 Required NE types: gNB, AMF, SMF, UPF
 

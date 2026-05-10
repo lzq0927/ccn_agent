@@ -1,7 +1,18 @@
 Process: Handover
-Description: 切换
+Description: 切换流程 (3GPP TS 23.502)
 
-Flow: UE -> gNB_src -> AMF -> SMF -> UPF -> SMF -> AMF -> gNB_tgt -> AMF -> gNB_src -> UE -> gNB_tgt
+Flow:
+  1. UE -> gNB_src: ULInformationTransfer / Measurement Report
+  2. gNB_src -> AMF: Handover Required
+  3. AMF -> SMF: Nsmf_PDUSession_UpdateSMContext Request
+  4. SMF -> UPF: N4 Session Modification Request
+  5. UPF -> SMF: N4 Session Modification Response
+  6. SMF -> AMF: Nsmf_PDUSession_UpdateSMContext Response
+  7. AMF -> gNB_tgt: Handover Request
+  8. gNB_tgt -> AMF: Handover Request Acknowledge
+  9. AMF -> gNB_src: Handover Command
+  10. gNB_src -> UE: RRC / Handover Command
+  11. UE -> gNB_tgt: RRC / Handover Complete
 
 Required NE types: gNB_src, gNB_tgt, AMF, SMF, UPF
 
