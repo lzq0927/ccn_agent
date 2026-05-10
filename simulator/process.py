@@ -2,50 +2,87 @@ import random
 from .models import NEType, BusinessFlow
 
 # 5 business process definitions
-# Each hop is (src_type, dst_type); "UE" is the user equipment endpoint
+# Each hop is (src_type, dst_type, message_name); "UE" is the user equipment endpoint
+# Message names follow 3GPP TS 24.501 / TS 23.502
 PROCESS_DEFINITIONS = {
     "PDU_Session_Establishment": {
-        "description": "PDU会话建立",
+        "description": "PDU会话建立 (3GPP TS 23.502)",
         "hops": [
-            ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UDM"),
-            ("UDM", "SMF"), ("SMF", "PCF"), ("PCF", "SMF"), ("SMF", "UPF"),
-            ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB"), ("gNB", "UE"),
+            ("UE", "gNB", "ULInformationTransfer / PDU Session Establishment Request"),
+            ("gNB", "AMF", "InitialUEMessage (NAS-PDU)"),
+            ("AMF", "SMF", "Nsmf_PDUSession_CreateSMContext Request"),
+            ("SMF", "UDM", "Nudm_SDM_Get / PDU Session Subscription Data"),
+            ("UDM", "SMF", "Nudm_SDM_Get Response"),
+            ("SMF", "PCF", "Npcf_SMPolicyControl_Create Request"),
+            ("PCF", "SMF", "Npcf_SMPolicyControl_Create Response"),
+            ("SMF", "UPF", "N4 Session Establishment Request"),
+            ("UPF", "SMF", "N4 Session Establishment Response"),
+            ("SMF", "AMF", "Nsmf_PDUSession_CreateSMContext Response"),
+            ("AMF", "gNB", "DL NAS Transport / PDU Session Establishment Accept"),
+            ("gNB", "UE", "DLInformationTransfer / PDU Session Establishment Accept"),
         ],
         "required_types": ["gNB", "AMF", "SMF", "UDM", "PCF", "UPF"],
     },
     "Registration": {
-        "description": "注册",
+        "description": "注册流程 (3GPP TS 23.502)",
         "hops": [
-            ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "AUSF"), ("AUSF", "UDM"),
-            ("UDM", "AUSF"), ("AUSF", "AMF"), ("AMF", "UDM"), ("UDM", "AMF"),
-            ("AMF", "gNB"), ("gNB", "UE"),
+            ("UE", "gNB", "ULInformationTransfer / Registration Request"),
+            ("gNB", "AMF", "InitialUEMessage (NAS-PDU)"),
+            ("AMF", "AUSF", "Nausf_UEAuthentication_Authenticate Request"),
+            ("AUSF", "UDM", "Nudm_Authentication / Get Auth Data"),
+            ("UDM", "AUSF", "Nudm_Authentication Response / Auth Data"),
+            ("AUSF", "AMF", "Nausf_UEAuthentication_Authenticate Response"),
+            ("AMF", "UDM", "Nudm_SDM_Get / Subscribe Data"),
+            ("UDM", "AMF", "Nudm_SDM_Get Response"),
+            ("AMF", "gNB", "DL NAS Transport / Registration Accept"),
+            ("gNB", "UE", "DLInformationTransfer / Registration Accept"),
         ],
         "required_types": ["gNB", "AMF", "AUSF", "UDM"],
     },
     "Handover": {
-        "description": "切换",
+        "description": "切换流程 (3GPP TS 23.502)",
         "hops": [
-            ("UE", "gNB_src"), ("gNB_src", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
-            ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB_tgt"),
-            ("gNB_tgt", "AMF"), ("AMF", "gNB_src"), ("gNB_src", "UE"),
-            ("UE", "gNB_tgt"),
+            ("UE", "gNB_src", "ULInformationTransfer / Measurement Report"),
+            ("gNB_src", "AMF", "Handover Required"),
+            ("AMF", "SMF", "Nsmf_PDUSession_UpdateSMContext Request"),
+            ("SMF", "UPF", "N4 Session Modification Request"),
+            ("UPF", "SMF", "N4 Session Modification Response"),
+            ("SMF", "AMF", "Nsmf_PDUSession_UpdateSMContext Response"),
+            ("AMF", "gNB_tgt", "Handover Request"),
+            ("gNB_tgt", "AMF", "Handover Request Acknowledge"),
+            ("AMF", "gNB_src", "Handover Command"),
+            ("gNB_src", "UE", "RRC / Handover Command"),
+            ("UE", "gNB_tgt", "RRC / Handover Complete"),
         ],
         "required_types": ["gNB_src", "gNB_tgt", "AMF", "SMF", "UPF"],
     },
     "PDU_Session_Release": {
-        "description": "PDU会话释放",
+        "description": "PDU会话释放 (3GPP TS 23.502)",
         "hops": [
-            ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
-            ("UPF", "SMF"), ("SMF", "PCF"), ("PCF", "SMF"), ("SMF", "AMF"),
-            ("AMF", "gNB"), ("gNB", "UE"),
+            ("UE", "gNB", "ULInformationTransfer / PDU Session Release Request"),
+            ("gNB", "AMF", "InitialUEMessage (NAS-PDU)"),
+            ("AMF", "SMF", "Nsmf_PDUSession_ReleaseSMContext Request"),
+            ("SMF", "UPF", "N4 Session Release Request"),
+            ("UPF", "SMF", "N4 Session Release Response"),
+            ("SMF", "PCF", "Npcf_SMPolicyControl_Update Request"),
+            ("PCF", "SMF", "Npcf_SMPolicyControl_Update Response"),
+            ("SMF", "AMF", "Nsmf_PDUSession_ReleaseSMContext Response"),
+            ("AMF", "gNB", "DL NAS Transport / PDU Session Release Command"),
+            ("gNB", "UE", "DLInformationTransfer / PDU Session Release Command"),
         ],
         "required_types": ["gNB", "AMF", "SMF", "UPF", "PCF"],
     },
     "Service_Request": {
-        "description": "服务请求",
+        "description": "服务请求 (3GPP TS 23.502)",
         "hops": [
-            ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
-            ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB"), ("gNB", "UE"),
+            ("UE", "gNB", "ULInformationTransfer / Service Request"),
+            ("gNB", "AMF", "InitialUEMessage (NAS-PDU)"),
+            ("AMF", "SMF", "Nsmf_PDUSession_UpdateSMContext Request"),
+            ("SMF", "UPF", "N4 Session Modification Request"),
+            ("UPF", "SMF", "N4 Session Modification Response"),
+            ("SMF", "AMF", "Nsmf_PDUSession_UpdateSMContext Response"),
+            ("AMF", "gNB", "DL NAS Transport / Service Accept"),
+            ("gNB", "UE", "DLInformationTransfer / Service Accept"),
         ],
         "required_types": ["gNB", "AMF", "SMF", "UPF"],
     },
@@ -71,7 +108,8 @@ def create_flows(process_name, ue_count, topology, seed=None):
 
         # Build actual hops from the template
         actual_hops = []
-        for src_type, dst_type in proc_def["hops"]:
+        for hop in proc_def["hops"]:
+            src_type, dst_type, _ = hop
             src_id = ue_id if src_type == "UE" else selected.get(src_type, src_type)
             dst_id = ue_id if dst_type == "UE" else selected.get(dst_type, dst_type)
             actual_hops.append((src_id, dst_id))

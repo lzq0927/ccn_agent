@@ -58,13 +58,16 @@ class DataExporter:
             f.write("\n".join(lines))
 
     def _write_process_txt(self, case_dir, result):
-        """Write business process template with NE types (not instance IDs).
+        """Write business process template with NE types and 3GPP messages.
 
         format:
         Process: <name>
         Description: <desc>
 
-        Flow: UE -> <type> -> <type> -> ... -> UE
+        Flow:
+          1. <src_type> -> <dst_type>: <message_name>
+          2. <src_type> -> <dst_type>: <message_name>
+          ...
 
         Required NE types: <type>, <type>, ...
         UE count: <N>
@@ -80,19 +83,16 @@ class DataExporter:
             lines.append(f"Process: {proc_name}")
             lines.append(f"Description: {proc_def['description']}")
             lines.append("")
+            lines.append("Flow:")
 
-            # Flow template: NE types only
-            type_seq = []
-            for src_type, dst_type in proc_def["hops"]:
-                type_seq.append(src_type)
-            type_seq.append(proc_def["hops"][-1][1])
-            lines.append(f"Flow: {' -> '.join(type_seq)}")
+            for i, hop in enumerate(proc_def["hops"], 1):
+                src_type, dst_type, msg_name = hop
+                lines.append(f"  {i}. {src_type} -> {dst_type}: {msg_name}")
+
             lines.append("")
-
             # Required NE types
             lines.append(f"Required NE types: {', '.join(proc_def['required_types'])}")
             lines.append("")
-
             # UE count
             lines.append(f"UE count: {len(result.flows)}")
 
