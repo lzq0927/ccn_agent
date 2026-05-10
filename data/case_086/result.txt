@@ -1,6 +1,7 @@
 {
   "fault_elements": [
-    "NRF_1"
+    "UE_2",
+    "UE_88"
   ],
   "fault_links": []
 }

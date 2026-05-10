@@ -1,6 +1,6 @@
 {
-  "fault_elements": [
-    "UDM_1"
-  ],
-  "fault_links": []
+  "fault_elements": [],
+  "fault_links": [
+    "SMF_1-UPF_1"
+  ]
 }

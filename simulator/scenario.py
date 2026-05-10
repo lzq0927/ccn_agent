@@ -44,24 +44,18 @@ class ScenarioGenerator:
         normal_count = num_cases - len(fault_types)
         assert normal_count == 10
 
-        # Assign train/test split (4:6)
-        assignments = []
-        for i in range(num_cases):
-            is_normal = i < normal_count
-            is_train = random.random() < 0.4
-            assignments.append((is_normal, is_train))
-
-        # Shuffle to mix normal and fault cases
-        # But keep normal_count normal cases at specific indices
+        # Assign train/test split (4:6): deterministic, first 40 are train
+        # Shuffle to mix normal and fault cases, but first 40 shuffled indices = train set
         case_indices = list(range(num_cases))
         random.shuffle(case_indices)
+        train_indices = set(case_indices[:40])  # first 40 after shuffle = train
 
         scenarios = []
         fault_idx = 0
 
-        for rank, ci in enumerate(case_indices):
-            is_normal = rank < normal_count
-            is_train = assignments[ci][1]
+        for ci in case_indices:
+            is_normal = ci < normal_count
+            is_train = ci in train_indices
 
             # Round-robin topology and process
             topo_idx = self.topo_indices[ci % len(self.topo_indices)]

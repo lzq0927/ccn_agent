@@ -1,6 +1,11 @@
 {
-  "fault_elements": [],
-  "fault_links": [
-    "UE_14-session"
-  ]
+  "fault_elements": [
+    "AMF_1",
+    "NSSF_3",
+    "PCF_1",
+    "SMF_5",
+    "SMF_7",
+    "gNB_7"
+  ],
+  "fault_links": []
 }

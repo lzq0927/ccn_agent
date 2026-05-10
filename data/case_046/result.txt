@@ -1,41 +1,7 @@
 {
-  "fault_elements": [],
-  "fault_links": [
-    "AMF_3-NSSF_2",
-    "AMF_3-PCF_2",
-    "AMF_3-UDM_1",
-    "AMF_3-UPF_1",
-    "AMF_3-UPF_2",
-    "AUSF_2-AMF_3",
-    "AUSF_2-NSSF_2",
-    "AUSF_2-PCF_2",
-    "AUSF_2-UDM_1",
-    "AUSF_2-UPF_1",
-    "AUSF_2-UPF_2",
-    "AUSF_2-gNB_3",
-    "PCF_2-NSSF_2",
-    "PCF_2-UDM_1",
-    "SMF_1-AMF_3",
-    "SMF_1-AUSF_2",
-    "SMF_1-NSSF_2",
-    "SMF_1-PCF_2",
-    "SMF_1-UDM_1",
-    "SMF_1-UPF_1",
-    "SMF_1-UPF_2",
-    "SMF_1-gNB_3",
-    "UDM_1-NSSF_2",
-    "UPF_1-NSSF_2",
-    "UPF_1-PCF_2",
-    "UPF_1-UDM_1",
-    "UPF_2-NSSF_2",
-    "UPF_2-PCF_2",
-    "UPF_2-UDM_1",
-    "UPF_2-UPF_1",
-    "gNB_3-AMF_3",
-    "gNB_3-NSSF_2",
-    "gNB_3-PCF_2",
-    "gNB_3-UDM_1",
-    "gNB_3-UPF_1",
-    "gNB_3-UPF_2"
-  ]
+  "fault_elements": [
+    "NRF_2",
+    "gNB_2"
+  ],
+  "fault_links": []
 }

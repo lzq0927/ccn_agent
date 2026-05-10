@@ -1,14 +1,6 @@
 {
-  "fault_elements": [],
-  "fault_links": [
-    "UE_27:SMF_1-UPF_10",
-    "UE_35:SMF_1-UPF_10",
-    "UE_58:SMF_1-UPF_10",
-    "UE_27:AMF_2-gNB_4",
-    "UE_35:AMF_2-gNB_4",
-    "UE_58:AMF_2-gNB_4",
-    "UE_27:PCF_6-SMF_2",
-    "UE_35:PCF_6-SMF_2",
-    "UE_58:PCF_6-SMF_2"
-  ]
+  "fault_elements": [
+    "AMF_5"
+  ],
+  "fault_links": []
 }

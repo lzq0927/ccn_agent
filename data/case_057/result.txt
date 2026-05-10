@@ -1,6 +1,34 @@
 {
   "fault_elements": [
-    "SMF_4"
+    "AMF_1",
+    "AMF_2",
+    "AMF_3",
+    "AMF_4",
+    "AUSF_1",
+    "AUSF_2",
+    "NRF_1",
+    "NRF_2",
+    "NRF_3",
+    "NSSF_1",
+    "NSSF_2",
+    "PCF_1",
+    "PCF_2",
+    "SMF_1",
+    "SMF_2",
+    "SMF_3",
+    "SMF_4",
+    "UDM_1",
+    "UDM_2",
+    "UPF_1",
+    "UPF_2",
+    "UPF_3",
+    "gNB_1",
+    "gNB_2",
+    "gNB_3",
+    "gNB_4",
+    "gNB_5",
+    "gNB_6",
+    "gNB_7"
   ],
   "fault_links": []
 }

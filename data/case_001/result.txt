@@ -1,6 +1,4 @@
 {
-  "fault_elements": [
-    "UDM_2"
-  ],
+  "fault_elements": [],
   "fault_links": []
 }

@@ -1,6 +1,6 @@
 {
-  "fault_elements": [
-    "NSSF_1"
-  ],
-  "fault_links": []
+  "fault_elements": [],
+  "fault_links": [
+    "AMF_6-gNB_4"
+  ]
 }

@@ -1,23 +1,26 @@
 {
-  "fault_elements": [
-    "NSSF_1",
-    "NSSF_2",
-    "NSSF_3",
-    "PCF_1",
-    "PCF_2",
-    "PCF_3",
-    "gNB_1",
-    "gNB_10",
-    "gNB_11",
-    "gNB_12",
-    "gNB_2",
-    "gNB_3",
-    "gNB_4",
-    "gNB_5",
-    "gNB_6",
-    "gNB_7",
-    "gNB_8",
-    "gNB_9"
-  ],
-  "fault_links": []
+  "fault_elements": [],
+  "fault_links": [
+    "AUSF_1-NSSF_2",
+    "AUSF_1-gNB_1",
+    "NSSF_2-gNB_1",
+    "PCF_3-AUSF_1",
+    "PCF_3-NSSF_2",
+    "PCF_3-SMF_8",
+    "PCF_3-UPF_7",
+    "PCF_3-gNB_1",
+    "PCF_3-gNB_5",
+    "SMF_8-AUSF_1",
+    "SMF_8-NSSF_2",
+    "SMF_8-gNB_1",
+    "UPF_7-AUSF_1",
+    "UPF_7-NSSF_2",
+    "UPF_7-SMF_8",
+    "UPF_7-gNB_1",
+    "UPF_7-gNB_5",
+    "gNB_5-AUSF_1",
+    "gNB_5-NSSF_2",
+    "gNB_5-SMF_8",
+    "gNB_5-gNB_1"
+  ]
 }

@@ -1,8 +1,6 @@
 {
-  "fault_elements": [],
-  "fault_links": [
-    "UE_10-session",
-    "UE_12-session",
-    "UE_19-session"
-  ]
+  "fault_elements": [
+    "SMF_2"
+  ],
+  "fault_links": []
 }

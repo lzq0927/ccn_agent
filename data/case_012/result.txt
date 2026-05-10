@@ -1,4 +1,8 @@
 {
-  "fault_elements": [],
+  "fault_elements": [
+    "UE_10",
+    "UE_21",
+    "UE_25"
+  ],
   "fault_links": []
 }

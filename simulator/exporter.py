@@ -58,7 +58,17 @@ class DataExporter:
             f.write("\n".join(lines))
 
     def _write_process_txt(self, case_dir, result):
-        """Write business process template with NE types (not instance IDs)."""
+        """Write business process template with NE types (not instance IDs).
+
+        format:
+        Process: <name>
+        Description: <desc>
+
+        Flow: UE -> <type> -> <type> -> ... -> UE
+
+        Required NE types: <type>, <type>, ...
+        UE count: <N>
+        """
         from .process import PROCESS_DEFINITIONS
 
         path = os.path.join(case_dir, "process.txt")
@@ -85,20 +95,20 @@ class DataExporter:
 
             # UE count
             lines.append(f"UE count: {len(result.flows)}")
-            lines.append("")
-
-            # Per-UE routing (actual instance selection, derived from simulation)
-            lines.append("# Per-UE routing (simulation resolved):")
-            for flow in result.flows:
-                hop_strs = []
-                for s, d in flow.hops:
-                    hop_strs.append(f"{s}->{d}")
-                lines.append(f"{flow.ue_id}: {' -> '.join(hop_strs)}")
 
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
 
     def _write_result_txt(self, case_dir, scenario, result):
+        """Write expected fault result.
+
+        format:
+        {
+          "fault_elements": [...],   # NE故障时填写具体网元ID列表
+          "fault_links": [...]       # 链路故障时填写具体链路列表
+        }
+        两个字段互斥，只填一个，另一字段为空列表。
+        """
         path = os.path.join(case_dir, "result.txt")
         fc = scenario.fault_config
 
@@ -113,20 +123,15 @@ class DataExporter:
                        FaultPointType.ALL_TYPE_NE, FaultPointType.MULTI_TYPE_NE,
                        FaultPointType.RESOURCE_POOL, FaultPointType.DC):
                 fault_elements = sorted(fc.affected_ne_ids)
+            # PATH_SESSION: affected sessions → fault_elements (session identifiers)
             elif fpt == FaultPointType.PATH_SESSION:
-                # Session faults → fault_links with UE session identifiers
-                for ue_id in sorted(fc.affected_sessions):
-                    fault_links.append(f"{ue_id}-session")
+                fault_elements = sorted(fc.affected_sessions)
+            # PATH_TRACE: affected links → fault_links (format: "{s}-{d}")
             elif fpt == FaultPointType.PATH_TRACE:
-                # Trace faults → fault_links with trace identifiers
-                for s, d in fc.affected_links:
-                    for ue_id in sorted(fc.affected_sessions):
-                        fault_links.append(f"{ue_id}:{s}-{d}")
-            else:
-                # Link/switch faults → fault_links
-                fault_links = sorted(
-                    [f"{s}-{d}" for s, d in fc.affected_links]
-                )
+                fault_links = sorted([f"{s}-{d}" for s, d in fc.affected_links])
+            # Link/switch faults → fault_links (format: "{s}-{d}")
+            elif fpt in (FaultPointType.PATH_LINK, FaultPointType.SWITCH):
+                fault_links = sorted([f"{s}-{d}" for s, d in fc.affected_links])
 
         data = {
             "fault_elements": fault_elements,

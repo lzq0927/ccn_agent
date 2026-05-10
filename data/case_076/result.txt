@@ -1,6 +1,6 @@
 {
-  "fault_elements": [],
-  "fault_links": [
-    "SMF_2-UPF_2"
-  ]
+  "fault_elements": [
+    "AUSF_1"
+  ],
+  "fault_links": []
 }

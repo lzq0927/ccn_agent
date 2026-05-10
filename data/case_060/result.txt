@@ -1,13 +1,37 @@
 {
-  "fault_elements": [],
-  "fault_links": [
-    "UE_1:AMF_10-gNB_14",
-    "UE_18:AMF_10-gNB_14",
-    "UE_35:AMF_10-gNB_14",
-    "UE_36:AMF_10-gNB_14",
-    "UE_38:AMF_10-gNB_14",
-    "UE_58:AMF_10-gNB_14",
-    "UE_83:AMF_10-gNB_14",
-    "UE_90:AMF_10-gNB_14"
-  ]
+  "fault_elements": [
+    "AMF_1",
+    "AMF_10",
+    "AMF_11",
+    "AMF_12",
+    "AMF_13",
+    "AMF_14",
+    "AMF_15",
+    "AMF_2",
+    "AMF_3",
+    "AMF_4",
+    "AMF_5",
+    "AMF_6",
+    "AMF_7",
+    "AMF_8",
+    "AMF_9",
+    "gNB_1",
+    "gNB_10",
+    "gNB_11",
+    "gNB_12",
+    "gNB_13",
+    "gNB_14",
+    "gNB_15",
+    "gNB_16",
+    "gNB_17",
+    "gNB_2",
+    "gNB_3",
+    "gNB_4",
+    "gNB_5",
+    "gNB_6",
+    "gNB_7",
+    "gNB_8",
+    "gNB_9"
+  ],
+  "fault_links": []
 }

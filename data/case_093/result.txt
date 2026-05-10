@@ -1,6 +1,11 @@
 {
   "fault_elements": [
-    "gNB_8"
+    "AMF_1",
+    "NSSF_3",
+    "PCF_1",
+    "SMF_5",
+    "SMF_7",
+    "gNB_7"
   ],
   "fault_links": []
 }

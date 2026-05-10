@@ -1,26 +1,23 @@
 {
-  "fault_elements": [],
-  "fault_links": [
-    "UE_1:AMF_1-gNB_4",
-    "UE_13:AMF_1-gNB_4",
-    "UE_39:AMF_1-gNB_4",
-    "UE_40:AMF_1-gNB_4",
-    "UE_41:AMF_1-gNB_4",
-    "UE_49:AMF_1-gNB_4",
-    "UE_53:AMF_1-gNB_4",
-    "UE_1:SMF_3-UPF_16",
-    "UE_13:SMF_3-UPF_16",
-    "UE_39:SMF_3-UPF_16",
-    "UE_40:SMF_3-UPF_16",
-    "UE_41:SMF_3-UPF_16",
-    "UE_49:SMF_3-UPF_16",
-    "UE_53:SMF_3-UPF_16",
-    "UE_1:AMF_11-SMF_11",
-    "UE_13:AMF_11-SMF_11",
-    "UE_39:AMF_11-SMF_11",
-    "UE_40:AMF_11-SMF_11",
-    "UE_41:AMF_11-SMF_11",
-    "UE_49:AMF_11-SMF_11",
-    "UE_53:AMF_11-SMF_11"
-  ]
+  "fault_elements": [
+    "SMF_1",
+    "SMF_10",
+    "SMF_11",
+    "SMF_12",
+    "SMF_13",
+    "SMF_14",
+    "SMF_15",
+    "SMF_16",
+    "SMF_17",
+    "SMF_18",
+    "SMF_2",
+    "SMF_3",
+    "SMF_4",
+    "SMF_5",
+    "SMF_6",
+    "SMF_7",
+    "SMF_8",
+    "SMF_9"
+  ],
+  "fault_links": []
 }

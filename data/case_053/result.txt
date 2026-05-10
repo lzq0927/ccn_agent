@@ -1,12 +1,9 @@
 {
-  "fault_elements": [],
-  "fault_links": [
-    "UE_11:SMF_8-UPF_2",
-    "UE_17:SMF_8-UPF_2",
-    "UE_23:SMF_8-UPF_2",
-    "UE_26:SMF_8-UPF_2",
-    "UE_3:SMF_8-UPF_2",
-    "UE_34:SMF_8-UPF_2",
-    "UE_50:SMF_8-UPF_2"
-  ]
+  "fault_elements": [
+    "NSSF_1",
+    "PCF_2",
+    "SMF_4",
+    "gNB_8"
+  ],
+  "fault_links": []
 }
