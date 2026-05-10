@@ -1,0 +1,3 @@
+"""
+Iteration state management module.
+"""

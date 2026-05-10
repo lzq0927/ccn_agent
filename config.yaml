@@ -1,0 +1,123 @@
+# 云核心网故障智能运维系统 - 全局配置
+# CCN Fault Intelligent Operations System - Global Configuration
+
+project:
+  name: "CCN Fault Operations System"
+  version: "1.0.0"
+
+# ============================================================
+# LLM 配置 (LLM Provider Configuration)
+# ============================================================
+llm:
+  provider: "anthropic"  # openai | anthropic | custom
+  model: "MiniMax-M2.7-highspeed"
+  api_key: "sk-cp-AvLF0Ie8N_AH4lzHN_Gtj-twYEm0xoUCxWsE_6Q6qqOJt-vOp0FvKKJl3y0KPiJWsWlirHU4UfaTMugZD54UnJHRFdexJA-LFj9VCGyRTfGlgApCsL9O700"  # 从环境变量读取
+  base_url: "https://api.minimaxi.com/anthropic"  # 可覆盖用于代理
+  timeout: 120
+  max_retries: 3
+
+# Anthropic 作为备选
+  # provider: "anthropic"
+  # model: "claude-sonnet-4"
+  # api_key: "${ANTHROPIC_API_KEY}"
+
+# ============================================================
+# 故障感知 Agent 配置 (Perception Agent)
+# ============================================================
+perception_agent:
+  confidence_threshold_workflow: 0.75   # >= 此置信度用确定性工作流
+  confidence_threshold_llm: 0.40        # >= 此置信度用 LLM 探索
+  # < 0.40 置信度则输出"无法确定"
+  max_parallel_explorations: 3          # LLM 探索最大并发数
+  enable_self_optimization: true        # 是否启用自我优化
+
+  workflow:
+    max_hops: 5                        # 故障传播链最大跳数
+    kpi_anomaly_threshold: 0.15         # KPI 异常判定阈值
+
+  llm_explorer:
+    max_thinking_steps: 10             # 思维链最大步数
+    enable_multi_hypothesis: true       # 是否启用多假设并行探索
+
+# ============================================================
+# 故障数据生成 Agent 配置 (Data Generation Agent)
+# ============================================================
+data_gen_agent:
+  num_initial_cases: 20                # 初始生成案例数
+  num_hard_cases_per_iteration: 5      # 每轮迭代生成的难例数
+  self_verification_llm: true          # 是否用 LLM 做自我校验
+  hard_case_strategies:
+    - "multi_point_fault"
+    - "propagation_chain"
+    - "noise_injection"
+    - "boundary_condition"
+    - "ambiguous_fault"
+    - "rare_combination"
+
+# ============================================================
+# 评估 Agent 配置 (Evaluator Agent)
+# ============================================================
+evaluator_agent:
+  accuracy_weights:
+    root_cause_correct: 0.5
+    fault_location_correct: 0.25
+    fault_type_correct: 0.25
+
+  process_analysis:
+    enabled: true
+    log_level_threshold: "INFO"
+
+  optimization:
+    min_improvement_threshold: 0.05   # 准确率提升 > 5% 才采纳优化建议
+    max_suggestions_per_iteration: 3
+
+# ============================================================
+# 迭代配置 (Iteration Configuration)
+# ============================================================
+iteration:
+  max_iterations: 10                   # 最大迭代次数（0=无限）
+  convergence_threshold: 0.95           # 准确率达到此值认为收敛
+  target_accuracy: 0.90                # 目标准确率
+
+# ============================================================
+# 运行模式 (Runtime Mode)
+# ============================================================
+runtime:
+  mode: "development"                  # development | production
+  log_level: "INFO"                    # DEBUG | INFO | WARNING | ERROR
+
+  api_server:
+    host: "0.0.0.0"
+    port: 8000
+    reload: true
+
+  frontend:
+    static_dir: "./frontend/dist"      # 前端构建产物目录
+    serve_enabled: true
+
+# ============================================================
+# 数据路径配置 (Data Paths)
+# ============================================================
+paths:
+  case_library_dir: "./case_library"
+  iteration_state_dir: "./iteration_state"
+  data_dir: "./data"                   # 仿真器原始数据
+  simulator_dir: "./simulator"
+
+# ============================================================
+# 案例库配置 (Case Library)
+# ============================================================
+case_library:
+  storage_backend: "json"              # json | sqlite | postgres
+  json_storage_path: "./case_library/cases.json"
+  max_case_count: 10000
+  index_enabled: true
+
+# ============================================================
+# 仿真器配置 (Simulator Configuration)
+# ============================================================
+simulator:
+  default_network_scale: "medium"      # small | medium | large
+  kpi_sample_interval_ms: 1000
+  simulation_duration_s: 60
+  noise_level: 0.05

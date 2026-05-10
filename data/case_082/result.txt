@@ -1,0 +1,14 @@
+{
+  "fault_elements": [
+    "AMF_3",
+    "AUSF_1",
+    "NRF_3",
+    "SMF_1",
+    "SMF_3",
+    "SMF_4",
+    "gNB_2",
+    "gNB_5",
+    "gNB_7"
+  ],
+  "fault_links": []
+}

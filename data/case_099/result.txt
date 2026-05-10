@@ -1,0 +1,11 @@
+{
+  "fault_elements": [
+    "NSSF_1",
+    "NSSF_2",
+    "NSSF_3",
+    "NSSF_4",
+    "NSSF_5",
+    "NSSF_6"
+  ],
+  "fault_links": []
+}

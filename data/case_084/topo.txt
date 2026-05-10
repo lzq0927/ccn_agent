@@ -1,0 +1,50 @@
+DC: DC1
+  ResourcePool: RP_DC1_1
+    NRF: NRF_3
+    PCF: PCF_4
+    SMF: SMF_9
+    gNB: gNB_12, gNB_13
+  ResourcePool: RP_DC1_2
+    AMF: AMF_5
+    NSSF: NSSF_6
+    PCF: PCF_1
+    UPF: UPF_5, UPF_8, UPF_9, UPF_12
+    gNB: gNB_2, gNB_3, gNB_7, gNB_9, gNB_15
+  ResourcePool: RP_DC1_3
+    AUSF: AUSF_1(master)
+    NSSF: NSSF_5
+    UDM: UDM_2(standby)
+    UPF: UPF_1, UPF_2
+    gNB: gNB_10, gNB_16
+  ResourcePool: RP_DC1_4
+    AMF: AMF_3, AMF_4, AMF_7
+    NRF: NRF_4
+    NSSF: NSSF_1, NSSF_2, NSSF_3
+    SMF: SMF_1, SMF_5, SMF_7
+    gNB: gNB_1, gNB_11, gNB_14
+
+DC: DC2
+  ResourcePool: RP_DC2_1
+    AUSF: AUSF_2(standby)
+    NRF: NRF_2
+    PCF: PCF_3
+    SMF: SMF_3, SMF_4, SMF_8
+    UPF: UPF_4, UPF_10
+    gNB: gNB_17
+  ResourcePool: RP_DC2_2
+    AMF: AMF_6
+    NRF: NRF_1
+    UPF: UPF_7
+    gNB: gNB_6
+  ResourcePool: RP_DC2_3
+    AMF: AMF_1, AMF_2
+    NSSF: NSSF_4
+    PCF: PCF_2, PCF_6
+    UPF: UPF_3
+    gNB: gNB_4
+  ResourcePool: RP_DC2_4
+    PCF: PCF_5
+    SMF: SMF_2, SMF_6, SMF_10
+    UDM: UDM_1(master)
+    UPF: UPF_6, UPF_11
+    gNB: gNB_5, gNB_8

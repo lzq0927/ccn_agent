@@ -1,0 +1,7 @@
+{
+  "fault_elements": [],
+  "fault_links": [
+    "UE_42-session",
+    "UE_82-session"
+  ]
+}

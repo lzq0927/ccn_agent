@@ -1,0 +1,10 @@
+{
+  "fault_elements": [
+    "PCF_3",
+    "SMF_6",
+    "SMF_7",
+    "UDM_2",
+    "UPF_4"
+  ],
+  "fault_links": []
+}

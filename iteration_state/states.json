@@ -1,0 +1,19 @@
+[
+  {
+    "iteration": 1,
+    "total_iterations": 10,
+    "data_gen_status": "not_started",
+    "perception_status": "not_started",
+    "eval_status": "not_started",
+    "metrics": {},
+    "skill_updates": {},
+    "notes": [],
+    "summary": "",
+    "completed": false,
+    "completed_at": null,
+    "data_gen_updated_at": null,
+    "perception_updated_at": null,
+    "eval_updated_at": null,
+    "created_at": "2026-05-10T23:26:10.002573"
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "fault_elements": [
+    "AMF_3",
+    "AUSF_1",
+    "SMF_3",
+    "UPF_1"
+  ],
+  "fault_links": []
+}

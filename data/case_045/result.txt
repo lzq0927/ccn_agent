@@ -1,0 +1,23 @@
+{
+  "fault_elements": [],
+  "fault_links": [
+    "UE_35:AMF_10-gNB_12",
+    "UE_43:AMF_10-gNB_12",
+    "UE_5:AMF_10-gNB_12",
+    "UE_50:AMF_10-gNB_12",
+    "UE_57:AMF_10-gNB_12",
+    "UE_7:AMF_10-gNB_12",
+    "UE_35:SMF_18-UPF_16",
+    "UE_43:SMF_18-UPF_16",
+    "UE_5:SMF_18-UPF_16",
+    "UE_50:SMF_18-UPF_16",
+    "UE_57:SMF_18-UPF_16",
+    "UE_7:SMF_18-UPF_16",
+    "UE_35:SMF_13-UPF_5",
+    "UE_43:SMF_13-UPF_5",
+    "UE_5:SMF_13-UPF_5",
+    "UE_50:SMF_13-UPF_5",
+    "UE_57:SMF_13-UPF_5",
+    "UE_7:SMF_13-UPF_5"
+  ]
+}

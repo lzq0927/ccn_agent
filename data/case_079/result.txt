@@ -1,0 +1,17 @@
+{
+  "fault_elements": [
+    "UPF_1",
+    "UPF_10",
+    "UPF_11",
+    "UPF_12",
+    "UPF_2",
+    "UPF_3",
+    "UPF_4",
+    "UPF_5",
+    "UPF_6",
+    "UPF_7",
+    "UPF_8",
+    "UPF_9"
+  ],
+  "fault_links": []
+}

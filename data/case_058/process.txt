@@ -1,0 +1,82 @@
+Process: Handover
+Description: 切换
+
+Flow: UE -> gNB_src -> AMF -> SMF -> UPF -> SMF -> AMF -> gNB_tgt -> AMF -> gNB_src -> UE -> gNB_tgt
+
+Required NE types: gNB_src, gNB_tgt, AMF, SMF, UPF
+
+UE count: 72
+
+# Per-UE routing (simulation resolved):
+UE_1: UE_1->gNB_3 -> gNB_3->AMF_1 -> AMF_1->SMF_7 -> SMF_7->UPF_1 -> UPF_1->SMF_7 -> SMF_7->AMF_1 -> AMF_1->gNB_6 -> gNB_6->AMF_1 -> AMF_1->gNB_3 -> gNB_3->UE_1 -> UE_1->gNB_6
+UE_2: UE_2->gNB_8 -> gNB_8->AMF_3 -> AMF_3->SMF_8 -> SMF_8->UPF_3 -> UPF_3->SMF_8 -> SMF_8->AMF_3 -> AMF_3->gNB_9 -> gNB_9->AMF_3 -> AMF_3->gNB_8 -> gNB_8->UE_2 -> UE_2->gNB_9
+UE_3: UE_3->gNB_12 -> gNB_12->AMF_1 -> AMF_1->SMF_1 -> SMF_1->UPF_3 -> UPF_3->SMF_1 -> SMF_1->AMF_1 -> AMF_1->gNB_6 -> gNB_6->AMF_1 -> AMF_1->gNB_12 -> gNB_12->UE_3 -> UE_3->gNB_6
+UE_4: UE_4->gNB_9 -> gNB_9->AMF_3 -> AMF_3->SMF_8 -> SMF_8->UPF_5 -> UPF_5->SMF_8 -> SMF_8->AMF_3 -> AMF_3->gNB_8 -> gNB_8->AMF_3 -> AMF_3->gNB_9 -> gNB_9->UE_4 -> UE_4->gNB_8
+UE_5: UE_5->gNB_6 -> gNB_6->AMF_2 -> AMF_2->SMF_5 -> SMF_5->UPF_7 -> UPF_7->SMF_5 -> SMF_5->AMF_2 -> AMF_2->gNB_8 -> gNB_8->AMF_2 -> AMF_2->gNB_6 -> gNB_6->UE_5 -> UE_5->gNB_8
+UE_6: UE_6->gNB_3 -> gNB_3->AMF_4 -> AMF_4->SMF_7 -> SMF_7->UPF_2 -> UPF_2->SMF_7 -> SMF_7->AMF_4 -> AMF_4->gNB_1 -> gNB_1->AMF_4 -> AMF_4->gNB_3 -> gNB_3->UE_6 -> UE_6->gNB_1
+UE_7: UE_7->gNB_9 -> gNB_9->AMF_3 -> AMF_3->SMF_2 -> SMF_2->UPF_2 -> UPF_2->SMF_2 -> SMF_2->AMF_3 -> AMF_3->gNB_2 -> gNB_2->AMF_3 -> AMF_3->gNB_9 -> gNB_9->UE_7 -> UE_7->gNB_2
+UE_8: UE_8->gNB_6 -> gNB_6->AMF_1 -> AMF_1->SMF_4 -> SMF_4->UPF_3 -> UPF_3->SMF_4 -> SMF_4->AMF_1 -> AMF_1->gNB_5 -> gNB_5->AMF_1 -> AMF_1->gNB_6 -> gNB_6->UE_8 -> UE_8->gNB_5
+UE_9: UE_9->gNB_4 -> gNB_4->AMF_1 -> AMF_1->SMF_6 -> SMF_6->UPF_6 -> UPF_6->SMF_6 -> SMF_6->AMF_1 -> AMF_1->gNB_12 -> gNB_12->AMF_1 -> AMF_1->gNB_4 -> gNB_4->UE_9 -> UE_9->gNB_12
+UE_10: UE_10->gNB_1 -> gNB_1->AMF_2 -> AMF_2->SMF_4 -> SMF_4->UPF_3 -> UPF_3->SMF_4 -> SMF_4->AMF_2 -> AMF_2->gNB_2 -> gNB_2->AMF_2 -> AMF_2->gNB_1 -> gNB_1->UE_10 -> UE_10->gNB_2
+UE_11: UE_11->gNB_2 -> gNB_2->AMF_2 -> AMF_2->SMF_6 -> SMF_6->UPF_5 -> UPF_5->SMF_6 -> SMF_6->AMF_2 -> AMF_2->gNB_9 -> gNB_9->AMF_2 -> AMF_2->gNB_2 -> gNB_2->UE_11 -> UE_11->gNB_9
+UE_12: UE_12->gNB_10 -> gNB_10->AMF_3 -> AMF_3->SMF_6 -> SMF_6->UPF_2 -> UPF_2->SMF_6 -> SMF_6->AMF_3 -> AMF_3->gNB_8 -> gNB_8->AMF_3 -> AMF_3->gNB_10 -> gNB_10->UE_12 -> UE_12->gNB_8
+UE_13: UE_13->gNB_2 -> gNB_2->AMF_2 -> AMF_2->SMF_5 -> SMF_5->UPF_6 -> UPF_6->SMF_5 -> SMF_5->AMF_2 -> AMF_2->gNB_9 -> gNB_9->AMF_2 -> AMF_2->gNB_2 -> gNB_2->UE_13 -> UE_13->gNB_9
+UE_14: UE_14->gNB_2 -> gNB_2->AMF_3 -> AMF_3->SMF_7 -> SMF_7->UPF_4 -> UPF_4->SMF_7 -> SMF_7->AMF_3 -> AMF_3->gNB_4 -> gNB_4->AMF_3 -> AMF_3->gNB_2 -> gNB_2->UE_14 -> UE_14->gNB_4
+UE_15: UE_15->gNB_3 -> gNB_3->AMF_2 -> AMF_2->SMF_2 -> SMF_2->UPF_6 -> UPF_6->SMF_2 -> SMF_2->AMF_2 -> AMF_2->gNB_10 -> gNB_10->AMF_2 -> AMF_2->gNB_3 -> gNB_3->UE_15 -> UE_15->gNB_10
+UE_16: UE_16->gNB_4 -> gNB_4->AMF_3 -> AMF_3->SMF_1 -> SMF_1->UPF_3 -> UPF_3->SMF_1 -> SMF_1->AMF_3 -> AMF_3->gNB_12 -> gNB_12->AMF_3 -> AMF_3->gNB_4 -> gNB_4->UE_16 -> UE_16->gNB_12
+UE_17: UE_17->gNB_1 -> gNB_1->AMF_2 -> AMF_2->SMF_6 -> SMF_6->UPF_2 -> UPF_2->SMF_6 -> SMF_6->AMF_2 -> AMF_2->gNB_5 -> gNB_5->AMF_2 -> AMF_2->gNB_1 -> gNB_1->UE_17 -> UE_17->gNB_5
+UE_18: UE_18->gNB_8 -> gNB_8->AMF_4 -> AMF_4->SMF_2 -> SMF_2->UPF_7 -> UPF_7->SMF_2 -> SMF_2->AMF_4 -> AMF_4->gNB_2 -> gNB_2->AMF_4 -> AMF_4->gNB_8 -> gNB_8->UE_18 -> UE_18->gNB_2
+UE_19: UE_19->gNB_3 -> gNB_3->AMF_3 -> AMF_3->SMF_1 -> SMF_1->UPF_2 -> UPF_2->SMF_1 -> SMF_1->AMF_3 -> AMF_3->gNB_7 -> gNB_7->AMF_3 -> AMF_3->gNB_3 -> gNB_3->UE_19 -> UE_19->gNB_7
+UE_20: UE_20->gNB_5 -> gNB_5->AMF_2 -> AMF_2->SMF_6 -> SMF_6->UPF_7 -> UPF_7->SMF_6 -> SMF_6->AMF_2 -> AMF_2->gNB_6 -> gNB_6->AMF_2 -> AMF_2->gNB_5 -> gNB_5->UE_20 -> UE_20->gNB_6
+UE_21: UE_21->gNB_4 -> gNB_4->AMF_2 -> AMF_2->SMF_5 -> SMF_5->UPF_1 -> UPF_1->SMF_5 -> SMF_5->AMF_2 -> AMF_2->gNB_1 -> gNB_1->AMF_2 -> AMF_2->gNB_4 -> gNB_4->UE_21 -> UE_21->gNB_1
+UE_22: UE_22->gNB_4 -> gNB_4->AMF_2 -> AMF_2->SMF_4 -> SMF_4->UPF_2 -> UPF_2->SMF_4 -> SMF_4->AMF_2 -> AMF_2->gNB_10 -> gNB_10->AMF_2 -> AMF_2->gNB_4 -> gNB_4->UE_22 -> UE_22->gNB_10
+UE_23: UE_23->gNB_10 -> gNB_10->AMF_2 -> AMF_2->SMF_1 -> SMF_1->UPF_6 -> UPF_6->SMF_1 -> SMF_1->AMF_2 -> AMF_2->gNB_5 -> gNB_5->AMF_2 -> AMF_2->gNB_10 -> gNB_10->UE_23 -> UE_23->gNB_5
+UE_24: UE_24->gNB_7 -> gNB_7->AMF_3 -> AMF_3->SMF_1 -> SMF_1->UPF_6 -> UPF_6->SMF_1 -> SMF_1->AMF_3 -> AMF_3->gNB_4 -> gNB_4->AMF_3 -> AMF_3->gNB_7 -> gNB_7->UE_24 -> UE_24->gNB_4
+UE_25: UE_25->gNB_7 -> gNB_7->AMF_1 -> AMF_1->SMF_5 -> SMF_5->UPF_5 -> UPF_5->SMF_5 -> SMF_5->AMF_1 -> AMF_1->gNB_10 -> gNB_10->AMF_1 -> AMF_1->gNB_7 -> gNB_7->UE_25 -> UE_25->gNB_10
+UE_26: UE_26->gNB_5 -> gNB_5->AMF_1 -> AMF_1->SMF_6 -> SMF_6->UPF_4 -> UPF_4->SMF_6 -> SMF_6->AMF_1 -> AMF_1->gNB_12 -> gNB_12->AMF_1 -> AMF_1->gNB_5 -> gNB_5->UE_26 -> UE_26->gNB_12
+UE_27: UE_27->gNB_1 -> gNB_1->AMF_1 -> AMF_1->SMF_4 -> SMF_4->UPF_4 -> UPF_4->SMF_4 -> SMF_4->AMF_1 -> AMF_1->gNB_5 -> gNB_5->AMF_1 -> AMF_1->gNB_1 -> gNB_1->UE_27 -> UE_27->gNB_5
+UE_28: UE_28->gNB_5 -> gNB_5->AMF_3 -> AMF_3->SMF_6 -> SMF_6->UPF_4 -> UPF_4->SMF_6 -> SMF_6->AMF_3 -> AMF_3->gNB_1 -> gNB_1->AMF_3 -> AMF_3->gNB_5 -> gNB_5->UE_28 -> UE_28->gNB_1
+UE_29: UE_29->gNB_9 -> gNB_9->AMF_3 -> AMF_3->SMF_3 -> SMF_3->UPF_6 -> UPF_6->SMF_3 -> SMF_3->AMF_3 -> AMF_3->gNB_6 -> gNB_6->AMF_3 -> AMF_3->gNB_9 -> gNB_9->UE_29 -> UE_29->gNB_6
+UE_30: UE_30->gNB_11 -> gNB_11->AMF_3 -> AMF_3->SMF_7 -> SMF_7->UPF_2 -> UPF_2->SMF_7 -> SMF_7->AMF_3 -> AMF_3->gNB_2 -> gNB_2->AMF_3 -> AMF_3->gNB_11 -> gNB_11->UE_30 -> UE_30->gNB_2
+UE_31: UE_31->gNB_9 -> gNB_9->AMF_1 -> AMF_1->SMF_6 -> SMF_6->UPF_1 -> UPF_1->SMF_6 -> SMF_6->AMF_1 -> AMF_1->gNB_4 -> gNB_4->AMF_1 -> AMF_1->gNB_9 -> gNB_9->UE_31 -> UE_31->gNB_4
+UE_32: UE_32->gNB_2 -> gNB_2->AMF_3 -> AMF_3->SMF_7 -> SMF_7->UPF_1 -> UPF_1->SMF_7 -> SMF_7->AMF_3 -> AMF_3->gNB_10 -> gNB_10->AMF_3 -> AMF_3->gNB_2 -> gNB_2->UE_32 -> UE_32->gNB_10
+UE_33: UE_33->gNB_3 -> gNB_3->AMF_1 -> AMF_1->SMF_5 -> SMF_5->UPF_5 -> UPF_5->SMF_5 -> SMF_5->AMF_1 -> AMF_1->gNB_6 -> gNB_6->AMF_1 -> AMF_1->gNB_3 -> gNB_3->UE_33 -> UE_33->gNB_6
+UE_34: UE_34->gNB_3 -> gNB_3->AMF_3 -> AMF_3->SMF_7 -> SMF_7->UPF_1 -> UPF_1->SMF_7 -> SMF_7->AMF_3 -> AMF_3->gNB_6 -> gNB_6->AMF_3 -> AMF_3->gNB_3 -> gNB_3->UE_34 -> UE_34->gNB_6
+UE_35: UE_35->gNB_9 -> gNB_9->AMF_1 -> AMF_1->SMF_6 -> SMF_6->UPF_1 -> UPF_1->SMF_6 -> SMF_6->AMF_1 -> AMF_1->gNB_6 -> gNB_6->AMF_1 -> AMF_1->gNB_9 -> gNB_9->UE_35 -> UE_35->gNB_6
+UE_36: UE_36->gNB_6 -> gNB_6->AMF_3 -> AMF_3->SMF_5 -> SMF_5->UPF_3 -> UPF_3->SMF_5 -> SMF_5->AMF_3 -> AMF_3->gNB_8 -> gNB_8->AMF_3 -> AMF_3->gNB_6 -> gNB_6->UE_36 -> UE_36->gNB_8
+UE_37: UE_37->gNB_5 -> gNB_5->AMF_3 -> AMF_3->SMF_1 -> SMF_1->UPF_1 -> UPF_1->SMF_1 -> SMF_1->AMF_3 -> AMF_3->gNB_2 -> gNB_2->AMF_3 -> AMF_3->gNB_5 -> gNB_5->UE_37 -> UE_37->gNB_2
+UE_38: UE_38->gNB_11 -> gNB_11->AMF_4 -> AMF_4->SMF_5 -> SMF_5->UPF_3 -> UPF_3->SMF_5 -> SMF_5->AMF_4 -> AMF_4->gNB_10 -> gNB_10->AMF_4 -> AMF_4->gNB_11 -> gNB_11->UE_38 -> UE_38->gNB_10
+UE_39: UE_39->gNB_3 -> gNB_3->AMF_3 -> AMF_3->SMF_7 -> SMF_7->UPF_6 -> UPF_6->SMF_7 -> SMF_7->AMF_3 -> AMF_3->gNB_9 -> gNB_9->AMF_3 -> AMF_3->gNB_3 -> gNB_3->UE_39 -> UE_39->gNB_9
+UE_40: UE_40->gNB_2 -> gNB_2->AMF_2 -> AMF_2->SMF_4 -> SMF_4->UPF_5 -> UPF_5->SMF_4 -> SMF_4->AMF_2 -> AMF_2->gNB_8 -> gNB_8->AMF_2 -> AMF_2->gNB_2 -> gNB_2->UE_40 -> UE_40->gNB_8
+UE_41: UE_41->gNB_9 -> gNB_9->AMF_2 -> AMF_2->SMF_7 -> SMF_7->UPF_3 -> UPF_3->SMF_7 -> SMF_7->AMF_2 -> AMF_2->gNB_10 -> gNB_10->AMF_2 -> AMF_2->gNB_9 -> gNB_9->UE_41 -> UE_41->gNB_10
+UE_42: UE_42->gNB_11 -> gNB_11->AMF_4 -> AMF_4->SMF_5 -> SMF_5->UPF_3 -> UPF_3->SMF_5 -> SMF_5->AMF_4 -> AMF_4->gNB_8 -> gNB_8->AMF_4 -> AMF_4->gNB_11 -> gNB_11->UE_42 -> UE_42->gNB_8
+UE_43: UE_43->gNB_9 -> gNB_9->AMF_2 -> AMF_2->SMF_5 -> SMF_5->UPF_4 -> UPF_4->SMF_5 -> SMF_5->AMF_2 -> AMF_2->gNB_2 -> gNB_2->AMF_2 -> AMF_2->gNB_9 -> gNB_9->UE_43 -> UE_43->gNB_2
+UE_44: UE_44->gNB_7 -> gNB_7->AMF_3 -> AMF_3->SMF_8 -> SMF_8->UPF_2 -> UPF_2->SMF_8 -> SMF_8->AMF_3 -> AMF_3->gNB_1 -> gNB_1->AMF_3 -> AMF_3->gNB_7 -> gNB_7->UE_44 -> UE_44->gNB_1
+UE_45: UE_45->gNB_2 -> gNB_2->AMF_4 -> AMF_4->SMF_8 -> SMF_8->UPF_7 -> UPF_7->SMF_8 -> SMF_8->AMF_4 -> AMF_4->gNB_4 -> gNB_4->AMF_4 -> AMF_4->gNB_2 -> gNB_2->UE_45 -> UE_45->gNB_4
+UE_46: UE_46->gNB_3 -> gNB_3->AMF_1 -> AMF_1->SMF_6 -> SMF_6->UPF_6 -> UPF_6->SMF_6 -> SMF_6->AMF_1 -> AMF_1->gNB_4 -> gNB_4->AMF_1 -> AMF_1->gNB_3 -> gNB_3->UE_46 -> UE_46->gNB_4
+UE_47: UE_47->gNB_7 -> gNB_7->AMF_1 -> AMF_1->SMF_7 -> SMF_7->UPF_3 -> UPF_3->SMF_7 -> SMF_7->AMF_1 -> AMF_1->gNB_1 -> gNB_1->AMF_1 -> AMF_1->gNB_7 -> gNB_7->UE_47 -> UE_47->gNB_1
+UE_48: UE_48->gNB_3 -> gNB_3->AMF_4 -> AMF_4->SMF_4 -> SMF_4->UPF_5 -> UPF_5->SMF_4 -> SMF_4->AMF_4 -> AMF_4->gNB_1 -> gNB_1->AMF_4 -> AMF_4->gNB_3 -> gNB_3->UE_48 -> UE_48->gNB_1
+UE_49: UE_49->gNB_8 -> gNB_8->AMF_3 -> AMF_3->SMF_6 -> SMF_6->UPF_7 -> UPF_7->SMF_6 -> SMF_6->AMF_3 -> AMF_3->gNB_12 -> gNB_12->AMF_3 -> AMF_3->gNB_8 -> gNB_8->UE_49 -> UE_49->gNB_12
+UE_50: UE_50->gNB_4 -> gNB_4->AMF_1 -> AMF_1->SMF_1 -> SMF_1->UPF_1 -> UPF_1->SMF_1 -> SMF_1->AMF_1 -> AMF_1->gNB_2 -> gNB_2->AMF_1 -> AMF_1->gNB_4 -> gNB_4->UE_50 -> UE_50->gNB_2
+UE_51: UE_51->gNB_1 -> gNB_1->AMF_2 -> AMF_2->SMF_8 -> SMF_8->UPF_5 -> UPF_5->SMF_8 -> SMF_8->AMF_2 -> AMF_2->gNB_5 -> gNB_5->AMF_2 -> AMF_2->gNB_1 -> gNB_1->UE_51 -> UE_51->gNB_5
+UE_52: UE_52->gNB_7 -> gNB_7->AMF_3 -> AMF_3->SMF_1 -> SMF_1->UPF_3 -> UPF_3->SMF_1 -> SMF_1->AMF_3 -> AMF_3->gNB_10 -> gNB_10->AMF_3 -> AMF_3->gNB_7 -> gNB_7->UE_52 -> UE_52->gNB_10
+UE_53: UE_53->gNB_4 -> gNB_4->AMF_4 -> AMF_4->SMF_2 -> SMF_2->UPF_7 -> UPF_7->SMF_2 -> SMF_2->AMF_4 -> AMF_4->gNB_3 -> gNB_3->AMF_4 -> AMF_4->gNB_4 -> gNB_4->UE_53 -> UE_53->gNB_3
+UE_54: UE_54->gNB_11 -> gNB_11->AMF_1 -> AMF_1->SMF_6 -> SMF_6->UPF_1 -> UPF_1->SMF_6 -> SMF_6->AMF_1 -> AMF_1->gNB_4 -> gNB_4->AMF_1 -> AMF_1->gNB_11 -> gNB_11->UE_54 -> UE_54->gNB_4
+UE_55: UE_55->gNB_1 -> gNB_1->AMF_1 -> AMF_1->SMF_6 -> SMF_6->UPF_5 -> UPF_5->SMF_6 -> SMF_6->AMF_1 -> AMF_1->gNB_2 -> gNB_2->AMF_1 -> AMF_1->gNB_1 -> gNB_1->UE_55 -> UE_55->gNB_2
+UE_56: UE_56->gNB_3 -> gNB_3->AMF_3 -> AMF_3->SMF_7 -> SMF_7->UPF_4 -> UPF_4->SMF_7 -> SMF_7->AMF_3 -> AMF_3->gNB_8 -> gNB_8->AMF_3 -> AMF_3->gNB_3 -> gNB_3->UE_56 -> UE_56->gNB_8
+UE_57: UE_57->gNB_1 -> gNB_1->AMF_3 -> AMF_3->SMF_7 -> SMF_7->UPF_6 -> UPF_6->SMF_7 -> SMF_7->AMF_3 -> AMF_3->gNB_3 -> gNB_3->AMF_3 -> AMF_3->gNB_1 -> gNB_1->UE_57 -> UE_57->gNB_3
+UE_58: UE_58->gNB_7 -> gNB_7->AMF_4 -> AMF_4->SMF_5 -> SMF_5->UPF_6 -> UPF_6->SMF_5 -> SMF_5->AMF_4 -> AMF_4->gNB_8 -> gNB_8->AMF_4 -> AMF_4->gNB_7 -> gNB_7->UE_58 -> UE_58->gNB_8
+UE_59: UE_59->gNB_10 -> gNB_10->AMF_3 -> AMF_3->SMF_6 -> SMF_6->UPF_5 -> UPF_5->SMF_6 -> SMF_6->AMF_3 -> AMF_3->gNB_11 -> gNB_11->AMF_3 -> AMF_3->gNB_10 -> gNB_10->UE_59 -> UE_59->gNB_11
+UE_60: UE_60->gNB_11 -> gNB_11->AMF_4 -> AMF_4->SMF_3 -> SMF_3->UPF_5 -> UPF_5->SMF_3 -> SMF_3->AMF_4 -> AMF_4->gNB_1 -> gNB_1->AMF_4 -> AMF_4->gNB_11 -> gNB_11->UE_60 -> UE_60->gNB_1
+UE_61: UE_61->gNB_7 -> gNB_7->AMF_4 -> AMF_4->SMF_3 -> SMF_3->UPF_2 -> UPF_2->SMF_3 -> SMF_3->AMF_4 -> AMF_4->gNB_8 -> gNB_8->AMF_4 -> AMF_4->gNB_7 -> gNB_7->UE_61 -> UE_61->gNB_8
+UE_62: UE_62->gNB_8 -> gNB_8->AMF_2 -> AMF_2->SMF_8 -> SMF_8->UPF_7 -> UPF_7->SMF_8 -> SMF_8->AMF_2 -> AMF_2->gNB_3 -> gNB_3->AMF_2 -> AMF_2->gNB_8 -> gNB_8->UE_62 -> UE_62->gNB_3
+UE_63: UE_63->gNB_9 -> gNB_9->AMF_3 -> AMF_3->SMF_8 -> SMF_8->UPF_1 -> UPF_1->SMF_8 -> SMF_8->AMF_3 -> AMF_3->gNB_5 -> gNB_5->AMF_3 -> AMF_3->gNB_9 -> gNB_9->UE_63 -> UE_63->gNB_5
+UE_64: UE_64->gNB_2 -> gNB_2->AMF_4 -> AMF_4->SMF_8 -> SMF_8->UPF_6 -> UPF_6->SMF_8 -> SMF_8->AMF_4 -> AMF_4->gNB_3 -> gNB_3->AMF_4 -> AMF_4->gNB_2 -> gNB_2->UE_64 -> UE_64->gNB_3
+UE_65: UE_65->gNB_7 -> gNB_7->AMF_1 -> AMF_1->SMF_6 -> SMF_6->UPF_7 -> UPF_7->SMF_6 -> SMF_6->AMF_1 -> AMF_1->gNB_12 -> gNB_12->AMF_1 -> AMF_1->gNB_7 -> gNB_7->UE_65 -> UE_65->gNB_12
+UE_66: UE_66->gNB_5 -> gNB_5->AMF_1 -> AMF_1->SMF_1 -> SMF_1->UPF_7 -> UPF_7->SMF_1 -> SMF_1->AMF_1 -> AMF_1->gNB_10 -> gNB_10->AMF_1 -> AMF_1->gNB_5 -> gNB_5->UE_66 -> UE_66->gNB_10
+UE_67: UE_67->gNB_9 -> gNB_9->AMF_4 -> AMF_4->SMF_7 -> SMF_7->UPF_1 -> UPF_1->SMF_7 -> SMF_7->AMF_4 -> AMF_4->gNB_8 -> gNB_8->AMF_4 -> AMF_4->gNB_9 -> gNB_9->UE_67 -> UE_67->gNB_8
+UE_68: UE_68->gNB_9 -> gNB_9->AMF_4 -> AMF_4->SMF_8 -> SMF_8->UPF_4 -> UPF_4->SMF_8 -> SMF_8->AMF_4 -> AMF_4->gNB_3 -> gNB_3->AMF_4 -> AMF_4->gNB_9 -> gNB_9->UE_68 -> UE_68->gNB_3
+UE_69: UE_69->gNB_2 -> gNB_2->AMF_4 -> AMF_4->SMF_6 -> SMF_6->UPF_7 -> UPF_7->SMF_6 -> SMF_6->AMF_4 -> AMF_4->gNB_3 -> gNB_3->AMF_4 -> AMF_4->gNB_2 -> gNB_2->UE_69 -> UE_69->gNB_3
+UE_70: UE_70->gNB_6 -> gNB_6->AMF_4 -> AMF_4->SMF_5 -> SMF_5->UPF_7 -> UPF_7->SMF_5 -> SMF_5->AMF_4 -> AMF_4->gNB_11 -> gNB_11->AMF_4 -> AMF_4->gNB_6 -> gNB_6->UE_70 -> UE_70->gNB_11
+UE_71: UE_71->gNB_2 -> gNB_2->AMF_3 -> AMF_3->SMF_7 -> SMF_7->UPF_1 -> UPF_1->SMF_7 -> SMF_7->AMF_3 -> AMF_3->gNB_10 -> gNB_10->AMF_3 -> AMF_3->gNB_2 -> gNB_2->UE_71 -> UE_71->gNB_10
+UE_72: UE_72->gNB_3 -> gNB_3->AMF_2 -> AMF_2->SMF_7 -> SMF_7->UPF_7 -> UPF_7->SMF_7 -> SMF_7->AMF_2 -> AMF_2->gNB_12 -> gNB_12->AMF_2 -> AMF_2->gNB_3 -> gNB_3->UE_72 -> UE_72->gNB_12

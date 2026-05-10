@@ -1,0 +1,29 @@
+{
+  "fault_elements": [],
+  "fault_links": [
+    "UE_13:AMF_3-gNB_3",
+    "UE_14:AMF_3-gNB_3",
+    "UE_20:AMF_3-gNB_3",
+    "UE_21:AMF_3-gNB_3",
+    "UE_35:AMF_3-gNB_3",
+    "UE_38:AMF_3-gNB_3",
+    "UE_5:AMF_3-gNB_3",
+    "UE_74:AMF_3-gNB_3",
+    "UE_13:AMF_1-gNB_3",
+    "UE_14:AMF_1-gNB_3",
+    "UE_20:AMF_1-gNB_3",
+    "UE_21:AMF_1-gNB_3",
+    "UE_35:AMF_1-gNB_3",
+    "UE_38:AMF_1-gNB_3",
+    "UE_5:AMF_1-gNB_3",
+    "UE_74:AMF_1-gNB_3",
+    "UE_13:AMF_2-gNB_2",
+    "UE_14:AMF_2-gNB_2",
+    "UE_20:AMF_2-gNB_2",
+    "UE_21:AMF_2-gNB_2",
+    "UE_35:AMF_2-gNB_2",
+    "UE_38:AMF_2-gNB_2",
+    "UE_5:AMF_2-gNB_2",
+    "UE_74:AMF_2-gNB_2"
+  ]
+}

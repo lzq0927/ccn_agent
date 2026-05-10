@@ -1,0 +1,8 @@
+{
+  "fault_elements": [
+    "NRF_4",
+    "PCF_2",
+    "SMF_9"
+  ],
+  "fault_links": []
+}

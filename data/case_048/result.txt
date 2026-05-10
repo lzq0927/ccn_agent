@@ -1,0 +1,23 @@
+{
+  "fault_elements": [
+    "NSSF_1",
+    "NSSF_2",
+    "NSSF_3",
+    "PCF_1",
+    "PCF_2",
+    "PCF_3",
+    "gNB_1",
+    "gNB_10",
+    "gNB_11",
+    "gNB_12",
+    "gNB_2",
+    "gNB_3",
+    "gNB_4",
+    "gNB_5",
+    "gNB_6",
+    "gNB_7",
+    "gNB_8",
+    "gNB_9"
+  ],
+  "fault_links": []
+}

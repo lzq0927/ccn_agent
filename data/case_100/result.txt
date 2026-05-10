@@ -1,0 +1,7 @@
+{
+  "fault_elements": [
+    "PCF_2",
+    "SMF_13"
+  ],
+  "fault_links": []
+}

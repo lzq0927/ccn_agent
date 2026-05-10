@@ -1,0 +1,13 @@
+{
+  "fault_elements": [],
+  "fault_links": [
+    "UE_15:AMF_2-gNB_1",
+    "UE_16:AMF_2-gNB_1",
+    "UE_20:AMF_2-gNB_1",
+    "UE_22:AMF_2-gNB_1",
+    "UE_31:AMF_2-gNB_1",
+    "UE_43:AMF_2-gNB_1",
+    "UE_47:AMF_2-gNB_1",
+    "UE_6:AMF_2-gNB_1"
+  ]
+}

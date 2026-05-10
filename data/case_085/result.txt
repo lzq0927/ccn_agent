@@ -1,0 +1,6 @@
+{
+  "fault_elements": [
+    "gNB_16"
+  ],
+  "fault_links": []
+}

@@ -1,0 +1,6 @@
+{
+  "fault_elements": [
+    "NRF_1"
+  ],
+  "fault_links": []
+}

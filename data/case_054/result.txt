@@ -1,0 +1,23 @@
+{
+  "fault_elements": [
+    "PCF_1",
+    "PCF_2",
+    "PCF_3",
+    "PCF_4",
+    "PCF_5",
+    "PCF_6",
+    "SMF_1",
+    "SMF_10",
+    "SMF_2",
+    "SMF_3",
+    "SMF_4",
+    "SMF_5",
+    "SMF_6",
+    "SMF_7",
+    "SMF_8",
+    "SMF_9",
+    "UDM_1",
+    "UDM_2"
+  ],
+  "fault_links": []
+}
