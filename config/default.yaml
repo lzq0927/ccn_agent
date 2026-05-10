@@ -1,0 +1,38 @@
+system:
+  name: "ccn-agent"
+  version: "0.1.0"
+  storage_path: "./storage"
+  data_path: "./data"
+
+llm:
+  provider: "openai"
+  model: "gpt-4o"
+  base_url: "https://api.openai.com/v1"
+  api_key_env: "OPENAI_API_KEY"
+  max_tokens: 4096
+  temperature: 0.1
+  timeout: 120
+
+agents:
+  data_generation:
+    max_validation_retries: 3
+    default_case_count: 100
+    validation_model: "gpt-4o-mini"
+    hard_case_ratio: 0.2
+
+  fault_perception:
+    max_iterations: 30
+    guided_max_iterations: 15
+    confidence_threshold_high: 0.7
+    confidence_threshold_low: 0.3
+    skill_dir: "./skills"
+    memory_dir: "./memory"
+
+  evaluation:
+    accuracy_threshold: 0.8
+    library_path: "./storage/case_library"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["http://localhost:3000", "http://localhost:5173"]

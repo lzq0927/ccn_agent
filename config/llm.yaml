@@ -1,0 +1,30 @@
+# LLM provider configurations
+# Copy to llm.local.yaml and fill in your API keys
+
+providers:
+  openai:
+    base_url: "https://api.openai.com/v1"
+    api_key_env: "OPENAI_API_KEY"
+    models:
+      - name: "gpt-4o"
+        max_tokens: 4096
+        context_window: 128000
+      - name: "gpt-4o-mini"
+        max_tokens: 4096
+        context_window: 128000
+
+  openrouter:
+    base_url: "https://openrouter.ai/api/v1"
+    api_key_env: "OPENROUTER_API_KEY"
+    models:
+      - name: "anthropic/claude-sonnet-4-20250514"
+        max_tokens: 4096
+        context_window: 200000
+
+  local:
+    base_url: "http://localhost:11434/v1"
+    api_key: "dummy"
+    models:
+      - name: "qwen2.5:72b"
+        max_tokens: 4096
+        context_window: 32768
