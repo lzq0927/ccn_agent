@@ -10,7 +10,7 @@
 |---|---|
 | `models.py` | 数据模型定义（NEType, FaultConfig, KPIRecord, Scenario等） |
 | `topology.py` | 5种拓扑生成（1DC~2DC, 2~10资源池, 21~93个网元） |
-| `process.py` | 5种业务流程定义及UE路由选择 |
+| `process.py` | 5种业务流程定义（含3GPP协议消息）及UE路由选择 |
 | `scenario.py` | 故障场景生成（10种故障类型 + 正常用例） |
 | `engine.py` | 离散事件仿真引擎（60秒仿真，每秒计算link/trace/session三级KPI） |
 | `exporter.py` | 数据导出为 data.csv, topo.txt, process.txt, result.txt |
@@ -20,7 +20,7 @@
 
 ```bash
 cd ccn_agent
-python simulator/main.py
+python -m simulator.main
 ```
 
 ---
@@ -35,13 +35,15 @@ python simulator/main.py
 
 ### 业务流程
 
-| 流程 | 涉及网元类型 | 跳数 |
-|---|---|---|
-| PDU会话建立 | gNB, AMF, SMF, UDM, PCF, UPF | 12 |
-| 注册 | gNB, AMF, AUSF, UDM | 10 |
-| 切换 | gNB_src, gNB_tgt, AMF, SMF, UPF | 11 |
-| PDU会话释放 | gNB, AMF, SMF, UPF, PCF | 10 |
-| 服务请求 | gNB, AMF, SMF, UPF | 8 |
+基于3GPP TS 23.502协议定义：
+
+| 流程 | 协议章节 | 涉及网元类型 | 跳数 |
+|---|---|---|---|
+| PDU会话建立 | 4.3.2 | gNB, AMF, SMF, UDM, PCF, UPF | 12 |
+| 注册 | 4.2.2 | gNB, AMF, AUSF, UDM | 10 |
+| 切换 | 4.9.1 | gNB_src, gNB_tgt, AMF, SMF, UPF | 11 |
+| PDU会话释放 | 4.3.4 | gNB, AMF, SMF, UPF, PCF | 10 |
+| 服务请求 | 4.2.3 | gNB, AMF, SMF, UPF | 8 |
 
 每个UE按负载均衡随机选择每类网元的一个实例，组成端到端路径。
 
@@ -79,24 +81,23 @@ python simulator/main.py
 | 总用例数 | 100 |
 | 正常用例 | 10 |
 | 故障用例 | 90（NE故障54 + 链路故障36） |
-| 训练集 | 37 (约40%) |
-| 测试集 | 63 (约60%) |
-| 总数据量 | 193 MB, 560万+ CSV行 |
-| 仿真耗时 | ~14秒 |
+| 训练集 | 40 (40%) |
+| 测试集 | 60 (60%) |
+| 仿真耗时 | ~15秒 |
 
 ### 目录结构
 
 ```
 data/
 ├── split_info.json          # 训练/测试集划分
-├── case_001/
+├── case1/
 │   ├── data.csv             # KPI时序数据 (timestamp,level,ue_id,src,dst,success_rate)
 │   ├── topo.txt             # 拓扑层级 (DC → 资源池 → 网元)
-│   ├── process.txt          # 业务流程模板 + UE路由结果
+│   ├── process.txt          # 业务流程（3GPP协议消息，仅网元类型）
 │   └── result.txt           # 预期故障结果 (fault_elements / fault_links)
-├── case_002/
+├── case2/
 │   └── ...
-└── case_100/
+└── case100/
     └── ...
 ```
 
@@ -119,13 +120,18 @@ DC: DC1
     ...
 ```
 
-**process.txt**: 业务流程定义（网元类型模板）+ 仿真解析的UE路由
+**process.txt**: 业务流程（3GPP协议消息，仅网元类型，不含具体实例）
 ```
 Process: PDU_Session_Establishment
-Flow: UE -> gNB -> AMF -> SMF -> UDM -> SMF -> PCF -> SMF -> UPF -> SMF -> AMF -> gNB -> UE
-UE count: 61
-# Per-UE routing (simulation resolved):
-UE_1: UE_1->gNB_2 -> gNB_2->AMF_3 -> ...
+Description: PDU会话建立 (TS 23.502 4.3.2)
+
+Message Flow:
+  1. UE -> gNB: UL NAS Transport (PDU Session Establishment Request)
+  2. gNB -> AMF: N2 Message (UL NAS Transport)
+  3. AMF -> SMF: Nsmf_PDUSession_CreateSMContext Request
+  ...
+Required NE types: gNB, AMF, SMF, UDM, PCF, UPF
+UE count: 81
 ```
 
 **result.txt**: 预期故障标签（两字段互斥）

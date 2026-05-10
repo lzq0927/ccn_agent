@@ -1,51 +1,113 @@
 import random
 from .models import NEType, BusinessFlow
 
-# 5 business process definitions
+# 5 business process definitions (based on 3GPP TS 23.502)
 # Each hop is (src_type, dst_type); "UE" is the user equipment endpoint
+# messages: 3GPP protocol messages for each hop
 PROCESS_DEFINITIONS = {
     "PDU_Session_Establishment": {
-        "description": "PDU会话建立",
+        "description": "PDU会话建立 (TS 23.502 4.3.2)",
         "hops": [
             ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UDM"),
             ("UDM", "SMF"), ("SMF", "PCF"), ("PCF", "SMF"), ("SMF", "UPF"),
             ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB"), ("gNB", "UE"),
         ],
+        "messages": [
+            "UL NAS Transport (PDU Session Establishment Request)",
+            "N2 Message (UL NAS Transport)",
+            "Nsmf_PDUSession_CreateSMContext Request",
+            "Nudm_SDM_Get (Subscription Data)",
+            "Nudm_SDM_Get Response",
+            "Npcf_SMPolicyControl Create",
+            "Npcf_SMPolicyControl Create Response",
+            "N4 Session Establishment Request",
+            "N4 Session Establishment Response",
+            "Namf_Communication_N1N2MessageTransfer",
+            "N2 PDU Session Resource Setup Request",
+            "RRC Reconfiguration (PDU Session Establishment Accept)",
+        ],
         "required_types": ["gNB", "AMF", "SMF", "UDM", "PCF", "UPF"],
     },
     "Registration": {
-        "description": "注册",
+        "description": "注册 (TS 23.502 4.2.2)",
         "hops": [
             ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "AUSF"), ("AUSF", "UDM"),
             ("UDM", "AUSF"), ("AUSF", "AMF"), ("AMF", "UDM"), ("UDM", "AMF"),
             ("AMF", "gNB"), ("gNB", "UE"),
         ],
+        "messages": [
+            "RRC Connection Request (Registration Request)",
+            "N2 Initial UE Message (Registration Request)",
+            "Nausf_UEAuthentication Authenticate Request",
+            "Nudm_UEAuthentication Get Request",
+            "Nudm_UEAuthentication Get Response",
+            "Nausf_UEAuthentication Authenticate Response",
+            "Nudm_UECM_Registration",
+            "Nudm_UECM_Registration Response",
+            "N2 Downlink NAS Transport (Registration Accept)",
+            "RRC Connection Release (Registration Accept)",
+        ],
         "required_types": ["gNB", "AMF", "AUSF", "UDM"],
     },
     "Handover": {
-        "description": "切换",
+        "description": "切换 (TS 23.502 4.9.1 Xn-based)",
         "hops": [
             ("UE", "gNB_src"), ("gNB_src", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
             ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB_tgt"),
             ("gNB_tgt", "AMF"), ("AMF", "gNB_src"), ("gNB_src", "UE"),
             ("UE", "gNB_tgt"),
         ],
+        "messages": [
+            "Measurement Report",
+            "N2 Path Switch Request",
+            "Nsmf_PDUSession_UpdateSMContext Request",
+            "N4 Session Modification Request",
+            "N4 Session Modification Response",
+            "Nsmf_PDUSession_UpdateSMContext Response",
+            "N2 Path Switch Request Acknowledge",
+            "N2 Notification",
+            "N2 Notification Response",
+            "RRC Reconfiguration",
+            "Random Access",
+        ],
         "required_types": ["gNB_src", "gNB_tgt", "AMF", "SMF", "UPF"],
     },
     "PDU_Session_Release": {
-        "description": "PDU会话释放",
+        "description": "PDU会话释放 (TS 23.502 4.3.4)",
         "hops": [
             ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
             ("UPF", "SMF"), ("SMF", "PCF"), ("PCF", "SMF"), ("SMF", "AMF"),
             ("AMF", "gNB"), ("gNB", "UE"),
         ],
+        "messages": [
+            "UL NAS Transport (PDU Session Release Request)",
+            "N2 UL NAS Transport",
+            "Nsmf_PDUSession_UpdateSMContext Request",
+            "N4 Session Release Request",
+            "N4 Session Release Response",
+            "Npcf_SMPolicyControl Delete",
+            "Npcf_SMPolicyControl Delete Response",
+            "Namf_Communication_N1N2MessageTransfer",
+            "N2 PDU Session Resource Release Command",
+            "DL NAS Transport (PDU Session Release Command)",
+        ],
         "required_types": ["gNB", "AMF", "SMF", "UPF", "PCF"],
     },
     "Service_Request": {
-        "description": "服务请求",
+        "description": "服务请求 (TS 23.502 4.2.3)",
         "hops": [
             ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
             ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB"), ("gNB", "UE"),
+        ],
+        "messages": [
+            "RRC Connection Request (Service Request)",
+            "N2 Initial UE Message (Service Request)",
+            "Nsmf_PDUSession_UpdateSMContext Request",
+            "N4 Session Modification Request",
+            "N4 Session Modification Response",
+            "Nsmf_PDUSession_UpdateSMContext Response",
+            "N2 Initial Context Setup Request",
+            "RRC Connection Reconfiguration",
         ],
         "required_types": ["gNB", "AMF", "SMF", "UPF"],
     },

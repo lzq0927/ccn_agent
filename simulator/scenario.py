@@ -44,12 +44,15 @@ class ScenarioGenerator:
         normal_count = num_cases - len(fault_types)
         assert normal_count == 10
 
-        # Assign train/test split (4:6)
+        # Assign train/test split (exact 40:60)
+        train_count = int(num_cases * 0.4)  # 40
+        is_train_flags = [True] * train_count + [False] * (num_cases - train_count)
+        random.shuffle(is_train_flags)
+
         assignments = []
         for i in range(num_cases):
             is_normal = i < normal_count
-            is_train = random.random() < 0.4
-            assignments.append((is_normal, is_train))
+            assignments.append((is_normal, is_train_flags[i]))
 
         # Shuffle to mix normal and fault cases
         # But keep normal_count normal cases at specific indices

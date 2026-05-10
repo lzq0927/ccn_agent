@@ -8,7 +8,7 @@ class DataExporter:
         self.base_dir = base_dir
 
     def export(self, scenario, result):
-        case_dir = os.path.join(self.base_dir, f"case_{scenario.case_id:03d}")
+        case_dir = os.path.join(self.base_dir, f"case{scenario.case_id}")
         os.makedirs(case_dir, exist_ok=True)
 
         self._write_data_csv(case_dir, result)
@@ -58,7 +58,7 @@ class DataExporter:
             f.write("\n".join(lines))
 
     def _write_process_txt(self, case_dir, result):
-        """Write business process template with NE types (not instance IDs)."""
+        """Write business process with 3GPP protocol messages (NE types only, no instance IDs)."""
         from .process import PROCESS_DEFINITIONS
 
         path = os.path.join(case_dir, "process.txt")
@@ -71,12 +71,12 @@ class DataExporter:
             lines.append(f"Description: {proc_def['description']}")
             lines.append("")
 
-            # Flow template: NE types only
-            type_seq = []
-            for src_type, dst_type in proc_def["hops"]:
-                type_seq.append(src_type)
-            type_seq.append(proc_def["hops"][-1][1])
-            lines.append(f"Flow: {' -> '.join(type_seq)}")
+            # Message flow: src_type -> dst_type : message
+            lines.append("Message Flow:")
+            for i, ((src_type, dst_type), msg) in enumerate(
+                zip(proc_def["hops"], proc_def["messages"]), 1
+            ):
+                lines.append(f"  {i}. {src_type} -> {dst_type}: {msg}")
             lines.append("")
 
             # Required NE types
@@ -85,15 +85,6 @@ class DataExporter:
 
             # UE count
             lines.append(f"UE count: {len(result.flows)}")
-            lines.append("")
-
-            # Per-UE routing (actual instance selection, derived from simulation)
-            lines.append("# Per-UE routing (simulation resolved):")
-            for flow in result.flows:
-                hop_strs = []
-                for s, d in flow.hops:
-                    hop_strs.append(f"{s}->{d}")
-                lines.append(f"{flow.ue_id}: {' -> '.join(hop_strs)}")
 
         with open(path, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
