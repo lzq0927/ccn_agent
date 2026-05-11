@@ -1,23 +1,4 @@
 {
-  "fault_elements": [
-    "SMF_1",
-    "SMF_10",
-    "SMF_11",
-    "SMF_12",
-    "SMF_13",
-    "SMF_14",
-    "SMF_15",
-    "SMF_16",
-    "SMF_17",
-    "SMF_18",
-    "SMF_2",
-    "SMF_3",
-    "SMF_4",
-    "SMF_5",
-    "SMF_6",
-    "SMF_7",
-    "SMF_8",
-    "SMF_9"
-  ],
+  "fault_elements": [],
   "fault_links": []
 }

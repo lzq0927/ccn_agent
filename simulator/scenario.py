@@ -4,6 +4,7 @@ from .models import (
     NEType, Scenario, MASTER_STANDBY_TYPES
 )
 from .topology import TopologyGenerator
+from .process import PROCESS_DEFINITIONS
 
 
 # Distribution of fault point types across 90 fault cases (10 normal)
@@ -70,7 +71,7 @@ class ScenarioGenerator:
                 fault_type = fault_types[fault_idx]
                 fault_mode = random.choice([FaultMode.LINK, FaultMode.BUSINESS])
                 fault_config = self._build_fault_config(
-                    fault_type, fault_mode, topology
+                    fault_type, fault_mode, topology, process_name
                 )
                 fault_idx += 1
 
@@ -88,10 +89,12 @@ class ScenarioGenerator:
         scenarios.sort(key=lambda s: s.case_id)
         return scenarios
 
-    def _build_fault_config(self, fault_type, fault_mode, topology):
-        loss_rate = round(random.uniform(0.03, 0.08), 4)
-        fault_start = random.randint(20, 35)
-        fault_duration = random.randint(5, 20)
+    def _build_fault_config(self, fault_type, fault_mode, topology, process_name):
+        # Increased loss_rate for better detection: 0.10-0.25 (was 0.03-0.08)
+        # This ensures deviation >= 0.05 even after dilution
+        loss_rate = round(random.uniform(0.10, 0.25), 4)
+        fault_start = random.randint(15, 25)  # Earlier start for more fault period
+        fault_duration = random.randint(25, 35)  # Longer duration to reduce dilution
 
         fc = FaultConfig(
             fault_point_type=fault_type,
@@ -101,14 +104,36 @@ class ScenarioGenerator:
             fault_duration=fault_duration,
         )
 
+        # Get NE types that participate in this process
+        process_def = PROCESS_DEFINITIONS.get(process_name, {})
+        required_types = process_def.get('required_types', [])
+        
+        # Filter to only NE types (not UE, not gNB_src/gNB_tgt)
+        valid_ne_types = [t for t in required_types if t not in ['UE', 'gNB_src', 'gNB_tgt']]
+        
+        # For PATH_LINK/PATH_TRACE/PATH_SESSION, use all available NEs
+        if fault_type in [FaultPointType.PATH_LINK, FaultPointType.PATH_TRACE, FaultPointType.PATH_SESSION]:
+            pass  # These will resolve links from actual flows
+        elif fault_type in [FaultPointType.ALL_TYPE_NE, FaultPointType.MULTI_TYPE_NE]:
+            # Only use types that participate in the process
+            if fault_type == FaultPointType.ALL_TYPE_NE:
+                ne_type = random.choice(valid_ne_types) if valid_ne_types else random.choice(list(NEType))
+                fc.affected_ne_ids = {ne.id for ne in topology.get_elements_by_type(ne_type)}
+                return fc
+            elif fault_type == FaultPointType.MULTI_TYPE_NE:
+                types = random.sample(valid_ne_types, min(random.randint(2, 3), len(valid_ne_types)))
+                for t in types:
+                    fc.affected_ne_ids.update(ne.id for ne in topology.get_elements_by_type(t))
+                return fc
+
         if fault_type == FaultPointType.SINGLE_NE:
-            self._fault_single_ne(fc, topology)
+            self._fault_single_ne(fc, topology, valid_ne_types)
         elif fault_type == FaultPointType.MULTI_NE:
-            self._fault_multi_ne(fc, topology)
+            self._fault_multi_ne(fc, topology, valid_ne_types)
         elif fault_type == FaultPointType.ALL_TYPE_NE:
-            self._fault_all_type_ne(fc, topology)
+            self._fault_all_type_ne(fc, topology, valid_ne_types)
         elif fault_type == FaultPointType.MULTI_TYPE_NE:
-            self._fault_multi_type_ne(fc, topology)
+            self._fault_multi_type_ne(fc, topology, valid_ne_types)
         elif fault_type == FaultPointType.RESOURCE_POOL:
             self._fault_resource_pool(fc, topology)
         elif fault_type == FaultPointType.DC:
@@ -124,22 +149,37 @@ class ScenarioGenerator:
 
         return fc
 
-    def _fault_single_ne(self, fc, topo):
+    def _fault_single_ne(self, fc, topo, valid_ne_types):
         all_ne = list(topo.elements.keys())
-        ne_id = random.choice(all_ne)
+        # Only select NEs that participate in the process
+        participating_ne = [ne for ne in all_ne if any(ne.startswith(t + '_') for t in valid_ne_types)]
+        if participating_ne:
+            ne_id = random.choice(participating_ne)
+        else:
+            ne_id = random.choice(all_ne)
         fc.affected_ne_ids = {ne_id}
 
-    def _fault_multi_ne(self, fc, topo):
+    def _fault_multi_ne(self, fc, topo, valid_ne_types):
         all_ne = list(topo.elements.keys())
-        count = random.randint(2, min(5, len(all_ne)))
-        fc.affected_ne_ids = set(random.sample(all_ne, count))
+        # Only select NEs that participate in the process
+        participating_ne = [ne for ne in all_ne if any(ne.startswith(t + '_') for t in valid_ne_types)]
+        if not participating_ne:
+            participating_ne = all_ne
+        count = random.randint(2, min(5, len(participating_ne)))
+        fc.affected_ne_ids = set(random.sample(participating_ne, count))
 
-    def _fault_all_type_ne(self, fc, topo):
-        ne_type = random.choice(list(NEType))
+    def _fault_all_type_ne(self, fc, topo, valid_ne_types):
+        if valid_ne_types:
+            ne_type = random.choice(valid_ne_types)
+        else:
+            ne_type = random.choice(list(NEType))
         fc.affected_ne_ids = {ne.id for ne in topo.get_elements_by_type(ne_type)}
 
-    def _fault_multi_type_ne(self, fc, topo):
-        types = random.sample(list(NEType), random.randint(2, 3))
+    def _fault_multi_type_ne(self, fc, topo, valid_ne_types):
+        if valid_ne_types:
+            types = random.sample(valid_ne_types, min(random.randint(2, 3), len(valid_ne_types)))
+        else:
+            types = random.sample(list(NEType), random.randint(2, 3))
         for t in types:
             fc.affected_ne_ids.update(ne.id for ne in topo.get_elements_by_type(t))
 

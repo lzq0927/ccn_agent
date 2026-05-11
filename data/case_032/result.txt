@@ -1,12 +1,4 @@
 {
-  "fault_elements": [
-    "gNB_1",
-    "gNB_2",
-    "gNB_3",
-    "gNB_4",
-    "gNB_5",
-    "gNB_6",
-    "gNB_7"
-  ],
+  "fault_elements": [],
   "fault_links": []
 }

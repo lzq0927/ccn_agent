@@ -83,8 +83,12 @@ class FaultPerceptionAgent(AIAgent):
         
         # Initialize components
         historical_cases = self.config.get("historical_cases", [])
-        self.workflow = PerceptionWorkflow(historical_cases=historical_cases)
-        self.confidence_evaluator = ConfidenceEvaluator(historical_cases=historical_cases)
+        self.workflow = PerceptionWorkflow(
+            historical_cases=historical_cases,
+            confidence_threshold_high=self.confidence_threshold_high,
+            confidence_threshold_medium=self.confidence_threshold_medium
+        )
+        self.confidence_evaluator = ConfidenceEvaluator(historical_cases)
         
         # State
         self.status = "idle"
@@ -172,18 +176,21 @@ class FaultPerceptionAgent(AIAgent):
         
         case_id = input_data.get("case_id", f"case_{uuid.uuid4().hex[:8]}")
         
-        # Parse KPI records
+        # Parse KPI records (handle both dict and KPIRecord objects)
         kpi_dicts = input_data.get("kpi_records", [])
         kpi_records = []
         for kpi_dict in kpi_dicts:
-            kpi_records.append(KPIRecord(
-                timestamp=kpi_dict.get("timestamp", 0),
-                level=kpi_dict.get("level", "link"),
-                ue_id=kpi_dict.get("ue_id", ""),
-                src=kpi_dict.get("src", ""),
-                dst=kpi_dict.get("dst", ""),
-                success_rate=kpi_dict.get("success_rate", 1.0)
-            ))
+            if isinstance(kpi_dict, KPIRecord):
+                kpi_records.append(kpi_dict)
+            else:
+                kpi_records.append(KPIRecord(
+                    timestamp=kpi_dict.get("timestamp", 0),
+                    level=kpi_dict.get("level", "link"),
+                    ue_id=kpi_dict.get("ue_id", ""),
+                    src=kpi_dict.get("src", ""),
+                    dst=kpi_dict.get("dst", ""),
+                    success_rate=kpi_dict.get("success_rate", 1.0)
+                ))
         
         # Parse topology
         topo_data = input_data.get("topology")
@@ -192,15 +199,18 @@ class FaultPerceptionAgent(AIAgent):
         else:
             topology = topo_data or Topology(dcs=[], elements={}, switches={})
         
-        # Parse business flows
+        # Parse business flows (handle both dict and BusinessFlow objects)
         flow_dicts = input_data.get("business_flows", [])
         business_flows = []
         for flow_dict in flow_dicts:
-            business_flows.append(BusinessFlow(
-                process_name=flow_dict.get("process_name", ""),
-                ue_id=flow_dict.get("ue_id", ""),
-                hops=flow_dict.get("hops", [])
-            ))
+            if isinstance(flow_dict, BusinessFlow):
+                business_flows.append(flow_dict)
+            else:
+                business_flows.append(BusinessFlow(
+                    process_name=flow_dict.get("process_name", ""),
+                    ue_id=flow_dict.get("ue_id", ""),
+                    hops=flow_dict.get("hops", [])
+                ))
         
         # Parse fault config (optional, for evaluation)
         fault_config = None

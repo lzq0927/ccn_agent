@@ -1,0 +1,38 @@
+{
+  "iteration": 1,
+  "timestamp": "2026-05-11T21:55:22.065029",
+  "duration_seconds": 63.17618656158447,
+  "phase1_data_gen": {
+    "total": 100,
+    "fault": 90,
+    "normal": 10,
+    "duration": 22.64815068244934
+  },
+  "phase2_perception": {
+    "succeeded": 100,
+    "failed": 0,
+    "duration": 25.604606866836548
+  },
+  "phase3_evaluation": {
+    "evaluated_count": 77,
+    "correct_count": 62,
+    "overall_precision": 0.8051948051948052,
+    "overall_recall": 0.8051948051948052,
+    "overall_f1": 0.8051948051948051,
+    "avg_f1": 0.8051948051948052,
+    "duration": 13.738737106323242
+  },
+  "phase4_optimization": {
+    "suggestions": [
+      {
+        "type": "weak_fault_types",
+        "description": "低召回故障类型: [('UE', 6), ('UPF', 3), ('gNB', 2)]",
+        "recommendation": "针对性增加这些故障类型的训练样本",
+        "priority": 3
+      }
+    ],
+    "total_failures": 15,
+    "failure_rate": 0.19480519480519481
+  },
+  "status": "completed"
+}

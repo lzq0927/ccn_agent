@@ -1,6 +1,6 @@
 {
   "fault_elements": [
-    "NSSF_2"
+    "gNB_2"
   ],
   "fault_links": []
 }

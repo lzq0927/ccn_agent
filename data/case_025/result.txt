@@ -1,6 +1,6 @@
 {
   "fault_elements": [
-    "UPF_12"
+    "AMF_1"
   ],
   "fault_links": []
 }

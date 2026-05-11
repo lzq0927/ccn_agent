@@ -168,7 +168,7 @@ class PerceptionOutput:
             "reasoning_steps": self.reasoning_steps,
             "skill_result": self.skill_result.to_dict() if self.skill_result else None,
             "explorer_result": self.explorer_result.to_dict() if self.explorer_result else None,
-            "timestamp": self.timestamp.isoformat(),
+            "timestamp": self.timestamp.isoformat() if self.timestamp else datetime.now().isoformat(),
             "latency_ms": self.latency_ms,
             "error": self.error
         }

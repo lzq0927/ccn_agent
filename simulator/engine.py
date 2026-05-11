@@ -130,12 +130,12 @@ class SimulationEngine:
                 return round(link_sr * (1.0 - trace_loss), 6)
 
         # Indirect effect: NE communicating with a faulty NE
-        # The trace success rate is slightly reduced due to retransmission/retry
+        # Increased indirect_loss for better detectability
         if fc.fault_mode == FaultMode.LINK:
             if self._communicates_with_affected(src, fc) or \
                self._communicates_with_affected(dst, fc):
-                # Indirect impact is much smaller (diluted by load balancing)
-                indirect_loss = fc.loss_rate * 0.1 + random.uniform(0, 0.002)
+                # Indirect impact increased from 0.1 to 0.4
+                indirect_loss = fc.loss_rate * 0.4 + random.uniform(0, 0.005)
                 return round(link_sr * (1.0 - indirect_loss), 6)
 
         return link_sr

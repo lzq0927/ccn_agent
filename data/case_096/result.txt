@@ -1,8 +1,8 @@
 {
   "fault_elements": [
-    "UE_27",
-    "UE_59",
-    "UE_6"
+    "UE_18",
+    "UE_31",
+    "UE_79"
   ],
   "fault_links": []
 }

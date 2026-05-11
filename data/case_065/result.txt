@@ -1,7 +1,7 @@
 {
   "fault_elements": [
-    "NRF_5",
-    "NSSF_1"
+    "SMF_14",
+    "UPF_6"
   ],
   "fault_links": []
 }

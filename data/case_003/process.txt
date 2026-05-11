@@ -16,4 +16,4 @@ Flow:
 
 Required NE types: gNB_src, gNB_tgt, AMF, SMF, UPF
 
-UE count: 56
+UE count: 65

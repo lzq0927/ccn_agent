@@ -1,24 +1,4 @@
 {
-  "fault_elements": [
-    "NRF_1",
-    "NRF_2",
-    "NRF_3",
-    "NRF_4",
-    "PCF_1",
-    "PCF_2",
-    "PCF_3",
-    "gNB_1",
-    "gNB_10",
-    "gNB_11",
-    "gNB_12",
-    "gNB_2",
-    "gNB_3",
-    "gNB_4",
-    "gNB_5",
-    "gNB_6",
-    "gNB_7",
-    "gNB_8",
-    "gNB_9"
-  ],
+  "fault_elements": [],
   "fault_links": []
 }

@@ -15,4 +15,4 @@ Flow:
 
 Required NE types: gNB, AMF, SMF, UPF, PCF
 
-UE count: 68
+UE count: 60

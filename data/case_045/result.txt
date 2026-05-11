@@ -1,13 +1,4 @@
 {
-  "fault_elements": [
-    "PCF_1",
-    "PCF_2",
-    "PCF_3",
-    "PCF_4",
-    "PCF_5",
-    "PCF_6",
-    "PCF_7",
-    "PCF_8"
-  ],
+  "fault_elements": [],
   "fault_links": []
 }

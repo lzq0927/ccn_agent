@@ -126,12 +126,12 @@ class DataExporter:
             # PATH_SESSION: affected sessions → fault_elements (session identifiers)
             elif fpt == FaultPointType.PATH_SESSION:
                 fault_elements = sorted(fc.affected_sessions)
-            # PATH_TRACE: affected links → fault_links (format: "{s}-{d}")
+            # PATH_TRACE: affected links → fault_links (format: "{s}->{d}")
             elif fpt == FaultPointType.PATH_TRACE:
-                fault_links = sorted([f"{s}-{d}" for s, d in fc.affected_links])
-            # Link/switch faults → fault_links (format: "{s}-{d}")
+                fault_links = sorted([f"{s}->{d}" for s, d in fc.affected_links])
+            # Link/switch faults → fault_links (format: "{s}->{d}")
             elif fpt in (FaultPointType.PATH_LINK, FaultPointType.SWITCH):
-                fault_links = sorted([f"{s}-{d}" for s, d in fc.affected_links])
+                fault_links = sorted([f"{s}->{d}" for s, d in fc.affected_links])
 
         data = {
             "fault_elements": fault_elements,

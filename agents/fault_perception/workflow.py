@@ -36,15 +36,21 @@ class PerceptionWorkflow:
     4. validate_and_package() - Finalize output
     """
     
-    def __init__(self, historical_cases: Optional[List[Dict]] = None):
+    def __init__(self, historical_cases: Optional[List[Dict]] = None,
+                 confidence_threshold_high: float = 0.85,
+                 confidence_threshold_medium: float = 0.5):
         """
         Initialize perception workflow.
         
         Args:
             historical_cases: Optional list of historical case dicts for similarity matching
+            confidence_threshold_high: Threshold for high confidence (>= this uses skill)
+            confidence_threshold_medium: Threshold for medium confidence (>= this uses single LLM)
         """
         self.confidence_evaluator = ConfidenceEvaluator(historical_cases)
         self.anomaly_counter = 0
+        self.confidence_threshold_high = confidence_threshold_high
+        self.confidence_threshold_medium = confidence_threshold_medium
         
         # Skill and explorer instances (lazy loaded)
         self._skill_fault_inference = None
@@ -87,9 +93,9 @@ class PerceptionWorkflow:
             logger.info(f"[PerceptionWorkflow] Confidence score: {confidence_score:.3f}")
             
             # Determine confidence level
-            if confidence_score >= 0.85:
+            if confidence_score >= self.confidence_threshold_high:
                 confidence_level = ConfidenceLevel.HIGH
-            elif confidence_score >= 0.5:
+            elif confidence_score >= self.confidence_threshold_medium:
                 confidence_level = ConfidenceLevel.MEDIUM
             else:
                 confidence_level = ConfidenceLevel.LOW
@@ -211,8 +217,9 @@ class PerceptionWorkflow:
             # Detect anomaly if success rate significantly below baseline
             deviation = normal_baseline - kpi.success_rate
             
-            # Only flag as anomaly if deviation is significant (> 0.05 = 5% drop)
-            if deviation > 0.05:
+            # Flag as anomaly if deviation is significant (> 0.02 = 2% drop)
+            # Lowered from 0.05 to catch smaller fault signals
+            if deviation > 0.02:
                 # Calculate severity (0-1, where 1 is most severe)
                 severity = min(deviation / 0.5, 1.0)  # 50% drop = max severity
                 

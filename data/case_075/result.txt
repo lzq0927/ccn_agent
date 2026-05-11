@@ -1,12 +1,4 @@
 {
-  "fault_elements": [
-    "NRF_1",
-    "NRF_2",
-    "NRF_3",
-    "NRF_4",
-    "NRF_5",
-    "NRF_6",
-    "NRF_7"
-  ],
+  "fault_elements": [],
   "fault_links": []
 }
