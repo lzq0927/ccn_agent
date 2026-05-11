@@ -4,12 +4,12 @@
     "NRF_3->PCF_4",
     "NRF_3->SMF_9",
     "NRF_3->gNB_12",
-    "NRF_3->gNB_13",
     "PCF_4->SMF_9",
-    "PCF_4->gNB_12",
-    "PCF_4->gNB_13",
-    "SMF_9->gNB_13",
+    "gNB_12->PCF_4",
     "gNB_12->SMF_9",
-    "gNB_12->gNB_13"
+    "gNB_13->NRF_3",
+    "gNB_13->PCF_4",
+    "gNB_13->SMF_9",
+    "gNB_13->gNB_12"
   ]
 }
