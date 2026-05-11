@@ -1,26 +1,26 @@
 {
   "iteration": 1,
-  "timestamp": "2026-05-11T21:55:22.065029",
-  "duration_seconds": 63.17618656158447,
+  "timestamp": "2026-05-11T22:26:05.878161",
+  "duration_seconds": 62.20451998710632,
   "phase1_data_gen": {
     "total": 100,
     "fault": 90,
     "normal": 10,
-    "duration": 22.64815068244934
+    "duration": 22.52402663230896
   },
   "phase2_perception": {
     "succeeded": 100,
     "failed": 0,
-    "duration": 25.604606866836548
+    "duration": 24.826935052871704
   },
   "phase3_evaluation": {
     "evaluated_count": 77,
-    "correct_count": 62,
-    "overall_precision": 0.8051948051948052,
-    "overall_recall": 0.8051948051948052,
-    "overall_f1": 0.8051948051948051,
-    "avg_f1": 0.8051948051948052,
-    "duration": 13.738737106323242
+    "correct_count": 63,
+    "overall_precision": 0.8181818181818182,
+    "overall_recall": 0.8181818181818182,
+    "overall_f1": 0.8181818181818182,
+    "avg_f1": 0.8181818181818182,
+    "duration": 13.747698545455933
   },
   "phase4_optimization": {
     "suggestions": [
@@ -31,8 +31,8 @@
         "priority": 3
       }
     ],
-    "total_failures": 15,
-    "failure_rate": 0.19480519480519481
+    "total_failures": 14,
+    "failure_rate": 0.18181818181818182
   },
   "status": "completed"
 }

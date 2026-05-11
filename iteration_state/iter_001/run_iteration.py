@@ -221,8 +221,8 @@ def run_fault_perception(case_ids: List[str]) -> Dict:
     # topology会在build_perception_input中按case分别计算正确的seed分别生成
     
     perception_agent = FaultPerceptionAgent(config={
-        'confidence_threshold_high': 0.35,
-        'confidence_threshold_medium': 0.20,
+        'confidence_threshold_high': 0.30,
+        'confidence_threshold_medium': 0.15,
         'enable_self_optimization': False,
         'historical_cases': []
     })
