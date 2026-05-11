@@ -139,8 +139,11 @@ def parse_fault_config_from_result(result: Dict, topology: Topology) -> Optional
     affected_ne_ids = set()
     affected_links = []
     
+    # Accept NE types AND UE type for fault_elements
+    valid_ne_prefixes = {t.value for t in NEType} | {'UE_'}
+    
     for elem in fault_elements:
-        if '_' in elem and any(elem.startswith(t.value) for t in NEType):
+        if '_' in elem and any(elem.startswith(p) for p in valid_ne_prefixes):
             affected_ne_ids.add(elem)
     
     for link in fault_links:
@@ -365,6 +368,10 @@ def run_evaluation(case_ids: List[str], perception_results: Dict) -> Dict:
             
             eval_results.append({
                 'case_id': case_id,
+                'gt_elements': list(ground_truth.affected_ne_ids) if ground_truth else [],
+                'gt_links': list(ground_truth.affected_links) if ground_truth else [],
+                'pred_elements': list(predicted_faults[0].affected_ne_ids) if predicted_faults else [],
+                'pred_links': list(predicted_faults[0].affected_links) if predicted_faults else [],
                 'precision': metrics.precision,
                 'recall': metrics.recall,
                 'f1_score': metrics.f1_score,

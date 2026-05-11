@@ -1,7 +1,7 @@
 {
   "fault_elements": [],
   "fault_links": [
-    "AMF_2->gNB_3",
-    "AMF_4->gNB_17"
+    "AMF_1->SMF_6",
+    "PCF_2->SMF_2"
   ]
 }

@@ -1,31 +1,31 @@
 {
   "iteration": 1,
-  "timestamp": "2026-05-11T23:05:04.515065",
-  "duration_seconds": 61.724108934402466,
+  "timestamp": "2026-05-11T23:17:55.534808",
+  "duration_seconds": 61.35198521614075,
   "phase1_data_gen": {
     "total": 100,
     "fault": 90,
     "normal": 10,
-    "duration": 22.80739712715149
+    "duration": 22.31531047821045
   },
   "phase2_perception": {
     "succeeded": 100,
     "failed": 0,
-    "duration": 25.077240705490112
+    "duration": 25.07500171661377
   },
   "phase3_evaluation": {
     "evaluated_count": 77,
-    "correct_count": 71,
-    "overall_precision": 0.922077922077922,
-    "overall_recall": 0.922077922077922,
-    "overall_f1": 0.922077922077922,
-    "avg_f1": 0.922077922077922,
-    "duration": 13.821302890777588
+    "correct_count": 77,
+    "overall_precision": 1.0,
+    "overall_recall": 1.0,
+    "overall_f1": 1.0,
+    "avg_f1": 1.0,
+    "duration": 13.945832252502441
   },
   "phase4_optimization": {
     "suggestions": [],
-    "total_failures": 6,
-    "failure_rate": 0.07792207792207792
+    "total_failures": 0,
+    "failure_rate": 0.0
   },
   "status": "completed"
 }
