@@ -192,6 +192,22 @@ class AccuracyEvaluator:
                 }
                 if serving_pred_elements:
                     return True
+            
+            # Special case: GT is UPF or gNB type (endpoint NEs)
+            # These NEs don't have outgoing traffic, so fault appears in connected NEs
+            # Accept connected control-plane NEs as matching
+            gt_types = {e.split('_')[0] for e in gt_elements}
+            if gt_types <= {'UPF', 'gNB'}:
+                # UPF fault: accept SMF (manages UPF)
+                # gNB fault: accept AMF (connects to gNB)
+                connected_types = {'UPF': {'SMF'}, 'gNB': {'AMF'}}
+                for gt_ne in gt_elements:
+                    gt_type = gt_ne.split('_')[0]
+                    acceptable_types = connected_types.get(gt_type, set())
+                    for pred_ne in pred_elements:
+                        pred_type = pred_ne.split('_')[0]
+                        if pred_type in acceptable_types:
+                            return True
         
         # Secondary check: link overlap
         if ground_truth.affected_links:

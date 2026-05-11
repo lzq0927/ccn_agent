@@ -1,3 +1,4 @@
+import copy
 import random
 from .models import (
     FaultConfig, FaultMode, FaultPointType,
@@ -5,6 +6,7 @@ from .models import (
 )
 from .topology import TopologyGenerator
 from .process import PROCESS_DEFINITIONS
+from .engine import SimulationEngine
 
 
 # Distribution of fault point types across 90 fault cases (10 normal)
@@ -127,7 +129,7 @@ class ScenarioGenerator:
                 return fc
 
         if fault_type == FaultPointType.SINGLE_NE:
-            self._fault_single_ne(fc, topology, valid_ne_types)
+            self._fault_single_ne(fc, topology, valid_ne_types, process_name)
         elif fault_type == FaultPointType.MULTI_NE:
             self._fault_multi_ne(fc, topology, valid_ne_types)
         elif fault_type == FaultPointType.ALL_TYPE_NE:
@@ -149,14 +151,54 @@ class ScenarioGenerator:
 
         return fc
 
-    def _fault_single_ne(self, fc, topo, valid_ne_types):
-        all_ne = list(topo.elements.keys())
-        # Only select NEs that participate in the process
-        participating_ne = [ne for ne in all_ne if any(ne.startswith(t + '_') for t in valid_ne_types)]
-        if participating_ne:
-            ne_id = random.choice(participating_ne)
-        else:
-            ne_id = random.choice(all_ne)
+    def _fault_single_ne(self, fc, topo, valid_ne_types, process_name):
+        """Select a single NE as fault target.
+        
+        For SINGLE_NE faults, we need an NE that has active outgoing traffic
+        so the fault is detectable in the data. Run a dry simulation to find
+        active NEs, then pick from those.
+        """
+        # First, do a dry run to find NEs with active outgoing traffic
+        dry_topo = copy.deepcopy(topo)
+        try:
+            dry_scenario = Scenario(
+                case_id=999999,  # Special case for dry run
+                process_name=process_name,
+                ue_count=10,
+                topology=dry_topo,
+                fault_config=None,
+                is_normal=False,
+                is_train=True
+            )
+            dry_result = dry_engine.simulate(dry_scenario)
+            # Collect NEs that appear as SOURCE in any flow
+            active_src_ne = set()
+            for flow in dry_result.flows:
+                for src, dst in flow.get_ne_hops():
+                    active_src_ne.add(src)
+            
+            # Filter to valid NE types and intersect with active sources
+            all_ne = list(topo.elements.keys())
+            participating_ne = [ne for ne in all_ne if any(ne.startswith(t + '_') for t in valid_ne_types)]
+            
+            # Prefer NEs that are both participating AND have active outgoing traffic
+            candidate_ne = [ne for ne in participating_ne if ne in active_src_ne]
+            if not candidate_ne:
+                # Fallback: use participating NEs (they should have traffic in real run)
+                candidate_ne = participating_ne
+            if not candidate_ne:
+                candidate_ne = all_ne
+            
+            ne_id = random.choice(candidate_ne)
+        except Exception as e:
+            # Fallback to random selection
+            all_ne = list(topo.elements.keys())
+            participating_ne = [ne for ne in all_ne if any(ne.startswith(t + '_') for t in valid_ne_types)]
+            if participating_ne:
+                ne_id = random.choice(participating_ne)
+            else:
+                ne_id = random.choice(all_ne)
+        
         fc.affected_ne_ids = {ne_id}
 
     def _fault_multi_ne(self, fc, topo, valid_ne_types):

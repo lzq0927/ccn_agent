@@ -1,38 +1,38 @@
 {
   "iteration": 1,
-  "timestamp": "2026-05-11T22:31:42.827763",
-  "duration_seconds": 62.308260440826416,
+  "timestamp": "2026-05-11T22:50:23.526887",
+  "duration_seconds": 61.48846197128296,
   "phase1_data_gen": {
     "total": 100,
     "fault": 90,
     "normal": 10,
-    "duration": 22.806682109832764
+    "duration": 22.563647031784058
   },
   "phase2_perception": {
     "succeeded": 100,
     "failed": 0,
-    "duration": 24.844562530517578
+    "duration": 24.851618766784668
   },
   "phase3_evaluation": {
     "evaluated_count": 77,
-    "correct_count": 66,
-    "overall_precision": 0.8571428571428571,
-    "overall_recall": 0.8571428571428571,
-    "overall_f1": 0.8571428571428571,
-    "avg_f1": 0.8571428571428571,
-    "duration": 13.806886672973633
+    "correct_count": 71,
+    "overall_precision": 0.922077922077922,
+    "overall_recall": 0.922077922077922,
+    "overall_f1": 0.922077922077922,
+    "avg_f1": 0.922077922077922,
+    "duration": 13.597158908843994
   },
   "phase4_optimization": {
     "suggestions": [
       {
         "type": "weak_fault_types",
-        "description": "低召回故障类型: [('UE', 6), ('UPF', 3), ('gNB', 2)]",
+        "description": "低召回故障类型: [('UE', 6)]",
         "recommendation": "针对性增加这些故障类型的训练样本",
         "priority": 3
       }
     ],
-    "total_failures": 11,
-    "failure_rate": 0.14285714285714285
+    "total_failures": 6,
+    "failure_rate": 0.07792207792207792
   },
   "status": "completed"
 }
