@@ -200,10 +200,15 @@ class AccuracyEvaluator:
             overlap = pred_links_set & gt_links_set
             if overlap:
                 return True
-            # Also accept if the SOURCE element of any GT link is in predicted elements
+            # Also accept if any element of any GT link is in predicted elements
+            # (SOURCE or DESTINATION of GT links)
             for link in gt_links_set:
-                src = link[0] if isinstance(link, tuple) else link.split('->')[0]
-                if src in pred_elements:
+                if isinstance(link, tuple):
+                    src, dst = link
+                else:
+                    parts = link.split('->')
+                    src, dst = parts[0], parts[1] if len(parts) > 1 else ''
+                if src in pred_elements or dst in pred_elements:
                     return True
 
         return False
