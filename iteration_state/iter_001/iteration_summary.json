@@ -1,17 +1,17 @@
 {
   "iteration": 1,
-  "timestamp": "2026-05-11T22:50:23.526887",
-  "duration_seconds": 61.48846197128296,
+  "timestamp": "2026-05-11T23:01:13.665804",
+  "duration_seconds": 61.66813588142395,
   "phase1_data_gen": {
     "total": 100,
     "fault": 90,
     "normal": 10,
-    "duration": 22.563647031784058
+    "duration": 22.746498584747314
   },
   "phase2_perception": {
     "succeeded": 100,
     "failed": 0,
-    "duration": 24.851618766784668
+    "duration": 25.186692476272583
   },
   "phase3_evaluation": {
     "evaluated_count": 77,
@@ -20,17 +20,10 @@
     "overall_recall": 0.922077922077922,
     "overall_f1": 0.922077922077922,
     "avg_f1": 0.922077922077922,
-    "duration": 13.597158908843994
+    "duration": 13.717742919921875
   },
   "phase4_optimization": {
-    "suggestions": [
-      {
-        "type": "weak_fault_types",
-        "description": "低召回故障类型: [('UE', 6)]",
-        "recommendation": "针对性增加这些故障类型的训练样本",
-        "priority": 3
-      }
-    ],
+    "suggestions": [],
     "total_failures": 6,
     "failure_rate": 0.07792207792207792
   },

@@ -442,16 +442,15 @@ def generate_optimization_suggestions(eval_results: List[Dict], perception_resul
             'priority': 4
         })
     
-    # 分析低召回故障类型
+    # 分析低召回故障类型 - 只统计实际失败的case
     low_recall_types = []
-    for r in eval_results:
-        if r['recall'] < 0.5 and r['f1_score'] < 0.5:
-            case_id = r['case_id']
-            case_data = load_case_data(case_id)
-            if case_data:
-                gt = case_data.get('ground_truth', {})
-                if gt.get('fault_elements'):
-                    low_recall_types.append(gt['fault_elements'][0].split('_')[0] if '_' in gt['fault_elements'][0] else 'unknown')
+    for eval_res in eval_results:
+        case_id = eval_res['case_id']
+        if not eval_res.get('is_correct', False):
+            # Only count failed cases
+            gt = eval_res.get('gt_elements', [])
+            if gt:
+                low_recall_types.append(gt[0].split('_')[0] if '_' in gt[0] else 'unknown')
     
     if low_recall_types:
         type_counts = Counter(low_recall_types)
