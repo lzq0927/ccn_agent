@@ -1,6 +1,7 @@
 {
+  "fault_type": "path_link",
   "fault_elements": [],
   "fault_links": [
-    "AMF_2->gNB_5"
+    "AMF_1->AUSF_1"
   ]
 }

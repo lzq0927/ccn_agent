@@ -1,4 +1,5 @@
 {
+  "fault_type": "resource_pool",
   "fault_elements": [
     "AMF_3",
     "NRF_1",

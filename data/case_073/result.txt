@@ -1,4 +1,5 @@
 {
+  "fault_type": "multi_type_ne",
   "fault_elements": [],
   "fault_links": []
 }

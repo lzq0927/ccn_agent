@@ -1,4 +1,5 @@
 {
+  "fault_type": "multi_ne",
   "fault_elements": [
     "AUSF_1",
     "UDM_2",

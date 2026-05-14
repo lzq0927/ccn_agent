@@ -1,4 +1,5 @@
 {
+  "fault_type": "dc",
   "fault_elements": [
     "AMF_3",
     "AMF_4",

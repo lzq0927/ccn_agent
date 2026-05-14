@@ -1,7 +1,8 @@
 {
+  "fault_type": "path_trace",
   "fault_elements": [],
   "fault_links": [
-    "AMF_6->gNB_7",
-    "PCF_3->SMF_7"
+    "PCF_2->SMF_9",
+    "SMF_5->UPF_5"
   ]
 }

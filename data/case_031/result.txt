@@ -1,4 +1,5 @@
 {
+  "fault_type": "path_link",
   "fault_elements": [],
   "fault_links": [
     "PCF_1->SMF_2"

@@ -134,6 +134,7 @@ class DataExporter:
                 fault_links = sorted([f"{s}->{d}" for s, d in fc.affected_links])
 
         data = {
+            "fault_type": fc.fault_point_type.value if fc and not scenario.is_normal else None,
             "fault_elements": fault_elements,
             "fault_links": fault_links,
         }

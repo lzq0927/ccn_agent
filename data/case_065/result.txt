@@ -1,4 +1,5 @@
 {
+  "fault_type": "multi_ne",
   "fault_elements": [
     "SMF_14",
     "UPF_6"

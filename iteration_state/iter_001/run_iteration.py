@@ -129,7 +129,13 @@ def build_perception_input(case_id: str, case_data: Dict) -> Dict:
 
 
 def parse_fault_config_from_result(result: Dict, topology: Topology) -> Optional[FaultConfig]:
-    """从result.txt解析FaultConfig"""
+    """从result.txt解析FaultConfig
+    
+    支持两种格式：
+    1. 新格式：有fault_type字段，直接使用
+    2. 旧格式：无fault_type字段，根据元素数量推断类型（向后兼容）
+    """
+    fault_type_str = result.get('fault_type')
     fault_elements = result.get('fault_elements', [])
     fault_links = result.get('fault_links', [])
     
@@ -156,15 +162,17 @@ def parse_fault_config_from_result(result: Dict, topology: Topology) -> Optional
             if len(parts) == 2:
                 affected_links.append((parts[0], parts[1]))
     
-    if affected_ne_ids:
-        if len(affected_ne_ids) == 1:
-            fpt = FaultPointType.SINGLE_NE
-        else:
-            fpt = FaultPointType.MULTI_NE
-    elif affected_links:
-        fpt = FaultPointType.PATH_LINK
+    # Determine fault point type
+    if fault_type_str:
+        # New format: use explicit fault_type
+        try:
+            fpt = FaultPointType(fault_type_str)
+        except ValueError:
+            # Invalid type string, fall back to inference
+            fpt = _infer_fault_type(affected_ne_ids, affected_links)
     else:
-        fpt = FaultPointType.NORMAL
+        # Old format (backward compatibility): infer from data
+        fpt = _infer_fault_type(affected_ne_ids, affected_links)
     
     return FaultConfig(
         fault_point_type=fpt,
@@ -175,6 +183,19 @@ def parse_fault_config_from_result(result: Dict, topology: Topology) -> Optional
         affected_ne_ids=affected_ne_ids,
         affected_links=affected_links
     )
+
+
+def _infer_fault_type(affected_ne_ids: set, affected_links: list) -> FaultPointType:
+    """根据元素/链路数量推断故障类型（仅用于向后兼容）"""
+    if affected_ne_ids:
+        if len(affected_ne_ids) == 1:
+            return FaultPointType.SINGLE_NE
+        else:
+            return FaultPointType.MULTI_NE
+    elif affected_links:
+        return FaultPointType.PATH_LINK
+    else:
+        return FaultPointType.NORMAL
 
 
 def run_data_generation():
@@ -307,7 +328,9 @@ def run_evaluation(case_ids: List[str], perception_results: Dict) -> Dict:
         
         if perceived_elements or perceived_links:
             # Determine fault_point_type based on what was perceived
-            if perceived_elements and not perceived_links:
+            # Priority: elements > links for type determination
+            # Links may represent propagation effects, not necessarily link faults
+            if perceived_elements:
                 if len(perceived_elements) == 1:
                     fpt = FaultPointType.SINGLE_NE
                 else:
@@ -315,7 +338,8 @@ def run_evaluation(case_ids: List[str], perception_results: Dict) -> Dict:
             elif perceived_links and not perceived_elements:
                 fpt = FaultPointType.PATH_LINK
             else:
-                fpt = FaultPointType.MULTI_NE
+                # Only links with no elements - could be a link fault
+                fpt = FaultPointType.PATH_LINK
             
             # Convert link strings to tuples if needed
             links = []

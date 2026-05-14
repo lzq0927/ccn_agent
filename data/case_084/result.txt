@@ -1,4 +1,5 @@
 {
+  "fault_type": "single_ne",
   "fault_elements": [
     "UPF_9"
   ],

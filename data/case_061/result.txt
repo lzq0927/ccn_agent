@@ -1,4 +1,5 @@
 {
+  "fault_type": "path_session",
   "fault_elements": [
     "UE_51"
   ],

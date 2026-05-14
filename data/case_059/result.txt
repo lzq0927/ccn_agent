@@ -1,7 +1,8 @@
 {
+  "fault_type": "path_link",
   "fault_elements": [],
   "fault_links": [
-    "AMF_1->SMF_2",
-    "SMF_5->UPF_5"
+    "AMF_7->SMF_3",
+    "PCF_4->SMF_6"
   ]
 }
