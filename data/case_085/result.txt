@@ -1,7 +1,18 @@
 {
-  "fault_type": "single_ne",
-  "fault_elements": [
-    "UPF_2"
-  ],
-  "fault_links": []
+  "fault_type": "path_trace",
+  "fault_elements": [],
+  "fault_links": [
+    "SMF_8->UPF_2",
+    "UPF_2->SMF_3",
+    "UPF_2->SMF_4",
+    "UPF_2->SMF_9",
+    "UPF_2->SMF_8",
+    "SMF_9->UPF_2",
+    "UPF_2->SMF_10",
+    "SMF_13->UPF_2",
+    "SMF_10->UPF_2",
+    "SMF_4->UPF_2",
+    "UPF_2->SMF_13",
+    "SMF_3->UPF_2"
+  ]
 }

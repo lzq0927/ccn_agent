@@ -1,7 +1,24 @@
 {
-  "fault_type": "single_ne",
-  "fault_elements": [
-    "SMF_4"
-  ],
-  "fault_links": []
+  "fault_type": "path_trace",
+  "fault_elements": [],
+  "fault_links": [
+    "SMF_4->UPF_3",
+    "UPF_3->SMF_4",
+    "SMF_4->UPF_7",
+    "UPF_7->SMF_4",
+    "SMF_4->UPF_2",
+    "UPF_2->SMF_4",
+    "SMF_4->UPF_6",
+    "UPF_6->SMF_4",
+    "AMF_2->SMF_4",
+    "SMF_4->AMF_2",
+    "SMF_4->UPF_4",
+    "UPF_4->SMF_4",
+    "AMF_1->SMF_4",
+    "SMF_4->AMF_1",
+    "AMF_3->SMF_4",
+    "SMF_4->AMF_3",
+    "AMF_4->SMF_4",
+    "SMF_4->AMF_4"
+  ]
 }

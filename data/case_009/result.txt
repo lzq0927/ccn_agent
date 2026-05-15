@@ -1,5 +1,5 @@
 {
-  "fault_type": null,
+  "fault_type": "NORMAL",
   "fault_elements": [],
   "fault_links": []
 }

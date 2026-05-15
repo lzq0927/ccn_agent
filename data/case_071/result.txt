@@ -1,14 +1,19 @@
 {
   "fault_type": "resource_pool",
   "fault_elements": [
+    "AMF_1",
+    "AMF_2",
     "AMF_3",
-    "AUSF_2",
-    "NSSF_2",
+    "PCF_1",
     "PCF_2",
     "SMF_1",
+    "SMF_2",
     "UDM_1",
     "UPF_1",
     "UPF_2",
+    "UPF_3",
+    "gNB_1",
+    "gNB_2",
     "gNB_3"
   ],
   "fault_links": []

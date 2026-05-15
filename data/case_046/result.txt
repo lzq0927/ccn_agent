@@ -1,10 +1,14 @@
 {
-  "fault_type": "multi_ne",
+  "fault_type": "resource_pool",
   "fault_elements": [
     "AMF_1",
     "AMF_2",
+    "AMF_3",
+    "SMF_1",
+    "SMF_2",
     "UDM_1",
     "gNB_1",
+    "gNB_2",
     "gNB_3"
   ],
   "fault_links": []

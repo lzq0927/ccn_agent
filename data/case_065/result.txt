@@ -1,8 +1,22 @@
 {
-  "fault_type": "multi_ne",
+  "fault_type": "resource_pool",
   "fault_elements": [
+    "AMF_1",
+    "AMF_13",
+    "AMF_15",
+    "AMF_3",
+    "AMF_4",
+    "SMF_10",
+    "SMF_13",
     "SMF_14",
-    "UPF_6"
+    "SMF_18",
+    "SMF_3",
+    "SMF_9",
+    "UPF_13",
+    "UPF_3",
+    "UPF_5",
+    "UPF_6",
+    "UPF_7"
   ],
   "fault_links": []
 }

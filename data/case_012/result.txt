@@ -1,8 +1,24 @@
 {
-  "fault_type": "path_session",
-  "fault_elements": [
-    "UE_42",
-    "UE_77"
-  ],
-  "fault_links": []
+  "fault_type": "path_trace",
+  "fault_elements": [],
+  "fault_links": [
+    "AMF_2->gNB_2",
+    "gNB_2->AMF_2",
+    "AUSF_1->AMF_3",
+    "AMF_2->AUSF_1",
+    "AUSF_1->AMF_2",
+    "AUSF_1->UDM_1",
+    "UDM_1->AUSF_1",
+    "AMF_3->UDM_1",
+    "UDM_1->AMF_3",
+    "AMF_3->AUSF_1",
+    "AMF_2->UDM_1",
+    "UDM_1->AMF_2",
+    "UE_77->gNB_7",
+    "gNB_2->UE_42",
+    "AMF_3->gNB_7",
+    "gNB_7->AMF_3",
+    "UE_42->gNB_2",
+    "gNB_7->UE_77"
+  ]
 }

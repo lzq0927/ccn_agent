@@ -1,7 +1,18 @@
 {
-  "fault_type": "path_session",
-  "fault_elements": [
-    "UE_47"
-  ],
-  "fault_links": []
+  "fault_type": "path_trace",
+  "fault_elements": [],
+  "fault_links": [
+    "AMF_1->SMF_1",
+    "SMF_1->AMF_1",
+    "UE_47->gNB_2",
+    "AMF_1->gNB_2",
+    "gNB_2->AMF_1",
+    "SMF_1->UPF_1",
+    "UPF_1->SMF_1",
+    "gNB_2->UE_47",
+    "SMF_1->UDM_1",
+    "UDM_1->SMF_1",
+    "PCF_2->SMF_1",
+    "SMF_1->PCF_2"
+  ]
 }

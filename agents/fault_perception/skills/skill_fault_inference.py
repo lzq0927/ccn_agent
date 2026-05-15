@@ -136,68 +136,33 @@ class SkillFaultInference:
     ) -> Tuple[Set[str], Set[str]]:
         """
         Analyze link-level anomalies.
-        
-        Strategy: Find the source element with highest total severity.
-        - Group by src (source of the link anomaly)
-        - Calculate severity score per source
-        - Pick the source with maximum severity IF it exceeds threshold
-        - Return ONLY the source as fault element (dst is the affected peer, not root cause)
-        - Include links as fault_links (to show propagation direction)
+
+        Strategy: Collect ALL significant anomalous links.
+        - For switch-type faults: return ALL anomalous links (not just one source)
+        - For simple link faults: return anomalous links with their endpoints
         """
         fault_elements: Set[str] = set()
         fault_links: Set[str] = set()
-        
+
         if not link_anomalies or len(link_anomalies) < self.MIN_ANOMALY_COUNT:
             return fault_elements, fault_links
-        
-        # Group by source
-        src_anomalies = defaultdict(list)
+
+        # Collect ALL anomalous links with significant deviation
         for a in link_anomalies:
-            src_anomalies[a.src].append(a)
-        
-        # Calculate severity scores per source
-        severity_scores = {}
-        for src, anoms in src_anomalies.items():
-            total_severity = sum(a.severity for a in anoms)
-            avg_severity = total_severity / len(anoms)
-            severity_scores[src] = {
-                'total': total_severity,
-                'avg': avg_severity,
-                'count': len(anoms),
-                'max_deviation': max(a.deviation for a in anoms)
-            }
-        
-        if not severity_scores:
-            return fault_elements, fault_links
-        
-        # Find the source with maximum severity
-        sorted_sources = sorted(
-            severity_scores.items(),
-            key=lambda x: x[1]['total'],
-            reverse=True
-        )
-        
-        top_src = sorted_sources[0][0]
-        top_score = sorted_sources[0][1]
-        
-        # Check if top source has significant deviation
-        # Use secondary threshold as fallback if primary fails
-        if top_score['max_deviation'] < self.SEVERITY_THRESHOLD:
-            if top_score['max_deviation'] < self.SECONDARY_THRESHOLD:
-                return fault_elements, fault_links
-            # Use secondary threshold - report with lower confidence later
-            fallback_mode = True
-        else:
-            fallback_mode = False
-        
-        # Root cause is ONLY the source element
-        fault_elements.add(top_src)
-        
-        # Include all links (showing propagation FROM root cause TO affected peers)
-        for a in src_anomalies[top_src]:
-            fault_links.add(f"{a.src}->{a.dst}")
-            # DO NOT add dst to fault_elements - they are affected peers, not root cause
-        
+            if a.deviation >= self.SEVERITY_THRESHOLD:
+                fault_links.add(f"{a.src}->{a.dst}")
+                # Add both src and dst as affected elements
+                fault_elements.add(a.src)
+                fault_elements.add(a.dst)
+
+        # If no links meet threshold, use secondary threshold
+        if not fault_links:
+            for a in link_anomalies:
+                if a.deviation >= self.SECONDARY_THRESHOLD:
+                    fault_links.add(f"{a.src}->{a.dst}")
+                    fault_elements.add(a.src)
+                    fault_elements.add(a.dst)
+
         return fault_elements, fault_links
     
     def _analyze_trace_level(
@@ -208,49 +173,31 @@ class SkillFaultInference:
     ) -> Tuple[Set[str], Set[str]]:
         """
         Analyze trace-level anomalies.
-        
-        Strategy: Find the element that appears most frequently as the destination
-        of anomalous traces (this is the element that is being affected).
-        Then trace back through business flows to find the source.
+
+        Strategy: Collect ALL significant anomalous traces.
+        - Return all affected elements and their links (not just the most affected)
         """
         fault_elements: Set[str] = set()
         fault_links: Set[str] = set()
-        
+
         if not trace_anomalies or len(trace_anomalies) < self.MIN_ANOMALY_COUNT:
             return fault_elements, fault_links
-        
-        # Group by destination (the element being affected)
-        dst_anomalies = defaultdict(list)
+
+        # Collect ALL significant anomalous traces
         for a in trace_anomalies:
-            dst_anomalies[a.dst].append(a)
-        
-        # Find the most affected element
-        most_affected = max(
-            dst_anomalies.items(),
-            key=lambda x: sum(a.severity for a in x[1])
-        )
-        
-        affected_elem = most_affected[0]
-        affected_anoms = most_affected[1]
-        
-        # Check severity threshold
-        max_deviation = max(a.deviation for a in affected_anoms)
-        if max_deviation < self.SEVERITY_THRESHOLD:
-            return fault_elements, fault_links
-        
-        fault_elements.add(affected_elem)
-        
-        # Find which source is causing this
-        src_counts = defaultdict(int)
-        for a in affected_anoms:
-            src_counts[a.src] += 1
-        
-        if src_counts:
-            # Find the source that appears most frequently for this destination
-            causal_src = max(src_counts.items(), key=lambda x: x[1])[0]
-            fault_elements.add(causal_src)
-            fault_links.add(f"{causal_src}->{affected_elem}")
-        
+            if a.deviation >= self.SEVERITY_THRESHOLD:
+                fault_elements.add(a.src)
+                fault_elements.add(a.dst)
+                fault_links.add(f"{a.src}->{a.dst}")
+
+        # If no traces meet threshold, use secondary threshold
+        if not fault_links:
+            for a in trace_anomalies:
+                if a.deviation >= self.SECONDARY_THRESHOLD:
+                    fault_elements.add(a.src)
+                    fault_elements.add(a.dst)
+                    fault_links.add(f"{a.src}->{a.dst}")
+
         return fault_elements, fault_links
     
     def _analyze_session_level(

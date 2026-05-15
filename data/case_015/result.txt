@@ -1,8 +1,16 @@
 {
-  "fault_type": "multi_ne",
-  "fault_elements": [
-    "UPF_3",
-    "UPF_4"
-  ],
-  "fault_links": []
+  "fault_type": "path_trace",
+  "fault_elements": [],
+  "fault_links": [
+    "SMF_7->UPF_4",
+    "UPF_4->SMF_7",
+    "SMF_18->UPF_3",
+    "UPF_3->SMF_18",
+    "SMF_12->UPF_4",
+    "UPF_4->SMF_12",
+    "SMF_11->UPF_3",
+    "UPF_3->SMF_11",
+    "SMF_17->UPF_4",
+    "UPF_4->SMF_17"
+  ]
 }

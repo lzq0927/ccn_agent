@@ -1,7 +1,8 @@
 {
-  "fault_type": "single_ne",
-  "fault_elements": [
-    "gNB_4"
-  ],
-  "fault_links": []
+  "fault_type": "path_link",
+  "fault_elements": [],
+  "fault_links": [
+    "AMF_2->gNB_4",
+    "gNB_4->AMF_2"
+  ]
 }

@@ -2,7 +2,9 @@
   "fault_type": "path_link",
   "fault_elements": [],
   "fault_links": [
-    "AMF_15->SMF_6",
-    "SMF_15->UPF_13"
+    "UPF_4->SMF_5",
+    "UPF_1->SMF_8",
+    "SMF_8->UPF_1",
+    "SMF_5->UPF_4"
   ]
 }

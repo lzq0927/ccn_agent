@@ -1,9 +1,19 @@
 {
-  "fault_type": "path_session",
+  "fault_type": "resource_pool",
   "fault_elements": [
-    "UE_2",
-    "UE_22",
-    "UE_29"
+    "AMF_3",
+    "AMF_4",
+    "SMF_1",
+    "SMF_2",
+    "UPF_2",
+    "UPF_5",
+    "UPF_7",
+    "gNB_1",
+    "gNB_10",
+    "gNB_6",
+    "gNB_7",
+    "gNB_8",
+    "gNB_9"
   ],
   "fault_links": []
 }

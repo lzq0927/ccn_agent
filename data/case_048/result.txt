@@ -1,27 +1,20 @@
 {
-  "fault_type": "switch",
-  "fault_elements": [],
-  "fault_links": [
-    "AUSF_1->NSSF_2",
-    "AUSF_1->SMF_8",
-    "AUSF_1->UPF_7",
-    "AUSF_1->gNB_1",
-    "AUSF_1->gNB_5",
-    "NSSF_2->SMF_8",
-    "NSSF_2->UPF_7",
-    "NSSF_2->gNB_1",
-    "NSSF_2->gNB_5",
-    "PCF_3->AUSF_1",
-    "PCF_3->NSSF_2",
-    "PCF_3->SMF_8",
-    "PCF_3->UPF_7",
-    "PCF_3->gNB_1",
-    "PCF_3->gNB_5",
-    "SMF_8->gNB_5",
-    "UPF_7->SMF_8",
-    "UPF_7->gNB_5",
-    "gNB_1->SMF_8",
-    "gNB_1->UPF_7",
-    "gNB_1->gNB_5"
-  ]
+  "fault_type": "resource_pool",
+  "fault_elements": [
+    "AMF_1",
+    "AMF_3",
+    "AMF_4",
+    "SMF_1",
+    "SMF_2",
+    "SMF_5",
+    "SMF_7",
+    "SMF_8",
+    "UPF_1",
+    "UPF_4",
+    "UPF_6",
+    "UPF_7",
+    "gNB_1",
+    "gNB_5"
+  ],
+  "fault_links": []
 }

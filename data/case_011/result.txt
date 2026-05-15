@@ -1,7 +1,16 @@
 {
-  "fault_type": "single_ne",
-  "fault_elements": [
-    "AMF_2"
-  ],
-  "fault_links": []
+  "fault_type": "path_trace",
+  "fault_elements": [],
+  "fault_links": [
+    "AMF_2->SMF_1",
+    "SMF_1->AMF_2",
+    "AMF_2->gNB_3",
+    "gNB_3->AMF_2",
+    "AMF_2->gNB_2",
+    "gNB_2->AMF_2",
+    "AMF_2->SMF_2",
+    "SMF_2->AMF_2",
+    "AMF_2->gNB_1",
+    "gNB_1->AMF_2"
+  ]
 }

@@ -1,21 +1,8 @@
 {
-  "fault_type": "switch",
+  "fault_type": "path_link",
   "fault_elements": [],
   "fault_links": [
-    "AMF_15->AMF_2",
-    "AMF_15->PCF_6",
-    "AMF_15->gNB_16",
-    "AMF_2->PCF_6",
-    "AMF_2->gNB_16",
-    "AMF_8->AMF_15",
-    "AMF_8->AMF_2",
-    "AMF_8->PCF_6",
-    "AMF_8->gNB_16",
-    "NRF_2->AMF_15",
-    "NRF_2->AMF_2",
-    "NRF_2->AMF_8",
-    "NRF_2->PCF_6",
-    "NRF_2->gNB_16",
-    "gNB_16->PCF_6"
+    "gNB_16->AMF_15",
+    "AMF_15->gNB_16"
   ]
 }

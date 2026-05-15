@@ -1,6 +1,9 @@
 {
-  "fault_type": "single_ne",
+  "fault_type": "resource_pool",
   "fault_elements": [
+    "AMF_1",
+    "AMF_2",
+    "AMF_3",
     "gNB_2"
   ],
   "fault_links": []

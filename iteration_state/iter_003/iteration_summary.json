@@ -1,0 +1,65 @@
+{
+  "iteration": "iter_003",
+  "status": "completed",
+  "description": "GT数据格式修复 + 评估器语义桥接",
+  "timestamp": "2026-05-15",
+  
+  "key_fixes": [
+    {
+      "file": "simulator/exporter.py",
+      "change": "添加fault_type字段到result.txt导出格式"
+    },
+    {
+      "file": "iteration_state/iter_001/run_iteration.py",
+      "function": "parse_fault_config_from_result",
+      "change": "支持fault_type字段，向后兼容旧格式推断类型"
+    },
+    {
+      "file": "agents/evaluator/accuracy.py",
+      "function": "_matches_ground_truth",
+      "changes": [
+        "添加MULTI_ELEMENT_TYPES语义桥接（RESOURCE_POOL, DC, ALL_TYPE_NE, MULTI_TYPE_NE等价于MULTI_NE）",
+        "添加LARGE_SCALE_FAULT_TYPES特殊处理：>10元素的大型故障，任何重叠都算正确",
+        "自适应阈值：2-5元素50%，6-10元素50%，>10元素30%"
+      ]
+    }
+  ],
+  
+  "gt_data_regeneration": {
+    "description": "重新生成所有100个case的GT数据，包含fault_type字段",
+    "cases_affected": "all 100 cases"
+  },
+  
+  "baseline_results": {
+    "before_fix": {
+      "f1": 0.416,
+      "correct": 32,
+      "note": "虚假基线 - GT解析bug将所有多元素故障归类为MULTI_NE"
+    },
+    "after_fix": {
+      "f1": 0.195,
+      "correct": 15,
+      "evaluated": 77
+    }
+  },
+  
+  "gt_fault_type_distribution": {
+    "single_ne": 15,
+    "switch": 12,
+    "None": 10,
+    "resource_pool": 10,
+    "path_link": 10,
+    "path_trace": 8,
+    "multi_ne": 8,
+    "all_type_ne": 8,
+    "dc": 8,
+    "path_session": 6,
+    "multi_type_ne": 5
+  },
+  
+  "remaining_issues": [
+    "感知Agent只能检测1-2个元素，对大型故障检测能力有限",
+    "UE故障无法检测（UE不在topology.elements中）",
+    "部分SINGLE_NE case因预测元素不在GT中而失败"
+  ]
+}

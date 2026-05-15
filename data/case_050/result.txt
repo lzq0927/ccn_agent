@@ -1,9 +1,41 @@
 {
-  "fault_type": "path_link",
-  "fault_elements": [],
-  "fault_links": [
-    "AMF_10->SMF_15",
-    "AMF_13->SMF_1",
-    "AMF_4->SMF_9"
-  ]
+  "fault_type": "resource_pool",
+  "fault_elements": [
+    "AMF_10",
+    "AMF_11",
+    "AMF_12",
+    "AMF_14",
+    "AMF_15",
+    "AMF_2",
+    "AMF_4",
+    "AMF_6",
+    "AMF_7",
+    "AMF_8",
+    "AMF_9",
+    "SMF_1",
+    "SMF_10",
+    "SMF_11",
+    "SMF_14",
+    "SMF_16",
+    "SMF_17",
+    "SMF_18",
+    "SMF_3",
+    "SMF_4",
+    "SMF_6",
+    "UPF_12",
+    "UPF_15",
+    "UPF_16",
+    "UPF_6",
+    "UPF_8",
+    "UPF_9",
+    "gNB_13",
+    "gNB_14",
+    "gNB_15",
+    "gNB_16",
+    "gNB_17",
+    "gNB_2",
+    "gNB_5",
+    "gNB_6"
+  ],
+  "fault_links": []
 }

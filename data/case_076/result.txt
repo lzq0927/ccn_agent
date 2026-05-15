@@ -1,7 +1,10 @@
 {
-  "fault_type": "single_ne",
-  "fault_elements": [
-    "UPF_1"
-  ],
-  "fault_links": []
+  "fault_type": "path_link",
+  "fault_elements": [],
+  "fault_links": [
+    "SMF_1->UPF_1",
+    "SMF_2->UPF_1",
+    "UPF_1->SMF_2",
+    "UPF_1->SMF_1"
+  ]
 }
