@@ -8,6 +8,7 @@ import logging
 from typing import Callable
 
 from agents.shared.llm_client import LLMClient, LLMConfig
+from agents.shared.llm_config import load_llm_config
 from agents.shared.models import (
     DiagnosisResult, CaseData, EvaluationReport,
 )
@@ -39,7 +40,7 @@ class EvaluationOptimizationAgent:
         self.bus = message_bus
         self.progress_callback = progress_callback
 
-        llm = LLMClient(llm_config or LLMConfig(model="gpt-4o-mini"))
+        llm = LLMClient(llm_config or load_llm_config())
 
         self.evaluator = Evaluator()
         self.trace_analyzer = TraceAnalyzer(llm)

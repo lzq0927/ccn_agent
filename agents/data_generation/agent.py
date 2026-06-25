@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from agents.shared.llm_client import LLMConfig
+from agents.shared.llm_config import load_llm_config
 from agents.shared.models import (
     CasePackage, CaseParams, ValidationStatus,
 )
@@ -49,7 +50,7 @@ class FaultDataGenerationAgent:
         self.simulator = SimulatorWrapper()
 
         # LLM for validation
-        llm_config = self.config.llm_config or LLMConfig(model=self.config.validation_model)
+        llm_config = self.config.llm_config or load_llm_config()
         self.validator = LLMValidator(llm_config=llm_config)
 
     async def generate_case(self, params: CaseParams, case_id: int = 0) -> CasePackage:

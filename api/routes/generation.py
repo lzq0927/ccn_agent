@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks
+from fastapi import APIRouter
 
 from agents.shared.storage import Storage
 
@@ -20,7 +20,6 @@ async def create_generation_batch(
     count: int = 50,
     difficulty: str = "mixed",
     seed: int = 42,
-    background_tasks: BackgroundTasks | None = None,
 ):
     batch_id = f"gen_{uuid.uuid4().hex[:8]}"
     _jobs[batch_id] = {"status": "started", "count": count, "completed": 0, "results": []}

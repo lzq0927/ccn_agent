@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from agents.shared.llm_client import LLMClient, LLMConfig, LLMResponse
+from agents.shared.llm_config import load_llm_config
 from agents.shared.models import (
     CaseData, DiagnosisResult, ConfidenceAssessment, Route,
     ReasoningStep, SessionStatus,
@@ -104,7 +105,7 @@ class FaultPerceptionAgent:
         self.bus = message_bus
         self.progress_callback = progress_callback
 
-        self.llm = LLMClient(self.config.llm_config or LLMConfig())
+        self.llm = LLMClient(self.config.llm_config or load_llm_config())
         self.assessor = ConfidenceAssessor()
         self.router = Router()
         self.workflow_engine = WorkflowEngine(progress_callback)

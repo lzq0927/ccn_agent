@@ -9,6 +9,7 @@ import logging
 from typing import Callable
 
 from agents.shared.llm_client import LLMConfig
+from agents.shared.llm_config import load_llm_config
 from agents.shared.models import CaseData, ValidationStatus, parse_chr_jsonl
 from agents.shared.storage import Storage
 from agents.shared.message_bus import MessageBus
@@ -32,7 +33,7 @@ class ClosedLoopRunner:
         self.storage = storage or Storage()
         self.bus = message_bus or MessageBus()
         self.progress_callback = progress_callback
-        self.llm_config = llm_config or LLMConfig()
+        self.llm_config = llm_config or load_llm_config()
 
         self.gen_agent = FaultDataGenerationAgent(
             storage=self.storage,

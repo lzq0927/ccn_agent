@@ -111,8 +111,15 @@ def test_exploration_requires_chr_signal():
 
 async def test_agent_diagnose_dispatches_exploration(tmp_path):
     """End-to-end: agent routes a micro-loss case to EXPLORATION and identifies the NE."""
+    from agents.fault_perception.agent import PerceptionConfig
+    from agents.shared.llm_client import LLMConfig
+
     cd = _case_data(loss_rate=0.005, case_id=4242)
-    agent = FaultPerceptionAgent(storage=Storage(db_path=str(tmp_path / "exp.db")))
+    # Keyless LLMConfig → deterministic posterior path (no real LLM call in tests).
+    agent = FaultPerceptionAgent(
+        storage=Storage(db_path=str(tmp_path / "exp.db")),
+        config=PerceptionConfig(llm_config=LLMConfig()),
+    )
     res = await agent.diagnose(cd)
     assert res.route_taken == Route.EXPLORATION
     # The multi-algorithm framework should point at the injected faulted NE.
