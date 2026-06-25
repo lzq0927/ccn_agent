@@ -76,7 +76,7 @@ Agent 2 借鉴了 Hermes Agent 的设计模式(Agent Loop、工具自注册、Sk
 ## 数据契约
 
 一个**用例(case)**是 `storage/cases/case_XXX/` 下的五个文件:
-- `data.csv` —— KPI 时序。列:`timestamp,level,ue_id,src,dst,success_rate`。`level` ∈ `link|trace|session`。**`success_rate < 0.995` 是到处都在用的异常阈值**。
+- `data.csv` —— KPI 时序。列:`timestamp,level,ue_id,src,dst,success_rate,message_name,procedure`。`level` ∈ `link|trace|session`;`message_name` 是该 hop 的 3GPP 消息名(link/trace 有值,如 `Nsmf_PDUSession_CreateSMContext Request`,session 为空);`procedure` 是流程 slug(每行都有,如 `pdu_create`)。**`success_rate < 0.995` 是到处都在用的异常阈值**。
 - `topo.txt` —— 嵌套拓扑:`DC:` → `ResourcePool:` → `NE_type: NE_id(role)` 行。
 - `process.txt` —— 业务流模板 + 每个 UE 解析后的跳(`UE_id: src->dst -> src->dst`)。
 - `result.txt` —— 真值 JSON:`{"fault_elements": [...], "fault_links": ["src->dst", ...]}`。

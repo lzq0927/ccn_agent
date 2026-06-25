@@ -129,6 +129,9 @@ class KPIRecord:
     src: str
     dst: str
     success_rate: float
+    # Human-readable labels (free5GC-faithful).
+    message_name: str = ""  # link/trace: the 3GPP message on that hop (e.g. Nsmf_PDUSession_CreateSMContext Request)
+    procedure: str = ""  # the procedure/flow slug (e.g. pdu_create); set on every row
 
 
 @dataclass

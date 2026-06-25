@@ -21,11 +21,12 @@ class DataExporter:
     def _write_data_csv(self, case_dir, result):
         path = os.path.join(case_dir, "data.csv")
         with open(path, "w", encoding="utf-8") as f:
-            f.write("timestamp,level,ue_id,src,dst,success_rate\n")
+            f.write("timestamp,level,ue_id,src,dst,success_rate,message_name,procedure\n")
             for rec in result.kpi_records:
                 f.write(
                     f"{rec.timestamp},{rec.level},{rec.ue_id},"
-                    f"{rec.src},{rec.dst},{rec.success_rate}\n"
+                    f"{rec.src},{rec.dst},{rec.success_rate},"
+                    f"{rec.message_name},{rec.procedure}\n"
                 )
 
     def _write_chr_jsonl(self, case_dir, result):

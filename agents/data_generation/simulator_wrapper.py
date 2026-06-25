@@ -171,10 +171,11 @@ class SimulatorWrapper:
 
     def _export_kpi_csv(self, kpi_records) -> str:
         buf = io.StringIO()
-        buf.write("timestamp,level,ue_id,src,dst,success_rate\n")
+        buf.write("timestamp,level,ue_id,src,dst,success_rate,message_name,procedure\n")
         for rec in kpi_records:
             buf.write(
-                f"{rec.timestamp},{rec.level},{rec.ue_id},{rec.src},{rec.dst},{rec.success_rate:.4f}\n"
+                f"{rec.timestamp},{rec.level},{rec.ue_id},{rec.src},{rec.dst},"
+                f"{rec.success_rate:.4f},{rec.message_name},{rec.procedure}\n"
             )
         return buf.getvalue()
 

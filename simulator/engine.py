@@ -14,6 +14,16 @@ def _derive_service(message_name: str, src_type: str, dst_type: str) -> str:
     return f"{src_type}->{dst_type}"  # radio/NAS hop, not SBI
 
 
+# Short flow slugs for the procedure column (e.g. PDU_Session_Establishment → pdu_create).
+_PROCEDURE_SLUGS = {
+    "PDU_Session_Establishment": "pdu_create",
+    "Registration": "registration",
+    "Handover": "handover",
+    "PDU_Session_Release": "pdu_release",
+    "Service_Request": "service_request",
+}
+
+
 class SimulationEngine:
     """Discrete event simulation engine for core network reliability."""
 
@@ -60,6 +70,18 @@ class SimulationEngine:
                 link = tuple(sorted([src, dst]))
                 unique_links.add(link)
 
+        # Map each undirected link to a representative 3GPP message (the first
+        # NE-NE hop that traverses it) so link KPI rows carry a concrete label.
+        link_message: dict[tuple, str] = {}
+        for flow in flows:
+            msgs = PROCESS_DEFINITIONS[flow.process_name]["messages"]
+            for hop_idx, (src, dst) in enumerate(flow.hops):
+                if src == flow.ue_id or dst == flow.ue_id:
+                    continue
+                link_message.setdefault(tuple(sorted([src, dst])), msgs[hop_idx])
+
+        procedure_slug = _PROCEDURE_SLUGS.get(scenario.process_name, scenario.process_name)
+
         # Step 4: Simulate 60 seconds
         proc_def = PROCESS_DEFINITIONS[scenario.process_name]
         for t in range(1, 61):
@@ -78,6 +100,8 @@ class SimulationEngine:
                         src=link[0],
                         dst=link[1],
                         success_rate=round(sr, 6),
+                        message_name=link_message.get(link, ""),
+                        procedure=procedure_slug,
                     )
                 )
 
@@ -100,6 +124,7 @@ class SimulationEngine:
                         src, dst, flow.ue_id, link_sr, link_hit, fc, fault_active, t
                     )
                     trace_srs.append(trace_sr)
+                    message_name = proc_def["messages"][hop_idx]
                     result.kpi_records.append(
                         KPIRecord(
                             timestamp=t,
@@ -108,6 +133,8 @@ class SimulationEngine:
                             src=src,
                             dst=dst,
                             success_rate=round(trace_sr, 6),
+                            message_name=message_name,
+                            procedure=procedure_slug,
                         )
                     )
 
@@ -115,7 +142,6 @@ class SimulationEngine:
                     # anomalies and CHR failures point at the same affected hops.
                     if subscriber is not None:
                         tmpl_src, tmpl_dst = proc_def["hops"][hop_idx]
-                        message_name = proc_def["messages"][hop_idx]
                         result.chr_records.append(
                             chr_gen.emit(
                                 t=t,
@@ -147,6 +173,7 @@ class SimulationEngine:
                         src="",
                         dst="",
                         success_rate=round(session_sr, 6),
+                        procedure=procedure_slug,
                     )
                 )
 

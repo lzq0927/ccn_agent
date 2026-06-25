@@ -566,6 +566,39 @@ def test_storage_load_without_chr_is_backward_compatible(tmp_path):
     assert "chr.jsonl" not in files  # old pre-CHR case loads without error
 
 
+def test_kpi_rows_carry_message_and_procedure_labels():
+    """data.csv link/trace rows carry a message_name; session rows carry procedure."""
+    pkg = _single_pkg(case_id=12)
+    import csv as _csv
+    import io as _io
+
+    reader = _csv.DictReader(_io.StringIO(pkg.kpi_data))
+    kpi = list(reader)
+    assert kpi, "data.csv should have rows"
+    assert set(kpi[0].keys()) >= {
+        "timestamp",
+        "level",
+        "ue_id",
+        "src",
+        "dst",
+        "success_rate",
+        "message_name",
+        "procedure",
+    }
+
+    link = [r for r in kpi if r["level"] == "link"]
+    trace = [r for r in kpi if r["level"] == "trace"]
+    session = [r for r in kpi if r["level"] == "session"]
+    assert link and trace and session
+    # link + trace rows have a concrete message name; session rows have the flow slug.
+    assert all(r["message_name"] for r in link), "link rows need a message_name"
+    assert all(r["message_name"] for r in trace), "trace rows need a message_name"
+    assert all(r["procedure"] for r in session), "session rows need a procedure"
+    assert {r["procedure"] for r in session} == {"pdu_create"}
+    # session rows carry no per-hop message (it's an end-to-end aggregate).
+    assert all(not r["message_name"] for r in session)
+
+
 def test_exporter_writes_chr_jsonl(tmp_path):
     scenario = _fault_scenario()
     result = SimulationEngine(chr_background_fail_rate=0.0).simulate(scenario)
