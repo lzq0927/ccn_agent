@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass, field
 
@@ -91,7 +90,6 @@ class ContextManager:
 
     def build_user_message(self, case_data: CaseData) -> str:
         """Build the initial user message with case data for the agent."""
-        kpi_sample = []
         link_rows = [r for r in case_data.kpi_rows if str(r.get("level", "")) == "link"]
 
         # Sample KPI data: first few + around fault window + last few
@@ -101,11 +99,14 @@ class ContextManager:
             sample = link_rows[:50]
 
         kpi_str = "\n".join(
-            f"  ts={r.get('timestamp',0)}, {r.get('src','')}->{r.get('dst','')}, sr={r.get('success_rate',1.0):.4f}"
+            f"  ts={r.get('timestamp',0)}, {r.get('src','')}->{r.get('dst','')}, "
+            f"sr={float(r.get('success_rate', 1.0)):.4f}"
             for r in sample
         )
         if len(link_rows) > 100:
             kpi_str += f"\n  ... ({len(link_rows)} total link entries)"
+
+        chr_block = self._chr_failure_block(case_data.chr_records)
 
         return f"""Please diagnose the fault in this 5GC case (ID: {case_data.case_id}).
 
@@ -117,5 +118,37 @@ class ContextManager:
 
 ## Process:
 {case_data.process_text[:500]}
+{chr_block}Analyze the data using the available tools and provide your diagnosis. Start by checking for KPI anomalies, then use the user-level CHR to confirm or rule out faults."""
 
-Analyze the data using the available tools and provide your diagnosis. Start by checking for KPI anomalies."""
+    @staticmethod
+    def _chr_failure_block(chr_records: list[dict], max_chars: int = 600) -> str:
+        """Render a compact CHR failure summary for the diagnosis prompt.
+
+        CHR (per-subscriber signaling history with 5G cause codes) is the signal
+        that disambiguates real network faults from terminal / fluctuation noise
+        when KPI drops are subtle. Empty when no CHR is available.
+        """
+        if not chr_records:
+            return ""
+        from collections import Counter
+
+        failures = [r for r in chr_records if r.get("outcome") == "failure"]
+        total = len(chr_records)
+        cause_counts = Counter(
+            r.get("cause5gsm") or r.get("cause5gmm") or "?" for r in failures
+        )
+        lines = [
+            f"\n## User-level CHR (free5GC, {len(failures)} failures / {total} attempts):",
+            "Cause distribution: " + ", ".join(
+                f"{c}({n})" for c, n in cause_counts.most_common(5)
+            ),
+        ]
+        for r in failures[:10]:
+            supi = str(r.get("supi", ""))[:20]
+            lines.append(
+                f"  ts={r.get('timestamp')} supi={supi} {r.get('nf_src', '')}->"
+                f"{r.get('nf_dst', '')} sbi={r.get('sbi_status')} "
+                f"5gsm={r.get('cause5gsm')} 5gmm={r.get('cause5gmm')}"
+            )
+        block = "\n".join(lines)
+        return block[:max_chars] + "\n"

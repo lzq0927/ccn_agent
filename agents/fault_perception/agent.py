@@ -22,6 +22,7 @@ from agents.shared.models import (
 from agents.shared.storage import Storage
 from agents.shared.message_bus import MessageBus
 from agents.fault_perception.confidence import ConfidenceAssessor
+from agents.fault_perception.exploration_config import ExplorationConfig
 from agents.fault_perception.router import Router
 from agents.fault_perception.workflow_engine import WorkflowEngine
 from agents.fault_perception.parallel_explorer import ParallelExplorer
@@ -107,7 +108,7 @@ class FaultPerceptionAgent:
         self.assessor = ConfidenceAssessor()
         self.router = Router()
         self.workflow_engine = WorkflowEngine(progress_callback)
-        self.parallel_explorer = ParallelExplorer(self.llm)
+        self.parallel_explorer = ParallelExplorer(self.llm, config=ExplorationConfig())
         self.prompt_builder = PromptBuilder(self.config.skill_dir, self.config.memory_dir)
         self.context_manager = ContextManager()
 
@@ -151,6 +152,9 @@ class FaultPerceptionAgent:
             elif assessment.route == Route.GUIDED:
                 result = await self._run_agent_loop(case_data, assessment, session_id,
                                                      max_iterations=routing["max_iterations"])
+            elif assessment.route == Route.EXPLORATION:
+                result = await self._run_exploration(case_data, assessment, session_id,
+                                                      max_iterations=routing["max_iterations"])
             else:  # AUTONOMOUS
                 result = await self._run_agent_loop(case_data, assessment, session_id,
                                                      max_iterations=routing["max_iterations"])
@@ -228,6 +232,35 @@ class FaultPerceptionAgent:
         self._emit_progress("workflow_start", {"workflow": workflow, "session_id": session_id})
 
         result = await self.workflow_engine.run(workflow, case_data, session_id)
+        result.session_id = session_id
+        return result
+
+    async def _run_exploration(self, case_data: CaseData, assessment: ConfidenceAssessment,
+                               session_id: str, max_iterations: int = 40) -> DiagnosisResult:
+        """Phase 2 exploration mode: Agent + LLM + multi-algorithm framework on CHR.
+
+        Triggered when KPIs are ambiguous (micro-loss) but user-level CHR shows
+        concentrated failures or layer inconsistency. The ParallelExplorer runs
+        the statistical + ML detectors with param sweeps, fuses them into a
+        Bayesian posterior, and synthesises a diagnosis (LLM refines when a key
+        is configured; otherwise the deterministic posterior is used).
+        """
+        self._emit_progress("exploration_start", {"session_id": session_id})
+        system_prompt = self.prompt_builder.build_system_prompt(
+            case_id=case_data.case_id,
+            kpi_summary=self._summarize_kpi(case_data),
+            topology_summary=case_data.topology_text[:500],
+            assessment=assessment,
+            mode=Route.EXPLORATION,
+            max_iterations=max_iterations,
+        )
+        result = await self.parallel_explorer.explore(
+            case_data=case_data,
+            hypotheses=[],  # algorithm-driven, not hypothesis-driven
+            system_prompt=system_prompt,
+            session_id=session_id,
+        )
+        result.route_taken = Route.EXPLORATION
         result.session_id = session_id
         return result
 
@@ -438,7 +471,6 @@ async def main():
     """CLI entry point for fault perception agent."""
     import argparse
     import csv
-    import io
 
     parser = argparse.ArgumentParser(description="5GC Fault Perception Agent")
     parser.add_argument("--case-id", type=int, required=True, help="Case ID to diagnose")
@@ -483,7 +515,7 @@ async def main():
     # Run diagnosis
     result = await agent.diagnose(case_data)
 
-    print(f"\n=== Diagnosis Result ===")
+    print("\n=== Diagnosis Result ===")
     print(f"Session: {result.session_id}")
     print(f"Fault type: {result.fault_type}")
     print(f"Fault elements: {result.fault_elements}")
@@ -492,7 +524,7 @@ async def main():
     print(f"Route: {result.route_taken.value}")
     print(f"Iterations: {result.iterations_used}")
 
-    print(f"\n=== Ground Truth ===")
+    print("\n=== Ground Truth ===")
     print(f"Fault elements: {ground_truth.get('fault_elements', [])}")
     print(f"Fault links: {ground_truth.get('fault_links', [])}")
 

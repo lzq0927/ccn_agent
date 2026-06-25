@@ -8,7 +8,6 @@ Pipeline:
 """
 import os
 import sys
-import random
 import time
 
 # Add parent directory to path for imports
@@ -74,7 +73,7 @@ def main():
     print(f"  Simulation complete: {total_time:.1f}s")
 
     # ---- Stage 3: 数据导出 ----
-    print(f"\n[Stage 3] 数据导出...")
+    print("\n[Stage 3] 数据导出...")
 
     exporter = DataExporter(data_dir)
 

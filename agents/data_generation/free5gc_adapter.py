@@ -1,101 +1,75 @@
-"""Placeholder adapter for free5gc integration.
+"""free5GC-faithful data generator.
 
-This module provides the interface for connecting to a real free5GC instance
-for more realistic fault simulation in the future.
+This adapter is the entry point for cases whose subscriber / session / CHR layer
+mirrors free5GC's real data structures: SUPI subscriber identities, PDU-session
+lifecycle, NRF-registered topology, and 5GMM / 5GSM / SBI failure cause codes.
+It produces them deterministically via the simulator's CHR pipeline — no real
+network functions, no Docker — and tags cases ``CaseSource.FREE5GC`` so
+downstream consumers know the identity / cause layer is free5GC-faithful.
 
-Status: Placeholder - not yet connected to a real free5GC instance.
+Design note: a future *real*-free5GC backend (Docker + UERANSIM, NF fault
+injection, live KPI / signaling-log scraping) would plug in behind the same
+``generate_case`` / ``generate_batch`` interface, swapping the synthetic CHR
+pipeline for captured free5GC data without changing consumers.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 
-from agents.shared.models import CasePackage, CaseMetadata, CaseSource, ValidationStatus
+from agents.data_generation.simulator_wrapper import SimulatorWrapper
+from agents.shared.models import CaseDifficulty, CasePackage, CaseParams, CaseSource
+from simulator.models import FaultMode, FaultPointType
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class Free5GCConfig:
-    """Configuration for connecting to a free5GC instance."""
-    api_url: str = "http://localhost:5000"
-    enabled: bool = False
-
-
 class Free5GCAdapter:
-    """Adapter for integrating with free5GC for realistic fault simulation.
+    """Generate free5GC-faithful fault cases (data-model mode, no real NFs)."""
 
-    Future capabilities:
-    - Deploy 5GC network functions via free5GC
-    - Inject real faults (container crashes, network partitions, resource limits)
-    - Collect real KPI metrics from running network
-    - Support NF-level fault injection (AMF crash, SMF overload, UPF packet loss)
+    def __init__(self, default_ue_count: int = 50):
+        self.wrapper = SimulatorWrapper()
+        self.default_ue_count = default_ue_count
 
-    Current status: Placeholder that returns synthetic data via simulator.
-    """
+    def generate_case(self, fault_spec: dict, case_id: int) -> CasePackage:
+        """Generate one free5GC-faithful case from a fault spec.
 
-    def __init__(self, config: Free5GCConfig | None = None):
-        self.config = config or Free5GCConfig()
-        self.connected = False
-
-    async def connect(self) -> bool:
-        """Connect to free5GC instance."""
-        if not self.config.enabled:
-            logger.info("free5GC integration is disabled")
-            return False
-
-        # TODO: Implement actual connection to free5GC API
-        # - Check if free5GC is running
-        # - Verify network function availability
-        # - Setup monitoring for KPI collection
-        logger.warning("free5GC adapter: not yet implemented, using simulator fallback")
-        return False
-
-    async def inject_fault(self, nf_type: str, fault_type: str, params: dict) -> dict:
-        """Inject a fault into a running free5GC network function.
-
-        Args:
-            nf_type: Network function type (AMF, SMF, UPF, etc.)
-            fault_type: Type of fault (crash, latency, packet_loss, resource_limit)
-            params: Fault parameters (duration, severity, etc.)
-
-        Returns:
-            Fault injection result with status
+        ``fault_spec`` keys (all optional except where a fault is desired):
+            fault_type (str), fault_mode ("link"|"business"), loss_rate (float),
+            process_name (str), topo_config_index (int), ue_count (int),
+            seed (int), difficulty ("easy"|"medium"|"hard"|"edge").
         """
-        # TODO: Implement fault injection via free5GC API
-        # - Container kill for crash faults
-        # - tc/netem for latency and packet loss
-        # - cgroups for resource limiting
-        return {"status": "not_implemented", "message": "free5GC adapter is a placeholder"}
+        params = CaseParams(
+            topo_config_index=fault_spec.get("topo_config_index", 0),
+            seed=fault_spec.get("seed"),
+            fault_type=_opt_enum(fault_spec.get("fault_type"), FaultPointType),
+            fault_mode=_opt_enum(fault_spec.get("fault_mode"), FaultMode),
+            process_name=fault_spec.get("process_name"),
+            ue_count=fault_spec.get("ue_count", self.default_ue_count),
+            loss_rate=fault_spec.get("loss_rate"),
+            difficulty=CaseDifficulty(fault_spec.get("difficulty", "medium")),
+        )
+        package = self.wrapper.generate(params, case_id=case_id)
+        return self._stamp(package)
 
-    async def collect_kpi(self, duration: int = 60) -> list[dict]:
-        """Collect KPI metrics from the running free5GC instance.
+    def generate_batch(self, count: int, seed: int = 42) -> list[CasePackage]:
+        """Generate a batch of free5GC-faithful cases (standard fault mix)."""
+        packages = self.wrapper.generate_batch(count, seed=seed)
+        return [self._stamp(p) for p in packages]
 
-        Args:
-            duration: Collection duration in seconds
+    @staticmethod
+    def _stamp(package: CasePackage) -> CasePackage:
+        """Tag a package as free5GC-faithful (source + tag)."""
+        package.metadata.source = CaseSource.FREE5GC
+        if "free5gc" not in package.metadata.tags:
+            package.metadata.tags.append("free5gc")
+        return package
 
-        Returns:
-            List of KPI records in standard format
-        """
-        # TODO: Implement KPI collection from free5GC
-        # - Prometheus metrics scraping
-        # - Log analysis for error rates
-        # - Traffic mirroring for packet analysis
-        return []
 
-    async def generate_case(self, fault_spec: dict) -> CasePackage | None:
-        """Generate a fault case using real free5GC infrastructure.
-
-        Returns None if free5GC is not available (fall back to simulator).
-        """
-        if not self.connected:
-            logger.info("free5GC not connected, skipping")
-            return None
-
-        # TODO: Full implementation
+def _opt_enum(value, enum_cls):
+    """Coerce a string/enum value into the given enum, or None."""
+    if value is None:
         return None
-
-    async def disconnect(self) -> None:
-        """Disconnect from free5GC and clean up resources."""
-        self.connected = False
+    if isinstance(value, enum_cls):
+        return value
+    return enum_cls(value)

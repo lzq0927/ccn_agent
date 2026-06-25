@@ -9,8 +9,7 @@ from typing import Callable
 
 from agents.shared.llm_client import LLMClient, LLMConfig
 from agents.shared.models import (
-    DiagnosisResult, CaseData, EvaluationReport, EvaluationMetrics,
-    CaseLibraryEntry, OptimizationSuggestion, CaseCategory,
+    DiagnosisResult, CaseData, EvaluationReport,
 )
 from agents.shared.storage import Storage
 from agents.shared.message_bus import MessageBus
@@ -184,7 +183,7 @@ async def main():
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
 
-    agent = EvaluationOptimizationAgent()
+    EvaluationOptimizationAgent()  # construct to initialize defaults (unused in this placeholder CLI)
 
     if args.evaluate_all:
         storage = Storage()

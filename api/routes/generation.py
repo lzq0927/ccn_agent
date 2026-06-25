@@ -8,7 +8,6 @@ import uuid
 from fastapi import APIRouter, BackgroundTasks
 
 from agents.shared.storage import Storage
-from agents.shared.models import CaseParams
 
 router = APIRouter()
 

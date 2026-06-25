@@ -1,9 +1,8 @@
 import random
 from .models import (
     FaultConfig, FaultMode, FaultPointType,
-    NEType, Scenario, MASTER_STANDBY_TYPES
+    NEType, Scenario,
 )
-from .topology import TopologyGenerator
 
 
 # Distribution of fault point types across 90 fault cases (10 normal)
@@ -34,15 +33,16 @@ class ScenarioGenerator:
     def generate(self, num_cases=100, seed=42):
         random.seed(seed)
 
-        # Build ordered fault type list
-        fault_types = []
-        for ftype, count in FAULT_DISTRIBUTION:
-            fault_types.extend([ftype] * count)
+        # Build the fault-type mix scaled to the requested count (~90% faults,
+        # ~10% normal), weighted by FAULT_DISTRIBUTION. Works for any count,
+        # not only 100 (the legacy path hard-coded exactly 90 faults + 10 normal).
+        types, weights = zip(*FAULT_DISTRIBUTION)
+        num_faults = min(num_cases, round(num_cases * sum(weights) / 100))
+        fault_types = list(random.choices(types, weights=weights, k=num_faults))
         random.shuffle(fault_types)
 
-        # 10 normal cases + 90 fault cases
-        normal_count = num_cases - len(fault_types)
-        assert normal_count == 10
+        # Remaining cases are normal (no fault).
+        normal_count = num_cases - num_faults
 
         # Assign train/test split (exact 40:60)
         train_count = int(num_cases * 0.4)  # 40

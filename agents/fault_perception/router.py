@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from agents.shared.models import CaseData, ConfidenceAssessment, Route
+from agents.shared.models import ConfidenceAssessment, Route
 
 logger = logging.getLogger(__name__)
 
@@ -21,5 +21,6 @@ class Router:
                 Route.WORKFLOW: 5,
                 Route.GUIDED: 15,
                 Route.AUTONOMOUS: 30,
+                Route.EXPLORATION: 40,
             }[assessment.route],
         }

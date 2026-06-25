@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from agents.shared.models import Route
+
+if TYPE_CHECKING:
+    from agents.shared.models import ConfidenceAssessment
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +73,7 @@ class PromptBuilder:
         parts = [AGENT_IDENTITY]
 
         # Load skill index (L0)
-        parts.append(SKILLS_GUIDAGE.format(skill_index=self._load_skill_index()))
+        parts.append(SKILLS_GUIDANCE.format(skill_index=self._load_skill_index()))
 
         # For WORKFLOW mode, include the specific workflow skill
         if mode == Route.WORKFLOW and assessment.suggested_workflow:
@@ -83,6 +87,12 @@ class PromptBuilder:
                 skill_content = self._load_skill_l1(skill_name)
                 if skill_content:
                     parts.append(f"## Skill: {skill_name}\n{skill_content}")
+
+        # For EXPLORATION mode, load the exploration-mode skill (micro-loss / CHR)
+        elif mode == Route.EXPLORATION:
+            exploration_content = self._load_skill_l1("exploration_mode")
+            if exploration_content:
+                parts.append(f"## Exploration Mode\n{exploration_content}")
 
         # Memory
         memory_content = self._load_memory()
@@ -114,8 +124,8 @@ class PromptBuilder:
         return self._skill_index
 
     def _load_skill_l1(self, skill_name: str) -> str | None:
-        # Search in core/, workflows/, learned/
-        for subdir in ["core", "workflows", "learned"]:
+        # Search in core/, workflows/, learned/, exploration/
+        for subdir in ["core", "workflows", "learned", "exploration"]:
             skill_file = self.skill_dir / subdir / f"{skill_name}.md"
             if skill_file.exists():
                 return skill_file.read_text(encoding="utf-8")

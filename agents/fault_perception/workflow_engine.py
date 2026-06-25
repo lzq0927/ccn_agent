@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any, Callable
+from typing import Callable
 
 from agents.shared.models import CaseData, DiagnosisResult, Route, ReasoningStep, SessionStatus
 from tools.kpi_analyzer import analyze_kpi_anomalies, find_common_ne
-from tools.fault_isolator import check_temporal_pattern, isolate_fault_candidates
+from tools.fault_isolator import check_temporal_pattern
 from tools.topology_tools import check_ne_membership
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,6 @@ class WorkflowEngine:
         # Step 3: Temporal pattern
         step += 1
         temporal_result = await check_temporal_pattern(case_data.kpi_rows, ne_id=ne_data.get("top_ne", ""))
-        temporal_data = json.loads(temporal_result)
         trace.append(ReasoningStep(step_number=step, step_type="tool_call",
                                     content="check_temporal_pattern", tool_name="check_temporal_pattern",
                                     tool_result=temporal_result[:500]))

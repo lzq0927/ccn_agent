@@ -5,13 +5,12 @@ from __future__ import annotations
 import io
 import json
 import logging
-from typing import Optional
+from dataclasses import asdict
 
 from simulator.models import FaultPointType, FaultMode, Scenario
 from simulator.topology import TopologyGenerator
 from simulator.scenario import ScenarioGenerator
 from simulator.engine import SimulationEngine
-from simulator.exporter import DataExporter
 
 from agents.shared.models import CasePackage, CaseMetadata, CaseParams, CaseSource, CaseDifficulty, ValidationStatus
 
@@ -70,6 +69,7 @@ class SimulatorWrapper:
         topo_text = self._export_topo(scenario)
         process_text = self._export_process(scenario, result)
         result_text = self._export_result(scenario)
+        chr_jsonl = self._export_chr_jsonl(result)
 
         # Build metadata
         fc = scenario.fault_config
@@ -96,6 +96,7 @@ class SimulatorWrapper:
             process_text=process_text,
             result_text=result_text,
             metadata=metadata,
+            chr_data=chr_jsonl,
         )
 
     def generate_batch(self, count: int, seed: int = 42) -> list[CasePackage]:
@@ -113,6 +114,7 @@ class SimulatorWrapper:
             topo_text = self._export_topo(scenario)
             process_text = self._export_process(scenario, result)
             result_text = self._export_result(scenario)
+            chr_jsonl = self._export_chr_jsonl(result)
 
             fc = scenario.fault_config
             metadata = CaseMetadata(
@@ -128,7 +130,6 @@ class SimulatorWrapper:
                 fault_start=fc.fault_start if fc else 0,
                 fault_duration=fc.fault_duration if fc else 0,
                 tags=self._build_tags(scenario),
-                is_train=scenario.is_train,
             )
 
             packages.append(CasePackage(
@@ -138,6 +139,7 @@ class SimulatorWrapper:
                 process_text=process_text,
                 result_text=result_text,
                 metadata=metadata,
+                chr_data=chr_jsonl,
             ))
 
         return packages
@@ -145,13 +147,8 @@ class SimulatorWrapper:
     def _build_fault_config(self, fault_type: FaultPointType, fault_mode: FaultMode,
                             topology, seed: int, loss_rate: float | None = None):
         """Build a FaultConfig for a specific fault type."""
-        import random
-        rng = random.Random(seed)
-
-        # Use the scenario generator's internal logic
-        topologies = {0: topology}
-        gen = ScenarioGenerator(topologies)
-        # Access internal method to build fault config
+        # Delegate to the scenario generator's internal builder.
+        gen = ScenarioGenerator({0: topology})
         return gen._build_fault_config(fault_type, fault_mode, topology)
 
     def _export_kpi_csv(self, kpi_records) -> str:
@@ -159,6 +156,13 @@ class SimulatorWrapper:
         buf.write("timestamp,level,ue_id,src,dst,success_rate\n")
         for rec in kpi_records:
             buf.write(f"{rec.timestamp},{rec.level},{rec.ue_id},{rec.src},{rec.dst},{rec.success_rate:.4f}\n")
+        return buf.getvalue()
+
+    def _export_chr_jsonl(self, result) -> str:
+        """Serialize free5GC-faithful CHR records to a JSONL string."""
+        buf = io.StringIO()
+        for rec in result.chr_records:
+            buf.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")
         return buf.getvalue()
 
     def _export_topo(self, scenario: Scenario) -> str:

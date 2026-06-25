@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 
 from agents.shared.llm_client import LLMClient, LLMConfig
-from agents.shared.models import CasePackage, ValidationStatus
+from agents.shared.models import CasePackage
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +109,9 @@ class LLMValidator:
         else:
             process_sample = case.process_text
 
+        # free5GC-faithful CHR failure summary (cause-code consistency check)
+        chr_line = self._chr_summary_line(case.chr_data)
+
         return f"""Please validate this 5GC fault simulation case (ID: {case.case_id}):
 
 ## Fault Metadata
@@ -122,11 +125,38 @@ class LLMValidator:
 
 ## Business Process
 {process_sample}
-
+{chr_line}
 ## Expected Fault Labels (result.txt)
 {case.result_text}
 
 Validate this case and respond in JSON format as instructed."""
+
+    @staticmethod
+    def _chr_summary_line(chr_data: str) -> str:
+        """One-line CHR failure / cause summary for the validation prompt."""
+        if not chr_data:
+            return ""
+        from collections import Counter
+
+        failures = 0
+        total = 0
+        causes: Counter = Counter()
+        for line in chr_data.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            total += 1
+            if rec.get("outcome") == "failure":
+                failures += 1
+                causes[rec.get("cause5gsm") or rec.get("cause5gmm") or "?"] += 1
+        if total == 0:
+            return ""
+        top = ", ".join(f"{c}({n})" for c, n in causes.most_common(5)) or "none"
+        return f"\n## CHR Summary\n{failures} failures / {total} attempts. Top causes: {top}\n"
 
     def _parse_response(self, response: str) -> ValidationResult:
         """Parse LLM response into ValidationResult."""

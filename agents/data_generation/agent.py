@@ -5,11 +5,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable
 
-from agents.shared.llm_client import LLMClient, LLMConfig
+from agents.shared.llm_client import LLMConfig
 from agents.shared.models import (
-    CasePackage, CaseParams, CaseSource, CaseDifficulty, ValidationStatus,
+    CasePackage, CaseParams, ValidationStatus,
 )
 from agents.shared.storage import Storage
 from agents.shared.message_bus import MessageBus

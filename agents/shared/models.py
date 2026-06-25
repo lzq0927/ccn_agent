@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Optional
 
 from simulator.models import FaultPointType, FaultMode
 
@@ -23,6 +22,7 @@ class Route(str, Enum):
     WORKFLOW = "workflow"
     GUIDED = "guided"
     AUTONOMOUS = "autonomous"
+    EXPLORATION = "exploration"
 
 
 class CaseDifficulty(str, Enum):
@@ -121,6 +121,7 @@ class CasePackage:
     process_text: str       # process.txt content
     result_text: str        # result.txt JSON content
     metadata: CaseMetadata
+    chr_data: str = ""      # free5GC-faithful CHR (JSONL content), one record per line
 
 
 # ---------------------------------------------------------------------------
@@ -136,6 +137,23 @@ class CaseData:
     process_text: str
     ground_truth: dict          # {fault_elements: [...], fault_links: [...]}
     metadata: Optional[CaseMetadata] = None
+    chr_records: list[dict] = field(default_factory=list)  # free5GC-faithful CHR rows
+
+
+def parse_chr_jsonl(text: str) -> list[dict]:
+    """Parse CHR JSONL content (one record per line) into a list of dicts.
+
+    Tolerates empty / missing content (returns []) so older cases without the
+    free5GC CHR layer load cleanly.
+    """
+    records: list[dict] = []
+    if not text:
+        return records
+    for line in text.splitlines():
+        line = line.strip()
+        if line:
+            records.append(json.loads(line))
+    return records
 
 
 @dataclass
@@ -179,6 +197,40 @@ class DiagnosisResult:
     tokens_used: int = 0
     llm_model: str = ""
     status: SessionStatus = SessionStatus.COMPLETED
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 exploration models (multi-algorithm framework on CHR)
+# ---------------------------------------------------------------------------
+
+@dataclass
+class ParamGrid:
+    """One algorithm's parameter sweep over a data view."""
+    algorithm: str                     # "ewma" | "cusum" | "pca" | "iforest" | ...
+    data_view: str                     # "link_kpi" | "trace_kpi" | "chr_attempt" | "per_supi_ts"
+    params: dict[str, list] = field(default_factory=dict)  # {"lambda_": [0.1, 0.2, 0.3]}
+
+
+@dataclass
+class SweepCell:
+    """One (algorithm, view, param-combo) detector run result."""
+    algorithm: str
+    data_view: str
+    params: dict = field(default_factory=dict)
+    finding: dict = field(default_factory=dict)
+    evidence_elements: list[str] = field(default_factory=list)
+    confidence: float = 0.0
+
+
+@dataclass
+class FindingsReport:
+    """Aggregated findings across an exploration sweep."""
+    cells: list[SweepCell] = field(default_factory=list)
+    param_concordance: dict[str, float] = field(default_factory=dict)
+    view_concordance: dict[str, float] = field(default_factory=dict)
+    bayesian_posterior: list[tuple[str, float]] = field(default_factory=list)
+    used_algorithms: list[str] = field(default_factory=list)
+    ablation_summary: dict = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

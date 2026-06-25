@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 from enum import Enum
+
+if TYPE_CHECKING:
+    from simulator.subscriber import PDUSession, SubscriberProfile
 
 
 class NEType(Enum):
@@ -44,6 +47,11 @@ class NetworkElement:
     pool_id: str
     dc_id: str
     role: str = "lb"  # 'master', 'standby', 'lb'
+    # free5GC NRF registration view (enriched by simulator.nrf_view).
+    nf_instance_id: str = ""          # NRF-registered instance id
+    nf_set: Optional[str] = None      # NF set, e.g. "AMF-set"
+    sbi_endpoint: str = ""            # e.g. "https://amf0.free5gc:8000"
+    nf_status: str = "REGISTERED"     # REGISTERED | SUSPENDED | UNDISCOVERABLE
 
 @dataclass
 class ResourcePool:
@@ -121,6 +129,32 @@ class KPIRecord:
 
 
 @dataclass
+class CHRRecord:
+    """A free5GC-faithful Call-History-Record: one sampled signaling transaction.
+
+    Mirrors the per-UE/per-hop/per-timestamp granularity of trace KPIs so CHR and
+    KPI failures point at the same set of affected hops. ``ue_id`` is kept as the
+    legacy join key (UE_1..n); ``supi`` is the free5GC subscriber identity layer.
+    """
+
+    timestamp: int
+    supi: str
+    pdu_session_id: Optional[int]   # None for pure-registration (non-session) hops
+    procedure_type: str             # e.g. "PDU_Session_Establishment"
+    msg_hop: str                    # type-level hop text, e.g. "AMF->SMF"
+    nf_src: str                     # concrete NE instance id (e.g. "AMF_1")
+    nf_dst: str                     # concrete NE instance id
+    service: str                    # SBI service, e.g. "Nsmf_PDUSession_CreateSMContext"
+    sbi_status: int                 # SBIStatus value (200 on success)
+    outcome: str                    # "success" | "failure"
+    cause5gmm: str                  # Cause5GMM value ("0" = none)
+    cause5gsm: str                  # Cause5GSM value ("0" = none)
+    latency_ms: float
+    message_name: str               # 3GPP message name from the process definition
+    ue_id: str                      # legacy join key (UE_1..n)
+
+
+@dataclass
 class Scenario:
     case_id: int
     topology: Topology
@@ -136,3 +170,7 @@ class SimulationResult:
     kpi_records: List[KPIRecord] = field(default_factory=list)
     flows: List[BusinessFlow] = field(default_factory=list)
     fault_config: Optional[FaultConfig] = None
+    # free5GC-faithful user-level layer (populated by CHRGenerator in the engine).
+    chr_records: List[CHRRecord] = field(default_factory=list)
+    subscribers: List["SubscriberProfile"] = field(default_factory=list)
+    sessions: List["PDUSession"] = field(default_factory=list)

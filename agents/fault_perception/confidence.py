@@ -8,10 +8,9 @@ Three-tier routing:
 
 from __future__ import annotations
 
-import json
 import logging
-from collections import defaultdict
-from dataclasses import dataclass, field
+from collections import Counter, defaultdict
+from dataclasses import dataclass
 
 from agents.shared.models import CaseData, ConfidenceAssessment, Route
 
@@ -19,6 +18,22 @@ logger = logging.getLogger(__name__)
 
 THRESHOLD_HIGH = 0.7
 THRESHOLD_LOW = 0.3
+
+# SBI status codes that indicate a real NF/transport failure (not just radio).
+_SBI_FAILURE_STATUSES = {408, 429, 500, 502, 503, 504}
+
+
+def _gini(values: list[int]) -> float:
+    """Gini coefficient in [0, 1]; 0 = evenly spread, 1 = all mass in one bucket."""
+    n = len(values)
+    if n == 0:
+        return 0.0
+    total = sum(values)
+    if total == 0:
+        return 0.0
+    ordered = sorted(values)
+    weighted = sum((i + 1) * v for i, v in enumerate(ordered))
+    return (2 * weighted) / (n * total) - (n + 1) / n
 
 
 @dataclass
@@ -36,6 +51,13 @@ class FeatureSet:
     pattern_match: str = ""
     pattern_strength: float = 0.0
     ambiguity: float = 0.0
+    # free5GC-faithful CHR features (Phase 2 exploration triggers)
+    chr_total: int = 0
+    chr_failure_count: int = 0
+    chr_sbi_5xx_count: int = 0
+    failed_supi_ratio: float = 0.0
+    chr_failure_concentration: float = 0.0  # Gini of per-SUPI failure counts
+    exploration_trigger: bool = False
 
 
 # Fault signature patterns for matching
@@ -57,7 +79,7 @@ class ConfidenceAssessor:
     def assess(self, case_data: CaseData) -> ConfidenceAssessment:
         features = self._extract_features(case_data)
         score = self._compute_score(features)
-        route = self._determine_route(score)
+        route = self._determine_route(score, features)
         workflow, skills = self._suggest_actions(route, features)
 
         return ConfidenceAssessment(
@@ -210,6 +232,36 @@ class ConfidenceAssessor:
         if features.anomaly_severity < 0.03:
             features.ambiguity += 0.2
 
+        # free5GC-faithful CHR features → Phase 2 exploration trigger (§2.1)
+        chr_recs = case_data.chr_records
+        if chr_recs:
+            fails = [r for r in chr_recs if r.get("outcome") == "failure"]
+            features.chr_total = len(chr_recs)
+            features.chr_failure_count = len(fails)
+            if fails:
+                features.chr_sbi_5xx_count = sum(
+                    1 for r in fails
+                    if int(r.get("sbi_status", 0) or 0) in _SBI_FAILURE_STATUSES
+                )
+                all_supis = {r.get("supi") for r in chr_recs if r.get("supi")}
+                failed_supis = {r.get("supi") for r in fails if r.get("supi")}
+                features.failed_supi_ratio = len(failed_supis) / max(len(all_supis), 1)
+                per_supi = Counter(r.get("supi") for r in fails if r.get("supi"))
+                features.chr_failure_concentration = _gini(list(per_supi.values()))
+
+            chr_fail_rate = features.chr_failure_count / max(features.chr_total, 1)
+            # Require CHR signal meaningfully above the ~0.1% background-noise floor.
+            signal_present = chr_fail_rate > 0.003
+            micro_loss = features.anomaly_count > 0 and features.anomaly_severity < 0.03
+            user_concentration = (
+                0.02 <= features.failed_supi_ratio < 0.30
+                or features.chr_failure_concentration > 0.6
+            )
+            layer_inconsistency = features.anomaly_ratio < 0.02 and chr_fail_rate > 0.005
+            features.exploration_trigger = bool(
+                signal_present and (micro_loss or user_concentration or layer_inconsistency)
+            )
+
         return features
 
     def _compute_score(self, f: FeatureSet) -> float:
@@ -221,7 +273,11 @@ class ConfidenceAssessor:
         score -= f.ambiguity * 0.1
         return max(0.0, min(1.0, score))
 
-    def _determine_route(self, score: float) -> Route:
+    def _determine_route(self, score: float, features: FeatureSet) -> Route:
+        # Phase 2: CHR-driven exploration takes priority over the KPI score when
+        # KPIs are ambiguous (micro-loss) but CHR shows real concentrated failures.
+        if features.exploration_trigger:
+            return Route.EXPLORATION
         if score > THRESHOLD_HIGH:
             return Route.WORKFLOW
         elif score > THRESHOLD_LOW:
@@ -230,6 +286,9 @@ class ConfidenceAssessor:
 
     def _suggest_actions(self, route: Route, features: FeatureSet) -> tuple[str | None, list[str]]:
         pattern = features.pattern_match
+
+        if route == Route.EXPLORATION:
+            return None, ["exploration_mode"]
 
         skill_map = {
             "single_ne": ["single_ne_fault"],

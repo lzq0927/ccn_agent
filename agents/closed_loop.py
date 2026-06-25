@@ -6,15 +6,14 @@ import asyncio
 import csv
 import json
 import logging
-from pathlib import Path
 from typing import Callable
 
 from agents.shared.llm_client import LLMConfig
-from agents.shared.models import CaseData, ValidationStatus
+from agents.shared.models import CaseData, ValidationStatus, parse_chr_jsonl
 from agents.shared.storage import Storage
 from agents.shared.message_bus import MessageBus
-from agents.data_generation.agent import FaultDataGenerationAgent, DataGenConfig
-from agents.fault_perception.agent import FaultPerceptionAgent, PerceptionConfig
+from agents.data_generation.agent import FaultDataGenerationAgent
+from agents.fault_perception.agent import FaultPerceptionAgent
 from agents.evaluation.agent import EvaluationOptimizationAgent
 
 logger = logging.getLogger(__name__)
@@ -147,6 +146,9 @@ class ClosedLoopRunner:
         # Parse result.txt
         ground_truth = json.loads(package.result_text)
 
+        # Parse free5GC-faithful CHR (JSONL → list of dicts)
+        chr_records = parse_chr_jsonl(package.chr_data)
+
         return CaseData(
             case_id=package.case_id,
             kpi_rows=kpi_rows,
@@ -154,6 +156,7 @@ class ClosedLoopRunner:
             process_text=package.process_text,
             ground_truth=ground_truth,
             metadata=package.metadata,
+            chr_records=chr_records,
         )
 
     def _categorize_reports(self, reports: list) -> dict:

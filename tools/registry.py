@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Coroutine, Optional
 
 logger = logging.getLogger(__name__)
@@ -109,13 +109,33 @@ def import_all_tools() -> None:
     import tools.flow_tracer           # noqa: F401
     import tools.fault_isolator        # noqa: F401
     import tools.statistical_tools     # noqa: F401
+    import tools.exploration.ewma_changepoint       # noqa: F401
+    import tools.exploration.cusum_changepoint      # noqa: F401
+    import tools.exploration.sweep_runner           # noqa: F401
+    import tools.exploration.ue_failure_concentration   # noqa: F401
+    import tools.exploration.correlated_failure_graph   # noqa: F401
+    import tools.exploration.bayesian_fusion        # noqa: F401
+    # sklearn-backed detectors are optional; missing sklearn disables only these.
+    try:
+        import tools.exploration.pca_residual       # noqa: F401
+        import tools.exploration.isolation_forest   # noqa: F401
+        sklearn_modules = [tools.exploration.pca_residual, tools.exploration.isolation_forest]
+    except ImportError as e:
+        logger.warning("sklearn unavailable — PCA/IsolationForest tools disabled: %s", e)
+        sklearn_modules = []
 
     # Bind handlers: for any tool registered without a handler, look up the
     # async function with the same name in the imported module.
-    import sys
     tool_modules = [
         tools.kpi_analyzer, tools.topology_tools, tools.flow_tracer,
         tools.fault_isolator, tools.statistical_tools,
+        tools.exploration.ewma_changepoint,
+        tools.exploration.cusum_changepoint,
+        tools.exploration.sweep_runner,
+        tools.exploration.ue_failure_concentration,
+        tools.exploration.correlated_failure_graph,
+        tools.exploration.bayesian_fusion,
+        *sklearn_modules,
     ]
     for name, tool_def in _registry.items():
         if tool_def.handler is None:

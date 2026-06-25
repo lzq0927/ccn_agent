@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import dataclass
 
-from agents.shared.models import DiagnosisResult, EvaluationMetrics, CaseData
+from agents.shared.models import DiagnosisResult, EvaluationMetrics
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
 import os
 import json
+from dataclasses import asdict
 from .models import FaultPointType
 
 
@@ -15,6 +16,7 @@ class DataExporter:
         self._write_topo_txt(case_dir, scenario)
         self._write_process_txt(case_dir, result)
         self._write_result_txt(case_dir, scenario, result)
+        self._write_chr_jsonl(case_dir, result)
 
     def _write_data_csv(self, case_dir, result):
         path = os.path.join(case_dir, "data.csv")
@@ -23,6 +25,13 @@ class DataExporter:
             for rec in result.kpi_records:
                 f.write(f"{rec.timestamp},{rec.level},{rec.ue_id},"
                         f"{rec.src},{rec.dst},{rec.success_rate}\n")
+
+    def _write_chr_jsonl(self, case_dir, result):
+        """Write free5GC-faithful CHR records (one JSON object per line)."""
+        path = os.path.join(case_dir, "chr.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            for rec in result.chr_records:
+                f.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")
 
     def _write_topo_txt(self, case_dir, scenario):
         path = os.path.join(case_dir, "topo.txt")

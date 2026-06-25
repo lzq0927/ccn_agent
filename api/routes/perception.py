@@ -11,7 +11,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from agents.shared.storage import Storage
-from agents.shared.models import CaseData
+from agents.shared.models import CaseData, parse_chr_jsonl
 
 router = APIRouter()
 
@@ -53,6 +53,7 @@ async def submit_diagnosis(request: DiagnoseRequest):
                 topology_text=files["topo.txt"],
                 process_text=files["process.txt"],
                 ground_truth=ground_truth,
+                chr_records=parse_chr_jsonl(files.get("chr.jsonl", "")),
             )
 
             result = await agent.diagnose(case_data)

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sqlite3
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from agents.shared.models import CasePackage
 
 logger = logging.getLogger(__name__)
 
@@ -369,8 +371,6 @@ class Storage:
 
     def save_case_files(self, case_id: int, package: "CasePackage") -> str:
         """Save case package files to storage/cases/{case_id}/."""
-        from agents.shared.models import CasePackage  # noqa: avoid circular
-
         case_dir = Path(self.db_path).parent / "cases" / f"case_{case_id:03d}"
         case_dir.mkdir(parents=True, exist_ok=True)
 
@@ -379,6 +379,7 @@ class Storage:
         (case_dir / "process.txt").write_text(package.process_text, encoding="utf-8")
         (case_dir / "result.txt").write_text(package.result_text, encoding="utf-8")
         (case_dir / "metadata.json").write_text(package.metadata.to_json(), encoding="utf-8")
+        (case_dir / "chr.jsonl").write_text(package.chr_data, encoding="utf-8")
 
         return str(case_dir)
 
@@ -387,13 +388,18 @@ class Storage:
         case_dir = Path(self.db_path).parent / "cases" / f"case_{case_id:03d}"
         if not case_dir.exists():
             return None
-        return {
+        files = {
             "data.csv": (case_dir / "data.csv").read_text(encoding="utf-8"),
             "topo.txt": (case_dir / "topo.txt").read_text(encoding="utf-8"),
             "process.txt": (case_dir / "process.txt").read_text(encoding="utf-8"),
             "result.txt": (case_dir / "result.txt").read_text(encoding="utf-8"),
             "metadata.json": (case_dir / "metadata.json").read_text(encoding="utf-8"),
         }
+        # chr.jsonl is optional — older cases predate the free5GC CHR layer.
+        chr_path = case_dir / "chr.jsonl"
+        if chr_path.exists():
+            files["chr.jsonl"] = chr_path.read_text(encoding="utf-8")
+        return files
 
     def save_session_trace(self, session_id: str, trace: dict) -> None:
         """Save full reasoning trace to storage/sessions/{session_id}/."""
