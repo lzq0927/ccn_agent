@@ -67,8 +67,12 @@ class ClosedLoopRunner:
 
         # Phase 1: Generate cases
         self._emit("phase_start", {"phase": "data_generation"})
-        packages = await self.gen_agent.generate_batch(count=case_count, seed=seed + iteration_number)
-        passed_cases = [p for p in packages if p.metadata.validation_status == ValidationStatus.PASSED]
+        packages = await self.gen_agent.generate_batch(
+            count=case_count, seed=seed + iteration_number
+        )
+        passed_cases = [
+            p for p in packages if p.metadata.validation_status == ValidationStatus.PASSED
+        ]
         logger.info("Generated %d cases, %d passed validation", len(packages), len(passed_cases))
 
         # Phase 2: Diagnose each case
@@ -98,9 +102,16 @@ class ClosedLoopRunner:
         accuracy = exact_matches / max(len(reports), 1)
 
         logger.info("=== Iteration %d Results ===", iteration_number)
-        logger.info("  Cases: %d generated, %d valid, %d diagnosed, %d evaluated",
-                     len(packages), len(passed_cases), len(diagnosis_results), len(reports))
-        logger.info("  Accuracy: %.1f%% (%d/%d exact match)", accuracy * 100, exact_matches, len(reports))
+        logger.info(
+            "  Cases: %d generated, %d valid, %d diagnosed, %d evaluated",
+            len(packages),
+            len(passed_cases),
+            len(diagnosis_results),
+            len(reports),
+        )
+        logger.info(
+            "  Accuracy: %.1f%% (%d/%d exact match)", accuracy * 100, exact_matches, len(reports)
+        )
         logger.info("  Average F1: %.4f", avg_f1)
 
         # Complete loop iteration
@@ -125,7 +136,9 @@ class ClosedLoopRunner:
         self._emit("loop_complete", result)
         return result
 
-    async def run_multi_iteration(self, iterations: int = 3, cases_per_iteration: int = 20) -> list[dict]:
+    async def run_multi_iteration(
+        self, iterations: int = 3, cases_per_iteration: int = 20
+    ) -> list[dict]:
         """Run multiple closed-loop iterations."""
         results = []
         for i in range(1, iterations + 1):
@@ -182,7 +195,9 @@ async def main():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+    )
 
     runner = ClosedLoopRunner()
 
@@ -190,7 +205,9 @@ async def main():
         etype = event.get("type", "")
         if "progress" in etype or "start" in etype:
             return  # Skip verbose updates
-        print(f"[{etype}] {json.dumps({k: v for k, v in event.items() if k != 'type'}, ensure_ascii=False)}")
+        print(
+            f"[{etype}] {json.dumps({k: v for k, v in event.items() if k != 'type'}, ensure_ascii=False)}"
+        )
 
     runner.progress_callback = progress_handler
 
@@ -201,8 +218,10 @@ async def main():
 
     print("\n=== Final Summary ===")
     for r in results:
-        print(f"Iteration {r['iteration']}: accuracy={r['exact_match_accuracy']:.2%}, "
-              f"F1={r['avg_f1']:.4f}, evaluated={r['cases_evaluated']}")
+        print(
+            f"Iteration {r['iteration']}: accuracy={r['exact_match_accuracy']:.2%}, "
+            f"F1={r['avg_f1']:.4f}, evaluated={r['cases_evaluated']}"
+        )
 
 
 if __name__ == "__main__":

@@ -23,8 +23,10 @@ class DataExporter:
         with open(path, "w", encoding="utf-8") as f:
             f.write("timestamp,level,ue_id,src,dst,success_rate\n")
             for rec in result.kpi_records:
-                f.write(f"{rec.timestamp},{rec.level},{rec.ue_id},"
-                        f"{rec.src},{rec.dst},{rec.success_rate}\n")
+                f.write(
+                    f"{rec.timestamp},{rec.level},{rec.ue_id},"
+                    f"{rec.src},{rec.dst},{rec.success_rate}\n"
+                )
 
     def _write_chr_jsonl(self, case_dir, result):
         """Write free5GC-faithful CHR records (one JSON object per line)."""
@@ -109,9 +111,14 @@ class DataExporter:
             fpt = fc.fault_point_type
 
             # NE-based faults → fault_elements
-            if fpt in (FaultPointType.SINGLE_NE, FaultPointType.MULTI_NE,
-                       FaultPointType.ALL_TYPE_NE, FaultPointType.MULTI_TYPE_NE,
-                       FaultPointType.RESOURCE_POOL, FaultPointType.DC):
+            if fpt in (
+                FaultPointType.SINGLE_NE,
+                FaultPointType.MULTI_NE,
+                FaultPointType.ALL_TYPE_NE,
+                FaultPointType.MULTI_TYPE_NE,
+                FaultPointType.RESOURCE_POOL,
+                FaultPointType.DC,
+            ):
                 fault_elements = sorted(fc.affected_ne_ids)
             elif fpt == FaultPointType.PATH_SESSION:
                 # Session faults → fault_links with UE session identifiers
@@ -124,9 +131,7 @@ class DataExporter:
                         fault_links.append(f"{ue_id}:{s}-{d}")
             else:
                 # Link/switch faults → fault_links
-                fault_links = sorted(
-                    [f"{s}-{d}" for s, d in fc.affected_links]
-                )
+                fault_links = sorted([f"{s}-{d}" for s, d in fc.affected_links])
 
         data = {
             "fault_elements": fault_elements,

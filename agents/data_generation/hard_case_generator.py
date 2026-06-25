@@ -6,7 +6,13 @@ import logging
 import random
 
 from simulator.models import FaultPointType, FaultMode
-from agents.shared.models import CaseParams, CaseDifficulty, CaseSource, CasePackage, ValidationStatus
+from agents.shared.models import (
+    CaseParams,
+    CaseDifficulty,
+    CaseSource,
+    CasePackage,
+    ValidationStatus,
+)
 from agents.data_generation.simulator_wrapper import SimulatorWrapper
 
 logger = logging.getLogger(__name__)

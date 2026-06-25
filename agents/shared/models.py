@@ -18,6 +18,7 @@ from simulator.models import FaultPointType, FaultMode
 # Enums
 # ---------------------------------------------------------------------------
 
+
 class Route(str, Enum):
     WORKFLOW = "workflow"
     GUIDED = "guided"
@@ -68,9 +69,11 @@ class SessionStatus(str, Enum):
 # Agent 1 models
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CaseParams:
     """Parameters for generating a single fault case."""
+
     topo_config_index: int = 0
     seed: Optional[int] = None
     fault_type: Optional[FaultPointType] = None
@@ -84,6 +87,7 @@ class CaseParams:
 @dataclass
 class CaseMetadata:
     """Metadata attached to each generated case."""
+
     case_id: int
     source: CaseSource
     difficulty: CaseDifficulty
@@ -115,27 +119,30 @@ class CaseMetadata:
 @dataclass
 class CasePackage:
     """In-memory representation of a complete case."""
+
     case_id: int
-    kpi_data: str           # CSV content
-    topology_text: str      # topo.txt content
-    process_text: str       # process.txt content
-    result_text: str        # result.txt JSON content
+    kpi_data: str  # CSV content
+    topology_text: str  # topo.txt content
+    process_text: str  # process.txt content
+    result_text: str  # result.txt JSON content
     metadata: CaseMetadata
-    chr_data: str = ""      # free5GC-faithful CHR (JSONL content), one record per line
+    chr_data: str = ""  # free5GC-faithful CHR (JSONL content), one record per line
 
 
 # ---------------------------------------------------------------------------
 # Agent 2 models
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class CaseData:
     """Parsed case data ready for diagnosis."""
+
     case_id: int
-    kpi_rows: list[dict]        # [{timestamp, level, ue_id, src, dst, success_rate}, ...]
+    kpi_rows: list[dict]  # [{timestamp, level, ue_id, src, dst, success_rate}, ...]
     topology_text: str
     process_text: str
-    ground_truth: dict          # {fault_elements: [...], fault_links: [...]}
+    ground_truth: dict  # {fault_elements: [...], fault_links: [...]}
     metadata: Optional[CaseMetadata] = None
     chr_records: list[dict] = field(default_factory=list)  # free5GC-faithful CHR rows
 
@@ -159,6 +166,7 @@ def parse_chr_jsonl(text: str) -> list[dict]:
 @dataclass
 class ConfidenceAssessment:
     """Output of the confidence assessor."""
+
     score: float
     route: Route
     suggested_workflow: Optional[str] = None
@@ -172,8 +180,9 @@ class ConfidenceAssessment:
 @dataclass
 class ReasoningStep:
     """A single step in the diagnosis reasoning trace."""
+
     step_number: int
-    step_type: str         # "thinking", "tool_call", "tool_result", "conclusion"
+    step_type: str  # "thinking", "tool_call", "tool_result", "conclusion"
     content: str
     tool_name: Optional[str] = None
     tool_args: Optional[dict] = None
@@ -184,6 +193,7 @@ class ReasoningStep:
 @dataclass
 class DiagnosisResult:
     """Output of the fault perception agent."""
+
     session_id: str
     case_id: int
     fault_elements: list[str] = field(default_factory=list)
@@ -203,17 +213,20 @@ class DiagnosisResult:
 # Phase 2 exploration models (multi-algorithm framework on CHR)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ParamGrid:
     """One algorithm's parameter sweep over a data view."""
-    algorithm: str                     # "ewma" | "cusum" | "pca" | "iforest" | ...
-    data_view: str                     # "link_kpi" | "trace_kpi" | "chr_attempt" | "per_supi_ts"
+
+    algorithm: str  # "ewma" | "cusum" | "pca" | "iforest" | ...
+    data_view: str  # "link_kpi" | "trace_kpi" | "chr_attempt" | "per_supi_ts"
     params: dict[str, list] = field(default_factory=dict)  # {"lambda_": [0.1, 0.2, 0.3]}
 
 
 @dataclass
 class SweepCell:
     """One (algorithm, view, param-combo) detector run result."""
+
     algorithm: str
     data_view: str
     params: dict = field(default_factory=dict)
@@ -225,6 +238,7 @@ class SweepCell:
 @dataclass
 class FindingsReport:
     """Aggregated findings across an exploration sweep."""
+
     cells: list[SweepCell] = field(default_factory=list)
     param_concordance: dict[str, float] = field(default_factory=dict)
     view_concordance: dict[str, float] = field(default_factory=dict)
@@ -237,9 +251,11 @@ class FindingsReport:
 # Agent 3 models
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class EvaluationMetrics:
     """Metrics from comparing diagnosis against ground truth."""
+
     exact_match: bool = False
     precision: float = 0.0
     recall: float = 0.0
@@ -250,6 +266,7 @@ class EvaluationMetrics:
 @dataclass
 class CaseLibraryEntry:
     """An entry in the case library."""
+
     case_id: int
     session_id: str
     category: CaseCategory
@@ -264,8 +281,9 @@ class CaseLibraryEntry:
 @dataclass
 class OptimizationSuggestion:
     """A suggestion for improving the system."""
+
     suggestion_type: SuggestionType
-    target: str                           # skill name, workflow name, or case params
+    target: str  # skill name, workflow name, or case params
     content: str
     evidence: list[str] = field(default_factory=list)
     priority: float = 0.5
@@ -274,6 +292,7 @@ class OptimizationSuggestion:
 @dataclass
 class EvaluationReport:
     """Full evaluation report for a diagnosis."""
+
     evaluation_id: int = 0
     session_id: str = ""
     case_id: int = 0
@@ -288,9 +307,11 @@ class EvaluationReport:
 # Message bus models
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class AgentMessage:
     """Message passed between agents via the message bus."""
+
     message_id: str
     channel: str
     sender: str

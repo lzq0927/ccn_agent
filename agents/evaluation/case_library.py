@@ -7,7 +7,11 @@ import logging
 from pathlib import Path
 
 from agents.shared.models import (
-    DiagnosisResult, EvaluationMetrics, CaseCategory, CaseDifficulty, CaseLibraryEntry,
+    DiagnosisResult,
+    EvaluationMetrics,
+    CaseCategory,
+    CaseDifficulty,
+    CaseLibraryEntry,
 )
 
 logger = logging.getLogger(__name__)
@@ -65,14 +69,21 @@ class CaseLibraryBuilder:
 
         return entry
 
-    def _extract_lessons(self, category: CaseCategory, diagnosis: DiagnosisResult,
-                         metrics: EvaluationMetrics, ground_truth: dict) -> list[str]:
+    def _extract_lessons(
+        self,
+        category: CaseCategory,
+        diagnosis: DiagnosisResult,
+        metrics: EvaluationMetrics,
+        ground_truth: dict,
+    ) -> list[str]:
         lessons = []
         truth_elements = set(ground_truth.get("fault_elements", []))
         pred_elements = set(diagnosis.fault_elements)
 
         if category == CaseCategory.SUCCESS:
-            lessons.append(f"Correctly identified {diagnosis.fault_type} fault via {diagnosis.route_taken.value} path")
+            lessons.append(
+                f"Correctly identified {diagnosis.fault_type} fault via {diagnosis.route_taken.value} path"
+            )
         elif category == CaseCategory.PARTIAL_SUCCESS:
             missed = truth_elements - pred_elements
             if missed:
@@ -81,9 +92,13 @@ class CaseLibraryBuilder:
             if extra:
                 lessons.append(f"False positives: {extra}")
         elif category == CaseCategory.FAILURE:
-            lessons.append(f"Failed to identify {diagnosis.fault_type} fault. Truth: {truth_elements}")
+            lessons.append(
+                f"Failed to identify {diagnosis.fault_type} fault. Truth: {truth_elements}"
+            )
             if diagnosis.route_taken.value == "workflow":
-                lessons.append("Workflow path was insufficient for this case; consider using guided/autonomous")
+                lessons.append(
+                    "Workflow path was insufficient for this case; consider using guided/autonomous"
+                )
         elif category == CaseCategory.FALSE_POSITIVE:
             lessons.append(f"Over-diagnosed: predicted {pred_elements}, truth was {truth_elements}")
 

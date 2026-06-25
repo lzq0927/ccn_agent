@@ -1,7 +1,10 @@
 import random
 from .models import (
-    FaultConfig, FaultMode, FaultPointType,
-    NEType, Scenario,
+    FaultConfig,
+    FaultMode,
+    FaultPointType,
+    NEType,
+    Scenario,
 )
 
 
@@ -20,8 +23,11 @@ FAULT_DISTRIBUTION = [
 ]
 
 PROCESS_NAMES = [
-    "PDU_Session_Establishment", "Registration", "Handover",
-    "PDU_Session_Release", "Service_Request",
+    "PDU_Session_Establishment",
+    "Registration",
+    "Handover",
+    "PDU_Session_Release",
+    "Service_Request",
 ]
 
 
@@ -78,20 +84,20 @@ class ScenarioGenerator:
             else:
                 fault_type = fault_types[fault_idx]
                 fault_mode = random.choice([FaultMode.LINK, FaultMode.BUSINESS])
-                fault_config = self._build_fault_config(
-                    fault_type, fault_mode, topology
-                )
+                fault_config = self._build_fault_config(fault_type, fault_mode, topology)
                 fault_idx += 1
 
-            scenarios.append(Scenario(
-                case_id=ci + 1,
-                topology=topology,
-                process_name=process_name,
-                ue_count=ue_count,
-                fault_config=fault_config,
-                is_normal=is_normal,
-                is_train=is_train,
-            ))
+            scenarios.append(
+                Scenario(
+                    case_id=ci + 1,
+                    topology=topology,
+                    process_name=process_name,
+                    ue_count=ue_count,
+                    fault_config=fault_config,
+                    is_normal=is_normal,
+                    is_train=is_train,
+                )
+            )
 
         # Sort by case_id
         scenarios.sort(key=lambda s: s.case_id)

@@ -27,8 +27,10 @@ class SimulationEngine:
 
         # Step 1: Create UE flows
         flows = create_flows(
-            scenario.process_name, scenario.ue_count,
-            scenario.topology, seed=scenario.case_id * 1000
+            scenario.process_name,
+            scenario.ue_count,
+            scenario.topology,
+            seed=scenario.case_id * 1000,
         )
         result.flows = flows
 
@@ -68,10 +70,16 @@ class SimulationEngine:
             for link in unique_links:
                 sr, link_hit = self._calc_link_sr(link[0], link[1], fc, fault_active, t)
                 link_sr_cache[link] = (sr, link_hit)
-                result.kpi_records.append(KPIRecord(
-                    timestamp=t, level="link", ue_id="",
-                    src=link[0], dst=link[1], success_rate=round(sr, 6)
-                ))
+                result.kpi_records.append(
+                    KPIRecord(
+                        timestamp=t,
+                        level="link",
+                        ue_id="",
+                        src=link[0],
+                        dst=link[1],
+                        success_rate=round(sr, 6),
+                    )
+                )
 
             # 4b: Calculate trace and session KPIs (+ CHR) for each flow
             for flow in flows:
@@ -92,35 +100,55 @@ class SimulationEngine:
                         src, dst, flow.ue_id, link_sr, link_hit, fc, fault_active, t
                     )
                     trace_srs.append(trace_sr)
-                    result.kpi_records.append(KPIRecord(
-                        timestamp=t, level="trace", ue_id=flow.ue_id,
-                        src=src, dst=dst, success_rate=round(trace_sr, 6)
-                    ))
+                    result.kpi_records.append(
+                        KPIRecord(
+                            timestamp=t,
+                            level="trace",
+                            ue_id=flow.ue_id,
+                            src=src,
+                            dst=dst,
+                            success_rate=round(trace_sr, 6),
+                        )
+                    )
 
                     # Emit free5GC-faithful CHR mirroring this trace hop, so KPI
                     # anomalies and CHR failures point at the same affected hops.
                     if subscriber is not None:
                         tmpl_src, tmpl_dst = proc_def["hops"][hop_idx]
                         message_name = proc_def["messages"][hop_idx]
-                        result.chr_records.append(chr_gen.emit(
-                            t=t, ue_id=flow.ue_id, subscriber=subscriber,
-                            session=session, procedure_type=flow.process_name,
-                            msg_hop=f"{tmpl_src}->{tmpl_dst}", nf_src=src, nf_dst=dst,
-                            service=_derive_service(message_name, tmpl_src, tmpl_dst),
-                            message_name=message_name, fault_active=fault_active,
-                            fault_hit=(link_hit or trace_hit),
-                            fault_mode=(fc.fault_mode if fc else None),
-                            fault_point_type=(fc.fault_point_type if fc else None),
-                        ))
+                        result.chr_records.append(
+                            chr_gen.emit(
+                                t=t,
+                                ue_id=flow.ue_id,
+                                subscriber=subscriber,
+                                session=session,
+                                procedure_type=flow.process_name,
+                                msg_hop=f"{tmpl_src}->{tmpl_dst}",
+                                nf_src=src,
+                                nf_dst=dst,
+                                service=_derive_service(message_name, tmpl_src, tmpl_dst),
+                                message_name=message_name,
+                                fault_active=fault_active,
+                                fault_hit=(link_hit or trace_hit),
+                                fault_mode=(fc.fault_mode if fc else None),
+                                fault_point_type=(fc.fault_point_type if fc else None),
+                            )
+                        )
 
                 # Session KPI = product of all trace KPIs
                 session_sr = 1.0
                 for tsr in trace_srs:
                     session_sr *= tsr
-                result.kpi_records.append(KPIRecord(
-                    timestamp=t, level="session", ue_id=flow.ue_id,
-                    src="", dst="", success_rate=round(session_sr, 6)
-                ))
+                result.kpi_records.append(
+                    KPIRecord(
+                        timestamp=t,
+                        level="session",
+                        ue_id=flow.ue_id,
+                        src="",
+                        dst="",
+                        success_rate=round(session_sr, 6),
+                    )
+                )
 
         return result
 
@@ -182,8 +210,9 @@ class SimulationEngine:
         # Indirect effect: NE communicating with a faulty NE
         # The trace success rate is slightly reduced due to retransmission/retry
         if fc.fault_mode == FaultMode.LINK:
-            if self._communicates_with_affected(src, fc) or \
-               self._communicates_with_affected(dst, fc):
+            if self._communicates_with_affected(src, fc) or self._communicates_with_affected(
+                dst, fc
+            ):
                 # Indirect impact is much smaller (diluted by load balancing)
                 indirect_loss = fc.loss_rate * 0.1 + random.uniform(0, 0.002)
                 return round(link_sr * (1.0 - indirect_loss), 6), True

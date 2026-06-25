@@ -15,6 +15,7 @@ MAX_CONTEXT_MESSAGES = 50
 @dataclass
 class AgentContext:
     """Maintains the state of a single diagnosis session."""
+
     case_id: int
     case_data: CaseData
     assessment: ConfidenceAssessment
@@ -34,11 +35,13 @@ class AgentContext:
         self.messages.append(msg)
 
     def add_tool_result(self, tool_call_id: str, content: str) -> None:
-        self.messages.append({
-            "role": "tool",
-            "tool_call_id": tool_call_id,
-            "content": content,
-        })
+        self.messages.append(
+            {
+                "role": "tool",
+                "tool_call_id": tool_call_id,
+                "content": content,
+            }
+        )
 
     def add_thinking_step(self, content: str) -> int:
         self.step_counter += 1
@@ -67,14 +70,19 @@ class AgentContext:
         """Keep conversation history within limits by removing oldest messages."""
         if len(self.messages) > MAX_CONTEXT_MESSAGES:
             # Keep system message + recent messages
-            self.messages = self.messages[-(MAX_CONTEXT_MESSAGES - 1):]
+            self.messages = self.messages[-(MAX_CONTEXT_MESSAGES - 1) :]
 
 
 class ContextManager:
     """Manages agent context for each diagnosis session."""
 
-    def initialize(self, case_data: CaseData, assessment: ConfidenceAssessment,
-                   route: Route, max_iterations: int) -> AgentContext:
+    def initialize(
+        self,
+        case_data: CaseData,
+        assessment: ConfidenceAssessment,
+        route: Route,
+        max_iterations: int,
+    ) -> AgentContext:
         mode = route.value
         return AgentContext(
             case_id=case_data.case_id,
@@ -94,12 +102,16 @@ class ContextManager:
 
         # Sample KPI data: first few + around fault window + last few
         if len(link_rows) > 100:
-            sample = link_rows[:20] + link_rows[len(link_rows)//2-10:len(link_rows)//2+10] + link_rows[-20:]
+            sample = (
+                link_rows[:20]
+                + link_rows[len(link_rows) // 2 - 10 : len(link_rows) // 2 + 10]
+                + link_rows[-20:]
+            )
         else:
             sample = link_rows[:50]
 
         kpi_str = "\n".join(
-            f"  ts={r.get('timestamp',0)}, {r.get('src','')}->{r.get('dst','')}, "
+            f"  ts={r.get('timestamp', 0)}, {r.get('src', '')}->{r.get('dst', '')}, "
             f"sr={float(r.get('success_rate', 1.0)):.4f}"
             for r in sample
         )
@@ -134,14 +146,10 @@ class ContextManager:
 
         failures = [r for r in chr_records if r.get("outcome") == "failure"]
         total = len(chr_records)
-        cause_counts = Counter(
-            r.get("cause5gsm") or r.get("cause5gmm") or "?" for r in failures
-        )
+        cause_counts = Counter(r.get("cause5gsm") or r.get("cause5gmm") or "?" for r in failures)
         lines = [
             f"\n## User-level CHR (free5GC, {len(failures)} failures / {total} attempts):",
-            "Cause distribution: " + ", ".join(
-                f"{c}({n})" for c, n in cause_counts.most_common(5)
-            ),
+            "Cause distribution: " + ", ".join(f"{c}({n})" for c, n in cause_counts.most_common(5)),
         ]
         for r in failures[:10]:
             supi = str(r.get("supi", ""))[:20]

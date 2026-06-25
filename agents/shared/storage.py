@@ -135,18 +135,35 @@ class Storage:
     # Cases
     # -----------------------------------------------------------------------
 
-    def save_case(self, case_id: int, source: str, file_path: str,
-                  fault_type: str | None = None, fault_mode: str | None = None,
-                  difficulty: str | None = None, is_normal: bool = False,
-                  is_train: bool = False, metadata_json: str | None = None) -> None:
+    def save_case(
+        self,
+        case_id: int,
+        source: str,
+        file_path: str,
+        fault_type: str | None = None,
+        fault_mode: str | None = None,
+        difficulty: str | None = None,
+        is_normal: bool = False,
+        is_train: bool = False,
+        metadata_json: str | None = None,
+    ) -> None:
         with self._conn() as conn:
             conn.execute(
                 """INSERT OR REPLACE INTO cases
                    (case_id, source, fault_type, fault_mode, difficulty,
                     is_normal, is_train, file_path, metadata_json, validation_status)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')""",
-                (case_id, source, fault_type, fault_mode, difficulty,
-                 is_normal, is_train, file_path, metadata_json),
+                (
+                    case_id,
+                    source,
+                    fault_type,
+                    fault_mode,
+                    difficulty,
+                    is_normal,
+                    is_train,
+                    file_path,
+                    metadata_json,
+                ),
             )
 
     def update_case_validation(self, case_id: int, status: str, notes: str = "") -> None:
@@ -161,8 +178,13 @@ class Storage:
             row = conn.execute("SELECT * FROM cases WHERE case_id = ?", (case_id,)).fetchone()
             return dict(row) if row else None
 
-    def list_cases(self, fault_type: str | None = None, difficulty: str | None = None,
-                   limit: int = 50, offset: int = 0) -> list[dict]:
+    def list_cases(
+        self,
+        fault_type: str | None = None,
+        difficulty: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> list[dict]:
         query = "SELECT * FROM cases WHERE 1=1"
         params: list[Any] = []
         if fault_type:
@@ -185,8 +207,14 @@ class Storage:
     # Diagnosis sessions
     # -----------------------------------------------------------------------
 
-    def create_session(self, session_id: str, case_id: int, route_taken: str,
-                       initial_confidence: float, llm_model: str) -> None:
+    def create_session(
+        self,
+        session_id: str,
+        case_id: int,
+        route_taken: str,
+        initial_confidence: float,
+        llm_model: str,
+    ) -> None:
         with self._conn() as conn:
             conn.execute(
                 """INSERT INTO diagnosis_sessions
@@ -196,11 +224,18 @@ class Storage:
                 (session_id, case_id, route_taken, initial_confidence, llm_model),
             )
 
-    def complete_session(self, session_id: str, fault_elements: list[str],
-                         fault_links: list[str], fault_type: str | None,
-                         fault_mode: str | None, final_confidence: float,
-                         iterations_used: int, tokens_used: int,
-                         status: str = "completed") -> None:
+    def complete_session(
+        self,
+        session_id: str,
+        fault_elements: list[str],
+        fault_links: list[str],
+        fault_type: str | None,
+        fault_mode: str | None,
+        final_confidence: float,
+        iterations_used: int,
+        tokens_used: int,
+        status: str = "completed",
+    ) -> None:
         with self._conn() as conn:
             conn.execute(
                 """UPDATE diagnosis_sessions SET
@@ -209,31 +244,50 @@ class Storage:
                    final_confidence = ?, iterations_used = ?,
                    tokens_used = ?, completed_at = datetime('now'), status = ?
                    WHERE session_id = ?""",
-                (json.dumps(fault_elements), json.dumps(fault_links),
-                 fault_type, fault_mode, final_confidence,
-                 iterations_used, tokens_used, status, session_id),
+                (
+                    json.dumps(fault_elements),
+                    json.dumps(fault_links),
+                    fault_type,
+                    fault_mode,
+                    final_confidence,
+                    iterations_used,
+                    tokens_used,
+                    status,
+                    session_id,
+                ),
             )
 
     def get_session(self, session_id: str) -> dict | None:
         with self._conn() as conn:
-            row = conn.execute("SELECT * FROM diagnosis_sessions WHERE session_id = ?",
-                               (session_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM diagnosis_sessions WHERE session_id = ?", (session_id,)
+            ).fetchone()
             return dict(row) if row else None
 
     def list_sessions(self, limit: int = 50, offset: int = 0) -> list[dict]:
         with self._conn() as conn:
-            return [dict(r) for r in conn.execute(
-                "SELECT * FROM diagnosis_sessions ORDER BY started_at DESC LIMIT ? OFFSET ?",
-                (limit, offset),
-            ).fetchall()]
+            return [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT * FROM diagnosis_sessions ORDER BY started_at DESC LIMIT ? OFFSET ?",
+                    (limit, offset),
+                ).fetchall()
+            ]
 
     # -----------------------------------------------------------------------
     # Reasoning steps
     # -----------------------------------------------------------------------
 
-    def save_reasoning_step(self, session_id: str, step_number: int, step_type: str,
-                            content: str, tool_name: str | None = None,
-                            tool_args: str | None = None, tool_result: str | None = None) -> None:
+    def save_reasoning_step(
+        self,
+        session_id: str,
+        step_number: int,
+        step_type: str,
+        content: str,
+        tool_name: str | None = None,
+        tool_args: str | None = None,
+        tool_result: str | None = None,
+    ) -> None:
         with self._conn() as conn:
             conn.execute(
                 """INSERT INTO reasoning_steps
@@ -244,42 +298,72 @@ class Storage:
 
     def get_reasoning_steps(self, session_id: str) -> list[dict]:
         with self._conn() as conn:
-            return [dict(r) for r in conn.execute(
-                "SELECT * FROM reasoning_steps WHERE session_id = ? ORDER BY step_number",
-                (session_id,),
-            ).fetchall()]
+            return [
+                dict(r)
+                for r in conn.execute(
+                    "SELECT * FROM reasoning_steps WHERE session_id = ? ORDER BY step_number",
+                    (session_id,),
+                ).fetchall()
+            ]
 
     # -----------------------------------------------------------------------
     # Evaluations
     # -----------------------------------------------------------------------
 
-    def save_evaluation(self, session_id: str, case_id: int,
-                        exact_match: bool, precision: float, recall: float, f1: float,
-                        fault_type_match: bool, case_category: str,
-                        trace_quality: float, notes: str = "") -> int:
+    def save_evaluation(
+        self,
+        session_id: str,
+        case_id: int,
+        exact_match: bool,
+        precision: float,
+        recall: float,
+        f1: float,
+        fault_type_match: bool,
+        case_category: str,
+        trace_quality: float,
+        notes: str = "",
+    ) -> int:
         with self._conn() as conn:
             cursor = conn.execute(
                 """INSERT INTO evaluations
                    (session_id, case_id, exact_match, precision_score, recall_score,
                     f1_score, fault_type_match, case_category, trace_quality_score, notes)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (session_id, case_id, exact_match, precision, recall, f1,
-                 fault_type_match, case_category, trace_quality, notes),
+                (
+                    session_id,
+                    case_id,
+                    exact_match,
+                    precision,
+                    recall,
+                    f1,
+                    fault_type_match,
+                    case_category,
+                    trace_quality,
+                    notes,
+                ),
             )
             return cursor.lastrowid
 
     def get_evaluation(self, evaluation_id: int) -> dict | None:
         with self._conn() as conn:
-            row = conn.execute("SELECT * FROM evaluations WHERE evaluation_id = ?",
-                               (evaluation_id,)).fetchone()
+            row = conn.execute(
+                "SELECT * FROM evaluations WHERE evaluation_id = ?", (evaluation_id,)
+            ).fetchone()
             return dict(row) if row else None
 
     # -----------------------------------------------------------------------
     # Optimization suggestions
     # -----------------------------------------------------------------------
 
-    def save_suggestion(self, evaluation_id: int, suggestion_type: str, target: str,
-                        content: str, evidence: str = "", priority: float = 0.5) -> int:
+    def save_suggestion(
+        self,
+        evaluation_id: int,
+        suggestion_type: str,
+        target: str,
+        content: str,
+        evidence: str = "",
+        priority: float = 0.5,
+    ) -> int:
         with self._conn() as conn:
             cursor = conn.execute(
                 """INSERT INTO optimization_suggestions
@@ -290,8 +374,9 @@ class Storage:
             )
             return cursor.lastrowid
 
-    def list_suggestions(self, status: str | None = None,
-                         suggestion_type: str | None = None) -> list[dict]:
+    def list_suggestions(
+        self, status: str | None = None, suggestion_type: str | None = None
+    ) -> list[dict]:
         query = "SELECT * FROM optimization_suggestions WHERE 1=1"
         params: list[Any] = []
         if status:
@@ -315,8 +400,9 @@ class Storage:
     # Loop iterations
     # -----------------------------------------------------------------------
 
-    def start_loop_iteration(self, loop_type: str, iteration_number: int,
-                             accuracy_before: float = 0.0) -> int:
+    def start_loop_iteration(
+        self, loop_type: str, iteration_number: int, accuracy_before: float = 0.0
+    ) -> int:
         with self._conn() as conn:
             cursor = conn.execute(
                 """INSERT INTO loop_iterations
@@ -326,9 +412,14 @@ class Storage:
             )
             return cursor.lastrowid
 
-    def complete_loop_iteration(self, iteration_id: int, cases_generated: int,
-                                cases_evaluated: int, accuracy_after: float,
-                                summary: str = "") -> None:
+    def complete_loop_iteration(
+        self,
+        iteration_id: int,
+        cases_generated: int,
+        cases_evaluated: int,
+        accuracy_after: float,
+        summary: str = "",
+    ) -> None:
         with self._conn() as conn:
             conn.execute(
                 """UPDATE loop_iterations SET

@@ -8,9 +8,18 @@ PROCESS_DEFINITIONS = {
     "PDU_Session_Establishment": {
         "description": "PDU会话建立 (TS 23.502 4.3.2)",
         "hops": [
-            ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UDM"),
-            ("UDM", "SMF"), ("SMF", "PCF"), ("PCF", "SMF"), ("SMF", "UPF"),
-            ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB"), ("gNB", "UE"),
+            ("UE", "gNB"),
+            ("gNB", "AMF"),
+            ("AMF", "SMF"),
+            ("SMF", "UDM"),
+            ("UDM", "SMF"),
+            ("SMF", "PCF"),
+            ("PCF", "SMF"),
+            ("SMF", "UPF"),
+            ("UPF", "SMF"),
+            ("SMF", "AMF"),
+            ("AMF", "gNB"),
+            ("gNB", "UE"),
         ],
         "messages": [
             "UL NAS Transport (PDU Session Establishment Request)",
@@ -31,9 +40,16 @@ PROCESS_DEFINITIONS = {
     "Registration": {
         "description": "注册 (TS 23.502 4.2.2)",
         "hops": [
-            ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "AUSF"), ("AUSF", "UDM"),
-            ("UDM", "AUSF"), ("AUSF", "AMF"), ("AMF", "UDM"), ("UDM", "AMF"),
-            ("AMF", "gNB"), ("gNB", "UE"),
+            ("UE", "gNB"),
+            ("gNB", "AMF"),
+            ("AMF", "AUSF"),
+            ("AUSF", "UDM"),
+            ("UDM", "AUSF"),
+            ("AUSF", "AMF"),
+            ("AMF", "UDM"),
+            ("UDM", "AMF"),
+            ("AMF", "gNB"),
+            ("gNB", "UE"),
         ],
         "messages": [
             "RRC Connection Request (Registration Request)",
@@ -52,9 +68,16 @@ PROCESS_DEFINITIONS = {
     "Handover": {
         "description": "切换 (TS 23.502 4.9.1 Xn-based)",
         "hops": [
-            ("UE", "gNB_src"), ("gNB_src", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
-            ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB_tgt"),
-            ("gNB_tgt", "AMF"), ("AMF", "gNB_src"), ("gNB_src", "UE"),
+            ("UE", "gNB_src"),
+            ("gNB_src", "AMF"),
+            ("AMF", "SMF"),
+            ("SMF", "UPF"),
+            ("UPF", "SMF"),
+            ("SMF", "AMF"),
+            ("AMF", "gNB_tgt"),
+            ("gNB_tgt", "AMF"),
+            ("AMF", "gNB_src"),
+            ("gNB_src", "UE"),
             ("UE", "gNB_tgt"),
         ],
         "messages": [
@@ -75,9 +98,16 @@ PROCESS_DEFINITIONS = {
     "PDU_Session_Release": {
         "description": "PDU会话释放 (TS 23.502 4.3.4)",
         "hops": [
-            ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
-            ("UPF", "SMF"), ("SMF", "PCF"), ("PCF", "SMF"), ("SMF", "AMF"),
-            ("AMF", "gNB"), ("gNB", "UE"),
+            ("UE", "gNB"),
+            ("gNB", "AMF"),
+            ("AMF", "SMF"),
+            ("SMF", "UPF"),
+            ("UPF", "SMF"),
+            ("SMF", "PCF"),
+            ("PCF", "SMF"),
+            ("SMF", "AMF"),
+            ("AMF", "gNB"),
+            ("gNB", "UE"),
         ],
         "messages": [
             "UL NAS Transport (PDU Session Release Request)",
@@ -96,8 +126,14 @@ PROCESS_DEFINITIONS = {
     "Service_Request": {
         "description": "服务请求 (TS 23.502 4.2.3)",
         "hops": [
-            ("UE", "gNB"), ("gNB", "AMF"), ("AMF", "SMF"), ("SMF", "UPF"),
-            ("UPF", "SMF"), ("SMF", "AMF"), ("AMF", "gNB"), ("gNB", "UE"),
+            ("UE", "gNB"),
+            ("gNB", "AMF"),
+            ("AMF", "SMF"),
+            ("SMF", "UPF"),
+            ("UPF", "SMF"),
+            ("SMF", "AMF"),
+            ("AMF", "gNB"),
+            ("gNB", "UE"),
         ],
         "messages": [
             "RRC Connection Request (Service Request)",
@@ -138,11 +174,7 @@ def create_flows(process_name, ue_count, topology, seed=None):
             dst_id = ue_id if dst_type == "UE" else selected.get(dst_type, dst_type)
             actual_hops.append((src_id, dst_id))
 
-        flows.append(BusinessFlow(
-            process_name=process_name,
-            ue_id=ue_id,
-            hops=actual_hops
-        ))
+        flows.append(BusinessFlow(process_name=process_name, ue_id=ue_id, hops=actual_hops))
 
     return flows
 

@@ -39,11 +39,19 @@ class WorkflowEngine:
 
         # Step 1: Analyze KPI anomalies
         step += 1
-        anomaly_result = await analyze_kpi_anomalies(case_data.kpi_rows, level="link", threshold=0.995)
+        anomaly_result = await analyze_kpi_anomalies(
+            case_data.kpi_rows, level="link", threshold=0.995
+        )
         anomaly_data = json.loads(anomaly_result)
-        trace.append(ReasoningStep(step_number=step, step_type="tool_call",
-                                    content="analyze_kpi_anomalies", tool_name="analyze_kpi_anomalies",
-                                    tool_result=anomaly_result[:500]))
+        trace.append(
+            ReasoningStep(
+                step_number=step,
+                step_type="tool_call",
+                content="analyze_kpi_anomalies",
+                tool_name="analyze_kpi_anomalies",
+                tool_result=anomaly_result[:500],
+            )
+        )
 
         link_data = anomaly_data.get("link", {})
         degraded_pairs = list(link_data.get("degraded_pairs", {}).keys())
@@ -55,16 +63,30 @@ class WorkflowEngine:
             ne_data = json.loads(ne_result)
         else:
             ne_data = {"top_ne": None, "top_ratio": 0}
-        trace.append(ReasoningStep(step_number=step, step_type="tool_call",
-                                    content="find_common_ne", tool_name="find_common_ne",
-                                    tool_result=json.dumps(ne_data)[:500]))
+        trace.append(
+            ReasoningStep(
+                step_number=step,
+                step_type="tool_call",
+                content="find_common_ne",
+                tool_name="find_common_ne",
+                tool_result=json.dumps(ne_data)[:500],
+            )
+        )
 
         # Step 3: Temporal pattern
         step += 1
-        temporal_result = await check_temporal_pattern(case_data.kpi_rows, ne_id=ne_data.get("top_ne", ""))
-        trace.append(ReasoningStep(step_number=step, step_type="tool_call",
-                                    content="check_temporal_pattern", tool_name="check_temporal_pattern",
-                                    tool_result=temporal_result[:500]))
+        temporal_result = await check_temporal_pattern(
+            case_data.kpi_rows, ne_id=ne_data.get("top_ne", "")
+        )
+        trace.append(
+            ReasoningStep(
+                step_number=step,
+                step_type="tool_call",
+                content="check_temporal_pattern",
+                tool_name="check_temporal_pattern",
+                tool_result=temporal_result[:500],
+            )
+        )
 
         # Step 4: NE membership (spatial analysis)
         step += 1
@@ -73,9 +95,15 @@ class WorkflowEngine:
         if top_ne:
             membership_result = await check_ne_membership(case_data.topology_text, [top_ne])
             membership_data = json.loads(membership_result)
-            trace.append(ReasoningStep(step_number=step, step_type="tool_call",
-                                        content="check_ne_membership", tool_name="check_ne_membership",
-                                        tool_result=membership_result[:500]))
+            trace.append(
+                ReasoningStep(
+                    step_number=step,
+                    step_type="tool_call",
+                    content="check_ne_membership",
+                    tool_name="check_ne_membership",
+                    tool_result=membership_result[:500],
+                )
+            )
 
             clustering = membership_data.get("clustering", {})
             # Determine fault type from clustering
@@ -96,8 +124,13 @@ class WorkflowEngine:
             confidence = 0.9
 
         step += 1
-        trace.append(ReasoningStep(step_number=step, step_type="conclusion",
-                                    content=f"Diagnosis: fault_type={fault_type}, elements={affected_nes}, confidence={confidence}"))
+        trace.append(
+            ReasoningStep(
+                step_number=step,
+                step_type="conclusion",
+                content=f"Diagnosis: fault_type={fault_type}, elements={affected_nes}, confidence={confidence}",
+            )
+        )
 
         return DiagnosisResult(
             session_id=session_id,
@@ -112,21 +145,28 @@ class WorkflowEngine:
             status=SessionStatus.COMPLETED,
         )
 
-    async def _normal_detection_workflow(self, case_data: CaseData, session_id: str) -> DiagnosisResult:
+    async def _normal_detection_workflow(
+        self, case_data: CaseData, session_id: str
+    ) -> DiagnosisResult:
         """Deterministic workflow for normal case detection."""
         trace: list[ReasoningStep] = []
 
         # Check for anomalies
-        anomaly_result = await analyze_kpi_anomalies(case_data.kpi_rows, level="all", threshold=0.995)
+        anomaly_result = await analyze_kpi_anomalies(
+            case_data.kpi_rows, level="all", threshold=0.995
+        )
         anomaly_data = json.loads(anomaly_result)
 
         link_data = anomaly_data.get("link", {})
         has_anomaly = link_data.get("anomaly_count", 0) > 0
 
-        trace.append(ReasoningStep(
-            step_number=1, step_type="conclusion",
-            content=f"Normal detection: anomaly_count={link_data.get('anomaly_count', 0)}, has_anomaly={has_anomaly}"
-        ))
+        trace.append(
+            ReasoningStep(
+                step_number=1,
+                step_type="conclusion",
+                content=f"Normal detection: anomaly_count={link_data.get('anomaly_count', 0)}, has_anomaly={has_anomaly}",
+            )
+        )
 
         confidence = 0.95 if not has_anomaly else 0.5
 

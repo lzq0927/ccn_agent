@@ -30,7 +30,9 @@ def _group_by_level(rows: list[dict]) -> dict[str, list[dict]]:
     return dict(groups)
 
 
-async def analyze_kpi_anomalies(kpi_rows: list[dict], level: str = "all", threshold: float = 0.995) -> str:
+async def analyze_kpi_anomalies(
+    kpi_rows: list[dict], level: str = "all", threshold: float = 0.995
+) -> str:
     rows = _parse_kpi_rows(kpi_rows)
     grouped = _group_by_level(rows)
     result: dict[str, Any] = {}
@@ -136,9 +138,21 @@ register(
     parameters={
         "type": "object",
         "properties": {
-            "kpi_rows": {"type": "array", "description": "Array of KPI data rows", "items": {"type": "object"}},
-            "level": {"type": "string", "description": "KPI level: 'link', 'trace', 'session', or 'all'", "default": "all"},
-            "threshold": {"type": "number", "description": "Success rate threshold for anomaly detection", "default": 0.995},
+            "kpi_rows": {
+                "type": "array",
+                "description": "Array of KPI data rows",
+                "items": {"type": "object"},
+            },
+            "level": {
+                "type": "string",
+                "description": "KPI level: 'link', 'trace', 'session', or 'all'",
+                "default": "all",
+            },
+            "threshold": {
+                "type": "number",
+                "description": "Success rate threshold for anomaly detection",
+                "default": 0.995,
+            },
         },
         "required": ["kpi_rows"],
     },
@@ -151,7 +165,11 @@ register(
     parameters={
         "type": "object",
         "properties": {
-            "degraded_pairs": {"type": "array", "description": "List of degraded src->dst link pair strings", "items": {"type": "string"}},
+            "degraded_pairs": {
+                "type": "array",
+                "description": "List of degraded src->dst link pair strings",
+                "items": {"type": "string"},
+            },
         },
         "required": ["degraded_pairs"],
     },
@@ -164,7 +182,11 @@ register(
     parameters={
         "type": "object",
         "properties": {
-            "kpi_rows": {"type": "array", "description": "Array of KPI data rows", "items": {"type": "object"}},
+            "kpi_rows": {
+                "type": "array",
+                "description": "Array of KPI data rows",
+                "items": {"type": "object"},
+            },
         },
         "required": ["kpi_rows"],
     },

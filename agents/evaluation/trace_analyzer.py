@@ -49,7 +49,9 @@ class TraceAnalyzer:
             elif step.step_type == "tool_call":
                 args_str = json.dumps(step.tool_args, ensure_ascii=False) if step.tool_args else ""
                 result_str = (step.tool_result or "")[:200]
-                steps_text.append(f"[Step {step.step_number}] Tool: {step.tool_name}({args_str}) -> {result_str}")
+                steps_text.append(
+                    f"[Step {step.step_number}] Tool: {step.tool_name}({args_str}) -> {result_str}"
+                )
             elif step.step_type == "conclusion":
                 steps_text.append(f"[Step {step.step_number}] Conclusion: {step.content}")
 
@@ -80,4 +82,8 @@ class TraceAnalyzer:
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            return {"overall_score": 0.5, "strengths": [], "weaknesses": ["Could not parse analysis"]}
+            return {
+                "overall_score": 0.5,
+                "strengths": [],
+                "weaknesses": ["Could not parse analysis"],
+            }

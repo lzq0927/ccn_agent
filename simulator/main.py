@@ -6,6 +6,7 @@ Pipeline:
 2. 仿真执行 (Simulation)
 3. 数据导出 (Data Export)
 """
+
 import os
 import sys
 import time
@@ -48,8 +49,10 @@ def main():
     normal_count = sum(1 for s in scenarios if s.is_normal)
     train_count = sum(1 for s in scenarios if s.is_train)
     test_count = len(scenarios) - train_count
-    print(f"  Generated {len(scenarios)} scenarios: "
-          f"{normal_count} normal, {train_count} train, {test_count} test")
+    print(
+        f"  Generated {len(scenarios)} scenarios: "
+        f"{normal_count} normal, {train_count} train, {test_count} test"
+    )
 
     # ---- Stage 2: 仿真执行 ----
     print(f"\n[Stage 2] 仿真执行 ({len(scenarios)} cases)...")
@@ -65,9 +68,11 @@ def main():
         if (idx + 1) % 20 == 0 or idx == 0:
             elapsed = time.time() - start_time
             kpi_count = len(result.kpi_records)
-            print(f"  Case {idx + 1}/{len(scenarios)}: "
-                  f"{scenario.ue_count} UEs, {kpi_count} KPI records "
-                  f"({elapsed:.1f}s elapsed)")
+            print(
+                f"  Case {idx + 1}/{len(scenarios)}: "
+                f"{scenario.ue_count} UEs, {kpi_count} KPI records "
+                f"({elapsed:.1f}s elapsed)"
+            )
 
     total_time = time.time() - start_time
     print(f"  Simulation complete: {total_time:.1f}s")

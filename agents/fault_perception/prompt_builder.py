@@ -103,14 +103,16 @@ class PromptBuilder:
         parts.append(TOOL_USE_RULES.format(max_iterations=max_iterations))
 
         # Case context
-        parts.append(CASE_CONTEXT_TEMPLATE.format(
-            case_id=case_id,
-            kpi_summary=kpi_summary,
-            topology_summary=topology_summary,
-            confidence=assessment.score,
-            route=assessment.route.value,
-            patterns=", ".join(assessment.matched_patterns),
-        ))
+        parts.append(
+            CASE_CONTEXT_TEMPLATE.format(
+                case_id=case_id,
+                kpi_summary=kpi_summary,
+                topology_summary=topology_summary,
+                confidence=assessment.score,
+                route=assessment.route.value,
+                patterns=", ".join(assessment.matched_patterns),
+            )
+        )
 
         return "\n\n".join(parts)
 

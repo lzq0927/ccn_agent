@@ -39,7 +39,9 @@ class MessageBus:
     def subscribe(self, channel: str, handler: Handler) -> None:
         self._subscribers.setdefault(channel, []).append(handler)
 
-    async def publish(self, channel: str, payload: dict, sender: str = "", correlation_id: str | None = None) -> str:
+    async def publish(
+        self, channel: str, payload: dict, sender: str = "", correlation_id: str | None = None
+    ) -> str:
         msg = AgentMessage(
             message_id=uuid.uuid4().hex[:12],
             channel=channel,

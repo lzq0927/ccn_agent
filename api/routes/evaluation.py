@@ -37,6 +37,7 @@ async def get_loop_progress():
 @router.get("/case-library")
 async def get_case_library():
     from agents.evaluation.case_library import CaseLibraryBuilder
+
     library = CaseLibraryBuilder()
     return library.get_statistics()
 

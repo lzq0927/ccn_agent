@@ -65,11 +65,13 @@ def _parse_response(data: dict) -> LLMResponse:
     tool_calls = []
     for tc in message.get("tool_calls", []):
         fn = tc.get("function", {})
-        tool_calls.append(ToolCall(
-            id=tc.get("id", ""),
-            name=fn.get("name", ""),
-            arguments=fn.get("arguments", "{}"),
-        ))
+        tool_calls.append(
+            ToolCall(
+                id=tc.get("id", ""),
+                name=fn.get("name", ""),
+                arguments=fn.get("arguments", "{}"),
+            )
+        )
     return LLMResponse(
         content=content,
         tool_calls=tool_calls,
@@ -138,18 +140,18 @@ class LLMClient:
             except httpx.HTTPStatusError as e:
                 last_err = e
                 if e.response.status_code == 429:
-                    wait = min(2 ** attempt * 2, 30)
+                    wait = min(2**attempt * 2, 30)
                     logger.warning("Rate limited, retrying in %ds", wait)
                     await asyncio.sleep(wait)
                 elif e.response.status_code >= 500:
-                    wait = min(2 ** attempt, 10)
+                    wait = min(2**attempt, 10)
                     logger.warning("Server error %d, retrying in %ds", e.response.status_code, wait)
                     await asyncio.sleep(wait)
                 else:
                     raise
             except httpx.RequestError as e:
                 last_err = e
-                wait = min(2 ** attempt, 10)
+                wait = min(2**attempt, 10)
                 logger.warning("Request error: %s, retrying in %ds", e, wait)
                 await asyncio.sleep(wait)
 

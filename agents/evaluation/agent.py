@@ -10,7 +10,9 @@ from typing import Callable
 from agents.shared.llm_client import LLMClient, LLMConfig
 from agents.shared.llm_config import load_llm_config
 from agents.shared.models import (
-    DiagnosisResult, CaseData, EvaluationReport,
+    DiagnosisResult,
+    CaseData,
+    EvaluationReport,
 )
 from agents.shared.storage import Storage
 from agents.shared.message_bus import MessageBus
@@ -56,9 +58,14 @@ class EvaluationOptimizationAgent:
         """Evaluate a single diagnosis against ground truth."""
         # Step 1: Compare against ground truth
         metrics = self.evaluator.compare(diagnosis, case_data.ground_truth)
-        logger.info("Case %d: exact=%s, P=%.3f, R=%.3f, F1=%.3f",
-                     case_data.case_id, metrics.exact_match,
-                     metrics.precision, metrics.recall, metrics.f1)
+        logger.info(
+            "Case %d: exact=%s, P=%.3f, R=%.3f, F1=%.3f",
+            case_data.case_id,
+            metrics.exact_match,
+            metrics.precision,
+            metrics.recall,
+            metrics.f1,
+        )
 
         # Step 2: Analyze reasoning trace
         trace_quality = 0.5
@@ -70,7 +77,10 @@ class EvaluationOptimizationAgent:
 
         # Step 3: Build case library entry
         case_entry = self.case_library.create_entry(
-            diagnosis, metrics, case_data.ground_truth, difficulty=difficulty,
+            diagnosis,
+            metrics,
+            case_data.ground_truth,
+            difficulty=difficulty,
         )
 
         # Step 4: Generate optimization suggestions if needed
@@ -89,10 +99,13 @@ class EvaluationOptimizationAgent:
             fault_type_match=metrics.fault_type_match,
             case_category=case_entry.category.value,
             trace_quality=trace_quality,
-            notes=json.dumps({
-                "strengths": trace_analysis.get("strengths", []),
-                "weaknesses": trace_analysis.get("weaknesses", []),
-            }, ensure_ascii=False),
+            notes=json.dumps(
+                {
+                    "strengths": trace_analysis.get("strengths", []),
+                    "weaknesses": trace_analysis.get("weaknesses", []),
+                },
+                ensure_ascii=False,
+            ),
         )
 
         # Save suggestions
@@ -108,12 +121,16 @@ class EvaluationOptimizationAgent:
 
         # Publish events
         if self.bus:
-            await self.bus.publish("evaluation.report", {
-                "session_id": diagnosis.session_id,
-                "case_id": case_data.case_id,
-                "metrics": {"exact_match": metrics.exact_match, "f1": metrics.f1},
-                "category": case_entry.category.value,
-            }, sender="agent_3")
+            await self.bus.publish(
+                "evaluation.report",
+                {
+                    "session_id": diagnosis.session_id,
+                    "case_id": case_data.case_id,
+                    "metrics": {"exact_match": metrics.exact_match, "f1": metrics.f1},
+                    "category": case_entry.category.value,
+                },
+                sender="agent_3",
+            )
 
             for sug in suggestions:
                 channel = {
@@ -121,19 +138,26 @@ class EvaluationOptimizationAgent:
                     "workflow_update": "optimization.workflow",
                     "new_case": "optimization.cases",
                 }.get(sug.suggestion_type.value, "optimization.skill")
-                await self.bus.publish(channel, {
-                    "target": sug.target,
-                    "content": sug.content,
-                    "evidence": sug.evidence,
-                }, sender="agent_3")
+                await self.bus.publish(
+                    channel,
+                    {
+                        "target": sug.target,
+                        "content": sug.content,
+                        "evidence": sug.evidence,
+                    },
+                    sender="agent_3",
+                )
 
-        self._emit_progress("evaluation_complete", {
-            "case_id": case_data.case_id,
-            "exact_match": metrics.exact_match,
-            "f1": metrics.f1,
-            "category": case_entry.category.value,
-            "suggestions": len(suggestions),
-        })
+        self._emit_progress(
+            "evaluation_complete",
+            {
+                "case_id": case_data.case_id,
+                "exact_match": metrics.exact_match,
+                "f1": metrics.f1,
+                "category": case_entry.category.value,
+                "suggestions": len(suggestions),
+            },
+        )
 
         return EvaluationReport(
             evaluation_id=eval_id,
@@ -155,9 +179,13 @@ class EvaluationOptimizationAgent:
         total = len(results)
 
         for i, (diagnosis, case_data) in enumerate(results):
-            self._emit_progress("evaluation_progress", {
-                "completed": i, "total": total,
-            })
+            self._emit_progress(
+                "evaluation_progress",
+                {
+                    "completed": i,
+                    "total": total,
+                },
+            )
 
             report = await self.evaluate(diagnosis, case_data)
             reports.append(report)
@@ -179,10 +207,14 @@ async def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="5GC Evaluation & Optimization Agent")
-    parser.add_argument("--evaluate-all", action="store_true", help="Evaluate all completed sessions")
+    parser.add_argument(
+        "--evaluate-all", action="store_true", help="Evaluate all completed sessions"
+    )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+    )
 
     EvaluationOptimizationAgent()  # construct to initialize defaults (unused in this placeholder CLI)
 

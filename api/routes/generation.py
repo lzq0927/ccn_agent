@@ -26,12 +26,17 @@ async def create_generation_batch(
 
     async def run_batch():
         from agents.data_generation.agent import FaultDataGenerationAgent
+
         agent = FaultDataGenerationAgent(storage=Storage())
         packages = await agent.generate_batch(count=count, seed=seed)
         _jobs[batch_id]["status"] = "completed"
         _jobs[batch_id]["completed"] = len(packages)
         _jobs[batch_id]["results"] = [
-            {"case_id": p.case_id, "fault_type": p.metadata.fault_type, "validation": p.metadata.validation_status.value}
+            {
+                "case_id": p.case_id,
+                "fault_type": p.metadata.fault_type,
+                "validation": p.metadata.validation_status.value,
+            }
             for p in packages
         ]
 
@@ -53,8 +58,9 @@ async def list_cases(
 ):
     storage = Storage()
     offset = (page - 1) * page_size
-    cases = storage.list_cases(fault_type=fault_type, difficulty=difficulty,
-                                limit=page_size, offset=offset)
+    cases = storage.list_cases(
+        fault_type=fault_type, difficulty=difficulty, limit=page_size, offset=offset
+    )
     total = storage.count_cases()
     return {"total": total, "page": page, "page_size": page_size, "cases": cases}
 

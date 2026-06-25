@@ -39,6 +39,7 @@ def _gini(values: list[int]) -> float:
 @dataclass
 class FeatureSet:
     """Extracted features from case data."""
+
     total_link_entries: int = 0
     anomaly_count: int = 0
     anomaly_ratio: float = 0.0
@@ -240,8 +241,7 @@ class ConfidenceAssessor:
             features.chr_failure_count = len(fails)
             if fails:
                 features.chr_sbi_5xx_count = sum(
-                    1 for r in fails
-                    if int(r.get("sbi_status", 0) or 0) in _SBI_FAILURE_STATUSES
+                    1 for r in fails if int(r.get("sbi_status", 0) or 0) in _SBI_FAILURE_STATUSES
                 )
                 all_supis = {r.get("supi") for r in chr_recs if r.get("supi")}
                 failed_supis = {r.get("supi") for r in fails if r.get("supi")}

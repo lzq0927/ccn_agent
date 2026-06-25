@@ -10,7 +10,9 @@ from typing import Callable
 from agents.shared.llm_client import LLMConfig
 from agents.shared.llm_config import load_llm_config
 from agents.shared.models import (
-    CasePackage, CaseParams, ValidationStatus,
+    CasePackage,
+    CaseParams,
+    ValidationStatus,
 )
 from agents.shared.storage import Storage
 from agents.shared.message_bus import MessageBus
@@ -58,7 +60,12 @@ class FaultDataGenerationAgent:
         last_validation = None
 
         for attempt in range(self.config.max_validation_retries):
-            logger.info("Generating case %d (attempt %d/%d)", case_id, attempt + 1, self.config.max_validation_retries)
+            logger.info(
+                "Generating case %d (attempt %d/%d)",
+                case_id,
+                attempt + 1,
+                self.config.max_validation_retries,
+            )
 
             # Step 1: Generate
             case = self.simulator.generate(params, case_id=case_id)
@@ -89,22 +96,36 @@ class FaultDataGenerationAgent:
 
                 # Publish event
                 if self.bus:
-                    await self.bus.publish("data.generated", {
-                        "case_id": case_id,
-                        "case_dir": file_path,
-                    }, sender="agent_1")
+                    await self.bus.publish(
+                        "data.generated",
+                        {
+                            "case_id": case_id,
+                            "case_dir": file_path,
+                        },
+                        sender="agent_1",
+                    )
 
                 return case
 
             # Step 3: Failed - adjust params and retry
-            logger.warning("Case %d failed validation (attempt %d): %s",
-                           case_id, attempt + 1, validation.overall_note)
+            logger.warning(
+                "Case %d failed validation (attempt %d): %s",
+                case_id,
+                attempt + 1,
+                validation.overall_note,
+            )
             params = self._adjust_from_feedback(params, validation)
 
         # All retries exhausted
-        logger.error("Case %d failed validation after %d attempts", case_id, self.config.max_validation_retries)
+        logger.error(
+            "Case %d failed validation after %d attempts",
+            case_id,
+            self.config.max_validation_retries,
+        )
         case.metadata.validation_status = ValidationStatus.FAILED
-        case.metadata.validation_notes = last_validation.feedback if last_validation else "Max retries exceeded"
+        case.metadata.validation_notes = (
+            last_validation.feedback if last_validation else "Max retries exceeded"
+        )
 
         # Save failed case for analysis
         file_path = self.storage.save_case_files(case_id, case)
@@ -122,10 +143,14 @@ class FaultDataGenerationAgent:
         self.storage.update_case_validation(case_id, "failed", case.metadata.validation_notes)
 
         if self.bus:
-            await self.bus.publish("data.validation_failed", {
-                "case_id": case_id,
-                "feedback": last_validation.feedback if last_validation else "",
-            }, sender="agent_1")
+            await self.bus.publish(
+                "data.validation_failed",
+                {
+                    "case_id": case_id,
+                    "feedback": last_validation.feedback if last_validation else "",
+                },
+                sender="agent_1",
+            )
 
         return case
 
@@ -144,12 +169,14 @@ class FaultDataGenerationAgent:
         for i, case in enumerate(packages):
             # Report progress
             if self.progress_callback:
-                self.progress_callback({
-                    "type": "generation_progress",
-                    "completed": i,
-                    "total": count,
-                    "current_case": case.case_id,
-                })
+                self.progress_callback(
+                    {
+                        "type": "generation_progress",
+                        "completed": i,
+                        "total": count,
+                        "current_case": case.case_id,
+                    }
+                )
 
             # Validate each case
             validation = await self.validator.validate(case)
@@ -176,19 +203,26 @@ class FaultDataGenerationAgent:
                 is_train=case.case_id % 10 < 4,
                 metadata_json=case.metadata.to_json(),
             )
-            self.storage.update_case_validation(case.case_id, case.metadata.validation_status.value,
-                                                 case.metadata.validation_notes)
+            self.storage.update_case_validation(
+                case.case_id, case.metadata.validation_status.value, case.metadata.validation_notes
+            )
 
             validated.append(case)
 
-        logger.info("Batch generation complete: %d passed, %d failed out of %d", passed, failed, count)
+        logger.info(
+            "Batch generation complete: %d passed, %d failed out of %d", passed, failed, count
+        )
 
         if self.bus:
-            await self.bus.publish("data.generated", {
-                "case_ids": [c.case_id for c in validated],
-                "passed": passed,
-                "failed": failed,
-            }, sender="agent_1")
+            await self.bus.publish(
+                "data.generated",
+                {
+                    "case_ids": [c.case_id for c in validated],
+                    "passed": passed,
+                    "failed": failed,
+                },
+                sender="agent_1",
+            )
 
         return validated
 
@@ -199,6 +233,7 @@ class FaultDataGenerationAgent:
         # - Change topology if coherence issues
         # - Adjust seed for variety
         import copy
+
         adjusted = copy.deepcopy(params)
 
         for check_name, check in validation.checks.items():
@@ -227,7 +262,9 @@ async def main():
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+    )
 
     agent = FaultDataGenerationAgent()
     packages = await agent.generate_batch(count=args.count, seed=args.seed)

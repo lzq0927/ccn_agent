@@ -30,6 +30,7 @@ async def submit_diagnosis(request: DiagnoseRequest):
 
     async def run_diagnosis():
         from agents.fault_perception.agent import FaultPerceptionAgent
+
         agent = FaultPerceptionAgent(storage=Storage())
 
         # Load case data
@@ -94,4 +95,7 @@ async def get_history(page: int = 1, page_size: int = 20):
 
 @router.get("/status")
 async def get_agent_status():
-    return {"status": "idle", "active_sessions": len([s for s in _sessions.values() if s.get("status") == "started"])}
+    return {
+        "status": "idle",
+        "active_sessions": len([s for s in _sessions.values() if s.get("status") == "started"]),
+    }

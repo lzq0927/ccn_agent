@@ -38,10 +38,7 @@ async def compute_success_rate_stats(
     group_by: str = "ne",
     level: str = "link",
 ) -> str:
-    rows = [
-        r for r in kpi_rows
-        if str(r.get("level", "")) == level
-    ]
+    rows = [r for r in kpi_rows if str(r.get("level", "")) == level]
 
     groups: dict[str, list[float]] = defaultdict(list)
 
@@ -66,7 +63,7 @@ async def compute_success_rate_stats(
         stats[key] = {
             "count": n,
             "mean": round(mean, 4),
-            "std": round(variance ** 0.5, 6),
+            "std": round(variance**0.5, 6),
             "min": round(min(rates), 4),
             "max": round(max(rates), 4),
         }
@@ -74,12 +71,16 @@ async def compute_success_rate_stats(
     # Sort by mean (most degraded first)
     sorted_stats = dict(sorted(stats.items(), key=lambda x: x[1]["mean"]))
 
-    return json.dumps({
-        "group_by": group_by,
-        "level": level,
-        "group_count": len(sorted_stats),
-        "stats": sorted_stats,
-    }, ensure_ascii=False, indent=2)
+    return json.dumps(
+        {
+            "group_by": group_by,
+            "level": level,
+            "group_count": len(sorted_stats),
+            "stats": sorted_stats,
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
 
 
 @register(
@@ -113,10 +114,7 @@ async def detect_anomaly_sudden_change(
     sensitivity: float = 0.005,
 ) -> str:
     # Filter link-level rows
-    rows = [
-        r for r in kpi_rows
-        if str(r.get("level", "")) == "link"
-    ]
+    rows = [r for r in kpi_rows if str(r.get("level", "")) == "link"]
 
     # Group by timestamp, compute average
     by_ts: dict[int, list[float]] = defaultdict(list)
@@ -136,21 +134,25 @@ async def detect_anomaly_sudden_change(
         curr_ts = ts_sorted[i]
         diff = ts_avg[curr_ts] - ts_avg[prev_ts]
         if diff < -sensitivity:
-            changes.append({
-                "timestamp": curr_ts,
-                "previous_avg": round(ts_avg[prev_ts], 4),
-                "current_avg": round(ts_avg[curr_ts], 4),
-                "drop": round(abs(diff), 4),
-                "type": "drop",
-            })
+            changes.append(
+                {
+                    "timestamp": curr_ts,
+                    "previous_avg": round(ts_avg[prev_ts], 4),
+                    "current_avg": round(ts_avg[curr_ts], 4),
+                    "drop": round(abs(diff), 4),
+                    "type": "drop",
+                }
+            )
         elif diff > sensitivity:
-            changes.append({
-                "timestamp": curr_ts,
-                "previous_avg": round(ts_avg[prev_ts], 4),
-                "current_avg": round(ts_avg[curr_ts], 4),
-                "rise": round(diff, 4),
-                "type": "recovery",
-            })
+            changes.append(
+                {
+                    "timestamp": curr_ts,
+                    "previous_avg": round(ts_avg[prev_ts], 4),
+                    "current_avg": round(ts_avg[curr_ts], 4),
+                    "rise": round(diff, 4),
+                    "type": "recovery",
+                }
+            )
 
     result = {
         "total_timestamps": len(ts_sorted),

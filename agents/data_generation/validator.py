@@ -96,7 +96,7 @@ class LLMValidator:
             # Sample: header + first rows + rows around fault window + last rows
             sampled = [header]
             sampled.extend(csv_lines[1:20])
-            sampled.extend(csv_lines[len(csv_lines)//2-10:len(csv_lines)//2+10])
+            sampled.extend(csv_lines[len(csv_lines) // 2 - 10 : len(csv_lines) // 2 + 10])
             sampled.extend(csv_lines[-20:])
             csv_sample = "\n".join(sampled) + f"\n... (truncated, total {len(csv_lines)} rows)"
         else:
@@ -105,7 +105,11 @@ class LLMValidator:
         # Truncate process text
         process_lines = case.process_text.split("\n")
         if len(process_lines) > 30:
-            process_sample = "\n".join(process_lines[:10]) + f"\n... ({len(process_lines)-20} UE routes omitted)\n" + "\n".join(process_lines[-10:])
+            process_sample = (
+                "\n".join(process_lines[:10])
+                + f"\n... ({len(process_lines) - 20} UE routes omitted)\n"
+                + "\n".join(process_lines[-10:])
+            )
         else:
             process_sample = case.process_text
 

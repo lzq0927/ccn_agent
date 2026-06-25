@@ -35,6 +35,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/dashboard/summary")
     async def dashboard_summary():
         from agents.shared.storage import Storage
+
         storage = Storage()
         return storage.get_dashboard_summary()
 

@@ -17,8 +17,12 @@ from typing import Callable
 from agents.shared.llm_client import LLMClient, LLMConfig, LLMResponse
 from agents.shared.llm_config import load_llm_config
 from agents.shared.models import (
-    CaseData, DiagnosisResult, ConfidenceAssessment, Route,
-    ReasoningStep, SessionStatus,
+    CaseData,
+    DiagnosisResult,
+    ConfidenceAssessment,
+    Route,
+    ReasoningStep,
+    SessionStatus,
 )
 from agents.shared.storage import Storage
 from agents.shared.message_bus import MessageBus
@@ -115,6 +119,7 @@ class FaultPerceptionAgent:
 
         # Import tools
         from tools.registry import import_all_tools
+
         import_all_tools()
 
     async def diagnose(self, case_data: CaseData) -> DiagnosisResult:
@@ -123,17 +128,24 @@ class FaultPerceptionAgent:
 
         # Step 1: Assess confidence
         assessment = self.assessor.assess(case_data)
-        logger.info("Case %d: confidence=%.3f, route=%s, patterns=%s",
-                     case_data.case_id, assessment.score, assessment.route.value,
-                     assessment.matched_patterns)
+        logger.info(
+            "Case %d: confidence=%.3f, route=%s, patterns=%s",
+            case_data.case_id,
+            assessment.score,
+            assessment.route.value,
+            assessment.matched_patterns,
+        )
 
         # Emit progress
-        self._emit_progress("confidence_assessment", {
-            "session_id": session_id,
-            "score": assessment.score,
-            "route": assessment.route.value,
-            "patterns": assessment.matched_patterns,
-        })
+        self._emit_progress(
+            "confidence_assessment",
+            {
+                "session_id": session_id,
+                "score": assessment.score,
+                "route": assessment.route.value,
+                "patterns": assessment.matched_patterns,
+            },
+        )
 
         # Step 2: Create session in storage
         self.storage.create_session(
@@ -151,14 +163,17 @@ class FaultPerceptionAgent:
             if assessment.route == Route.WORKFLOW:
                 result = await self._run_workflow(case_data, assessment, session_id)
             elif assessment.route == Route.GUIDED:
-                result = await self._run_agent_loop(case_data, assessment, session_id,
-                                                     max_iterations=routing["max_iterations"])
+                result = await self._run_agent_loop(
+                    case_data, assessment, session_id, max_iterations=routing["max_iterations"]
+                )
             elif assessment.route == Route.EXPLORATION:
-                result = await self._run_exploration(case_data, assessment, session_id,
-                                                      max_iterations=routing["max_iterations"])
+                result = await self._run_exploration(
+                    case_data, assessment, session_id, max_iterations=routing["max_iterations"]
+                )
             else:  # AUTONOMOUS
-                result = await self._run_agent_loop(case_data, assessment, session_id,
-                                                     max_iterations=routing["max_iterations"])
+                result = await self._run_agent_loop(
+                    case_data, assessment, session_id, max_iterations=routing["max_iterations"]
+                )
         except Exception as e:
             logger.exception("Diagnosis failed for case %d", case_data.case_id)
             result = DiagnosisResult(
@@ -170,10 +185,13 @@ class FaultPerceptionAgent:
                 status=SessionStatus.FAILED,
             )
             # Add error step
-            result.reasoning_trace.append(ReasoningStep(
-                step_number=1, step_type="thinking",
-                content=f"Diagnosis failed: {e}",
-            ))
+            result.reasoning_trace.append(
+                ReasoningStep(
+                    step_number=1,
+                    step_type="thinking",
+                    content=f"Diagnosis failed: {e}",
+                )
+            )
 
         # Step 4: Save results
         self.storage.complete_session(
@@ -201,33 +219,41 @@ class FaultPerceptionAgent:
             )
 
         # Emit completion
-        self._emit_progress("diagnosis_complete", {
-            "session_id": session_id,
-            "result": {
-                "fault_elements": result.fault_elements,
-                "fault_type": result.fault_type,
-                "confidence": result.confidence,
-                "route": result.route_taken.value,
+        self._emit_progress(
+            "diagnosis_complete",
+            {
+                "session_id": session_id,
+                "result": {
+                    "fault_elements": result.fault_elements,
+                    "fault_type": result.fault_type,
+                    "confidence": result.confidence,
+                    "route": result.route_taken.value,
+                },
             },
-        })
+        )
 
         # Publish event
         if self.bus:
-            await self.bus.publish("perception.result", {
-                "session_id": session_id,
-                "case_id": case_data.case_id,
-                "diagnosis": {
-                    "fault_elements": result.fault_elements,
-                    "fault_links": result.fault_links,
-                    "fault_type": result.fault_type,
-                    "confidence": result.confidence,
+            await self.bus.publish(
+                "perception.result",
+                {
+                    "session_id": session_id,
+                    "case_id": case_data.case_id,
+                    "diagnosis": {
+                        "fault_elements": result.fault_elements,
+                        "fault_links": result.fault_links,
+                        "fault_type": result.fault_type,
+                        "confidence": result.confidence,
+                    },
                 },
-            }, sender="agent_2")
+                sender="agent_2",
+            )
 
         return result
 
-    async def _run_workflow(self, case_data: CaseData, assessment: ConfidenceAssessment,
-                           session_id: str) -> DiagnosisResult:
+    async def _run_workflow(
+        self, case_data: CaseData, assessment: ConfidenceAssessment, session_id: str
+    ) -> DiagnosisResult:
         """Run fixed workflow for high-confidence cases."""
         workflow = assessment.suggested_workflow or "link_fault_workflow"
         self._emit_progress("workflow_start", {"workflow": workflow, "session_id": session_id})
@@ -236,8 +262,13 @@ class FaultPerceptionAgent:
         result.session_id = session_id
         return result
 
-    async def _run_exploration(self, case_data: CaseData, assessment: ConfidenceAssessment,
-                               session_id: str, max_iterations: int = 40) -> DiagnosisResult:
+    async def _run_exploration(
+        self,
+        case_data: CaseData,
+        assessment: ConfidenceAssessment,
+        session_id: str,
+        max_iterations: int = 40,
+    ) -> DiagnosisResult:
         """Phase 2 exploration mode: Agent + LLM + multi-algorithm framework on CHR.
 
         Triggered when KPIs are ambiguous (micro-loss) but user-level CHR shows
@@ -265,13 +296,20 @@ class FaultPerceptionAgent:
         result.session_id = session_id
         return result
 
-    async def _run_agent_loop(self, case_data: CaseData, assessment: ConfidenceAssessment,
-                              session_id: str, max_iterations: int = 30) -> DiagnosisResult:
+    async def _run_agent_loop(
+        self,
+        case_data: CaseData,
+        assessment: ConfidenceAssessment,
+        session_id: str,
+        max_iterations: int = 30,
+    ) -> DiagnosisResult:
         """Hermes-style agent loop: prompt -> LLM -> tools -> repeat."""
         from tools.registry import schemas_as_tool_objects, dispatch as tool_dispatch
 
         # Initialize context
-        ctx = self.context_manager.initialize(case_data, assessment, assessment.route, max_iterations)
+        ctx = self.context_manager.initialize(
+            case_data, assessment, assessment.route, max_iterations
+        )
 
         # Build system prompt
         kpi_summary = self._summarize_kpi(case_data)
@@ -294,11 +332,15 @@ class FaultPerceptionAgent:
         tool_schemas = schemas_as_tool_objects()
         # Add submit_diagnosis as a special tool
         tool_schemas.append(
-            type("ToolSchema", (), {
-                "name": "submit_diagnosis",
-                "description": SUBMIT_DIAGNOSIS_SCHEMA["description"],
-                "parameters": SUBMIT_DIAGNOSIS_SCHEMA["parameters"],
-            })()
+            type(
+                "ToolSchema",
+                (),
+                {
+                    "name": "submit_diagnosis",
+                    "description": SUBMIT_DIAGNOSIS_SCHEMA["description"],
+                    "parameters": SUBMIT_DIAGNOSIS_SCHEMA["parameters"],
+                },
+            )()
         )
 
         iteration = 0
@@ -306,11 +348,14 @@ class FaultPerceptionAgent:
             iteration += 1
             ctx.iteration = iteration
 
-            self._emit_progress("agent_step", {
-                "session_id": session_id,
-                "iteration": iteration,
-                "max": max_iterations,
-            })
+            self._emit_progress(
+                "agent_step",
+                {
+                    "session_id": session_id,
+                    "iteration": iteration,
+                    "max": max_iterations,
+                },
+            )
 
             # Build messages for API call
             api_messages = [{"role": "system", "content": system_prompt}] + ctx.messages[-20:]
@@ -339,21 +384,28 @@ class FaultPerceptionAgent:
 
                 # On last iteration, force a partial diagnosis
                 if iteration >= max_iterations - 1:
-                    return self._create_timeout_diagnosis(ctx, case_data.case_id, session_id, assessment)
+                    return self._create_timeout_diagnosis(
+                        ctx, case_data.case_id, session_id, assessment
+                    )
 
                 # Add assistant response and ask for diagnosis
                 ctx.add_assistant_message(response.content or "")
-                ctx.messages.append({
-                    "role": "user",
-                    "content": "Please analyze the data using your tools and submit your diagnosis using submit_diagnosis.",
-                })
+                ctx.messages.append(
+                    {
+                        "role": "user",
+                        "content": "Please analyze the data using your tools and submit your diagnosis using submit_diagnosis.",
+                    }
+                )
                 continue
 
             # Process tool calls
-            ctx.add_assistant_message(response.content or "", [
-                {"id": tc.id, "function": {"name": tc.name, "arguments": tc.arguments}}
-                for tc in response.tool_calls
-            ])
+            ctx.add_assistant_message(
+                response.content or "",
+                [
+                    {"id": tc.id, "function": {"name": tc.name, "arguments": tc.arguments}}
+                    for tc in response.tool_calls
+                ],
+            )
 
             for tc in response.tool_calls:
                 try:
@@ -361,11 +413,14 @@ class FaultPerceptionAgent:
                 except json.JSONDecodeError:
                     args = {}
 
-                self._emit_progress("tool_call", {
-                    "session_id": session_id,
-                    "tool": tc.name,
-                    "iteration": iteration,
-                })
+                self._emit_progress(
+                    "tool_call",
+                    {
+                        "session_id": session_id,
+                        "tool": tc.name,
+                        "iteration": iteration,
+                    },
+                )
 
                 # Execute tool
                 if tc.name == "submit_diagnosis":
@@ -377,7 +432,10 @@ class FaultPerceptionAgent:
                         diag.llm_model = self.llm.config.model
                         diag.route_taken = assessment.route
                         return diag
-                    ctx.add_tool_result(tc.id, "Invalid diagnosis format. Please provide fault_elements, fault_type, and confidence.")
+                    ctx.add_tool_result(
+                        tc.id,
+                        "Invalid diagnosis format. Please provide fault_elements, fault_type, and confidence.",
+                    )
                 else:
                     # Dispatch to tool registry
                     result_str = await tool_dispatch(tc.name, args)
@@ -401,7 +459,9 @@ class FaultPerceptionAgent:
         # Timeout
         return self._create_timeout_diagnosis(ctx, case_data.case_id, session_id, assessment)
 
-    def _check_submit_diagnosis(self, response: LLMResponse, case_id: int, session_id: str) -> DiagnosisResult | None:
+    def _check_submit_diagnosis(
+        self, response: LLMResponse, case_id: int, session_id: str
+    ) -> DiagnosisResult | None:
         """Check if LLM called submit_diagnosis."""
         for tc in response.tool_calls:
             if tc.name == "submit_diagnosis":
@@ -412,7 +472,9 @@ class FaultPerceptionAgent:
                     return None
         return None
 
-    def _parse_diagnosis_from_args(self, args: dict, case_id: int, session_id: str) -> DiagnosisResult | None:
+    def _parse_diagnosis_from_args(
+        self, args: dict, case_id: int, session_id: str
+    ) -> DiagnosisResult | None:
         """Parse diagnosis from submit_diagnosis tool arguments."""
         try:
             return DiagnosisResult(
@@ -429,14 +491,17 @@ class FaultPerceptionAgent:
         except (ValueError, TypeError):
             return None
 
-    def _create_timeout_diagnosis(self, ctx, case_id: int, session_id: str,
-                                   assessment: ConfidenceAssessment) -> DiagnosisResult:
+    def _create_timeout_diagnosis(
+        self, ctx, case_id: int, session_id: str, assessment: ConfidenceAssessment
+    ) -> DiagnosisResult:
         """Create a diagnosis for timeout cases."""
-        ctx.reasoning_trace.append(ReasoningStep(
-            step_number=ctx.step_counter + 1,
-            step_type="conclusion",
-            content="Diagnosis timed out. Returning partial result.",
-        ))
+        ctx.reasoning_trace.append(
+            ReasoningStep(
+                step_number=ctx.step_counter + 1,
+                step_type="conclusion",
+                content="Diagnosis timed out. Returning partial result.",
+            )
+        )
         return DiagnosisResult(
             session_id=session_id,
             case_id=case_id,
@@ -460,8 +525,10 @@ class FaultPerceptionAgent:
         avg_sr = sum(rates) / len(rates)
         below_99 = sum(1 for r in rates if r < 0.99)
 
-        return (f"Link KPI: {len(link_rows)} entries, min={min_sr:.4f}, avg={avg_sr:.4f}, "
-                f"below_0.99={below_99}")
+        return (
+            f"Link KPI: {len(link_rows)} entries, min={min_sr:.4f}, avg={avg_sr:.4f}, "
+            f"below_0.99={below_99}"
+        )
 
     def _emit_progress(self, event_type: str, data: dict) -> None:
         if self.progress_callback:
@@ -478,7 +545,9 @@ async def main():
     parser.add_argument("--data-dir", default="./data", help="Data directory")
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s: %(message)s"
+    )
 
     agent = FaultPerceptionAgent()
 
@@ -542,4 +611,5 @@ async def main():
 
 if __name__ == "__main__":
     from pathlib import Path
+
     asyncio.run(main())

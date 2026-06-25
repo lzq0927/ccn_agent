@@ -12,7 +12,14 @@ from simulator.topology import TopologyGenerator
 from simulator.scenario import ScenarioGenerator
 from simulator.engine import SimulationEngine
 
-from agents.shared.models import CasePackage, CaseMetadata, CaseParams, CaseSource, CaseDifficulty, ValidationStatus
+from agents.shared.models import (
+    CasePackage,
+    CaseMetadata,
+    CaseParams,
+    CaseSource,
+    CaseDifficulty,
+    ValidationStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +51,11 @@ class SimulatorWrapper:
         if params.fault_type and params.fault_type != FaultPointType.NORMAL:
             is_normal = False
             fault_config = self._build_fault_config(
-                params.fault_type, params.fault_mode or FaultMode.LINK,
-                topology, seed, params.loss_rate,
+                params.fault_type,
+                params.fault_mode or FaultMode.LINK,
+                topology,
+                seed,
+                params.loss_rate,
             )
 
         # Build scenario
@@ -132,20 +142,28 @@ class SimulatorWrapper:
                 tags=self._build_tags(scenario),
             )
 
-            packages.append(CasePackage(
-                case_id=scenario.case_id,
-                kpi_data=kpi_csv,
-                topology_text=topo_text,
-                process_text=process_text,
-                result_text=result_text,
-                metadata=metadata,
-                chr_data=chr_jsonl,
-            ))
+            packages.append(
+                CasePackage(
+                    case_id=scenario.case_id,
+                    kpi_data=kpi_csv,
+                    topology_text=topo_text,
+                    process_text=process_text,
+                    result_text=result_text,
+                    metadata=metadata,
+                    chr_data=chr_jsonl,
+                )
+            )
 
         return packages
 
-    def _build_fault_config(self, fault_type: FaultPointType, fault_mode: FaultMode,
-                            topology, seed: int, loss_rate: float | None = None):
+    def _build_fault_config(
+        self,
+        fault_type: FaultPointType,
+        fault_mode: FaultMode,
+        topology,
+        seed: int,
+        loss_rate: float | None = None,
+    ):
         """Build a FaultConfig for a specific fault type."""
         # Delegate to the scenario generator's internal builder.
         gen = ScenarioGenerator({0: topology})
@@ -155,7 +173,9 @@ class SimulatorWrapper:
         buf = io.StringIO()
         buf.write("timestamp,level,ue_id,src,dst,success_rate\n")
         for rec in kpi_records:
-            buf.write(f"{rec.timestamp},{rec.level},{rec.ue_id},{rec.src},{rec.dst},{rec.success_rate:.4f}\n")
+            buf.write(
+                f"{rec.timestamp},{rec.level},{rec.ue_id},{rec.src},{rec.dst},{rec.success_rate:.4f}\n"
+            )
         return buf.getvalue()
 
     def _export_chr_jsonl(self, result) -> str:

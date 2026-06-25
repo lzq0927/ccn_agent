@@ -106,10 +106,12 @@ async def check_temporal_pattern(
             continue
         if ne_id and str(r.get("src", "")) != ne_id and str(r.get("dst", "")) != ne_id:
             continue
-        rows.append({
-            "timestamp": int(r.get("timestamp", 0)),
-            "success_rate": float(r.get("success_rate", 1.0)),
-        })
+        rows.append(
+            {
+                "timestamp": int(r.get("timestamp", 0)),
+                "success_rate": float(r.get("success_rate", 1.0)),
+            }
+        )
 
     if not rows:
         return json.dumps({"error": "No matching KPI rows found"})
@@ -144,9 +146,13 @@ async def check_temporal_pattern(
             "fault_end": fault_end,
             "fault_duration": fault_end - fault_start,
             "fault_window_size": len(fault_ts),
-            "pre_fault_avg": round(sum(pre_fault) / max(len(pre_fault), 1), 4) if pre_fault else None,
+            "pre_fault_avg": round(sum(pre_fault) / max(len(pre_fault), 1), 4)
+            if pre_fault
+            else None,
             "during_fault_avg": round(sum(ts_avg[ts] for ts in fault_ts) / len(fault_ts), 4),
-            "post_fault_avg": round(sum(post_fault) / max(len(post_fault), 1), 4) if post_fault else None,
+            "post_fault_avg": round(sum(post_fault) / max(len(post_fault), 1), 4)
+            if post_fault
+            else None,
             "sudden_onset": bool(pre_fault and ts_avg.get(fault_start, 1.0) < threshold * 0.99),
             "sudden_recovery": bool(post_fault and ts_avg.get(fault_end, 0) < threshold),
         }

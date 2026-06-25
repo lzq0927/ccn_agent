@@ -7,7 +7,10 @@ import logging
 
 from agents.shared.llm_client import LLMClient
 from agents.shared.models import (
-    CaseLibraryEntry, OptimizationSuggestion, SuggestionType, EvaluationMetrics,
+    CaseLibraryEntry,
+    OptimizationSuggestion,
+    SuggestionType,
+    EvaluationMetrics,
     DiagnosisResult,
 )
 
@@ -42,8 +45,9 @@ class OptimizationAdvisor:
     def __init__(self, llm_client: LLMClient):
         self.llm = llm_client
 
-    async def analyze(self, entry: CaseLibraryEntry, diagnosis: DiagnosisResult,
-                      metrics: EvaluationMetrics) -> list[OptimizationSuggestion]:
+    async def analyze(
+        self, entry: CaseLibraryEntry, diagnosis: DiagnosisResult, metrics: EvaluationMetrics
+    ) -> list[OptimizationSuggestion]:
         """Generate optimization suggestions for a sub-optimal case."""
         if metrics.exact_match and metrics.fault_type_match:
             return []  # Perfect case, no suggestions needed
@@ -59,16 +63,19 @@ class OptimizationAdvisor:
             return self._parse_suggestions(response)
         except Exception as e:
             logger.error("Optimization analysis failed: %s", e)
-            return [OptimizationSuggestion(
-                suggestion_type=SuggestionType.SKILL_UPDATE,
-                target="general",
-                content=f"Auto-generated: review {entry.fault_type} diagnosis procedures",
-                evidence=[f"Case {entry.case_id}: {entry.category.value}"],
-                priority=0.3,
-            )]
+            return [
+                OptimizationSuggestion(
+                    suggestion_type=SuggestionType.SKILL_UPDATE,
+                    target="general",
+                    content=f"Auto-generated: review {entry.fault_type} diagnosis procedures",
+                    evidence=[f"Case {entry.case_id}: {entry.category.value}"],
+                    priority=0.3,
+                )
+            ]
 
-    def _build_prompt(self, entry: CaseLibraryEntry, diagnosis: DiagnosisResult,
-                      metrics: EvaluationMetrics) -> str:
+    def _build_prompt(
+        self, entry: CaseLibraryEntry, diagnosis: DiagnosisResult, metrics: EvaluationMetrics
+    ) -> str:
         return f"""Analyze this diagnosis case for optimization opportunities:
 
 ## Case Summary
@@ -116,13 +123,15 @@ What improvements would you suggest?"""
         suggestions = []
         for s in data.get("suggestions", []):
             try:
-                suggestions.append(OptimizationSuggestion(
-                    suggestion_type=SuggestionType(s.get("type", "skill_update")),
-                    target=s.get("target", ""),
-                    content=s.get("content", ""),
-                    evidence=s.get("evidence", []),
-                    priority=float(s.get("priority", 0.5)),
-                ))
+                suggestions.append(
+                    OptimizationSuggestion(
+                        suggestion_type=SuggestionType(s.get("type", "skill_update")),
+                        target=s.get("target", ""),
+                        content=s.get("content", ""),
+                        evidence=s.get("evidence", []),
+                        priority=float(s.get("priority", 0.5)),
+                    )
+                )
             except (ValueError, TypeError):
                 continue
 

@@ -52,13 +52,15 @@ async def parse_topology(topology_text: str) -> str:
                         role = "master"
                     elif "(standby)" in ne_item:
                         role = "standby"
-                    current_pool["elements"].append({
-                        "id": ne_id,
-                        "type": ne_type,
-                        "role": role,
-                        "pool_id": current_pool["id"],
-                        "dc_id": current_dc["id"] if current_dc else "",
-                    })
+                    current_pool["elements"].append(
+                        {
+                            "id": ne_id,
+                            "type": ne_type,
+                            "role": role,
+                            "pool_id": current_pool["id"],
+                            "dc_id": current_dc["id"] if current_dc else "",
+                        }
+                    )
 
     total_nes = sum(len(p["elements"]) for dc in dcs for p in dc["pools"])
     type_counts: dict[str, int] = defaultdict(int)
