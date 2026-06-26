@@ -402,7 +402,11 @@ class FaultPerceptionAgent:
             ctx.add_assistant_message(
                 response.content or "",
                 [
-                    {"id": tc.id, "function": {"name": tc.name, "arguments": tc.arguments}}
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {"name": tc.name, "arguments": tc.arguments},
+                    }
                     for tc in response.tool_calls
                 ],
             )
