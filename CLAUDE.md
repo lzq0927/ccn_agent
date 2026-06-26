@@ -93,3 +93,6 @@ Agent 2 借鉴了 Hermes Agent 的设计模式(Agent Loop、工具自注册、Sk
 ## 前端
 
 React 18 + TypeScript + Vite + recharts。三个视图(`DataGenView`、`FaultPerceptionView`、`EvaluationView`)+ Dashboard,由 FastAPI 后端通过 REST + WebSocket(`/ws/updates`,推送实时进度)支撑。CORS 锁定到 localhost 开发端口。API 客户端和类型定义在 `frontend/src/api/`。
+
+> **另有 `frontend-show/`**:独立的**展会演示前端**(高稳智能体 · 5GC 数字孪生指挥中心),全新设计、不参考 `frontend/`。沉浸式三栏指挥中心(数字孪生 + 大脑架构 + 阶段面板),确定性自动循环播放三 Agent 闭环故事。React 18 + TS + Vite + Framer Motion,数字孪生为手写 SVG。默认 DEMO 模式(内置真实样本数据,不依赖后端),可切 LIVE 模式接真实后端。`cd frontend-show && npm run dev`(端口 5174,已加入 CORS)。详见 `frontend-show/README.md`。
+
