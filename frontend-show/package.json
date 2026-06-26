@@ -1,0 +1,25 @@
+{
+  "name": "ccn-agent-show",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "高稳智能体 · 5GC 数字孪生指挥中心 (展会演示前端)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 5174",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "framer-motion": "^11.3.19",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.1"
+  }
+}
