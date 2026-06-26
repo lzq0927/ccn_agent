@@ -3,8 +3,8 @@
 // ============================================================================
 
 import { getKpi } from "../../story/director";
-import { sample } from "../../data/kpi";
-import { FLOW_EDGES, NODE_BY_ID } from "../../data/network";
+import { sample, type KpiBundle } from "../../data/kpi";
+import { DEMO_GRAPH, type NetworkGraph } from "../../data/network";
 import type { Scenario } from "../../data/types";
 import type { StoryState } from "../../story/types";
 import { STATUS, srColor } from "../../theme";
@@ -20,8 +20,19 @@ function yOf(sr: number) {
   return CH - ((v - SR_LO) / (SR_HI - SR_LO)) * CH;
 }
 
-export function KpiPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
-  const kpi = getKpi(scenario);
+export function KpiPanel({
+  scenario,
+  state,
+  graph,
+  kpi: kpiProp,
+}: {
+  scenario: Scenario;
+  state: StoryState;
+  graph?: NetworkGraph;
+  kpi?: KpiBundle;
+}) {
+  const g = graph ?? DEMO_GRAPH;
+  const kpi = kpiProp ?? getKpi(scenario);
   const series = kpi.overall;
   const steps = series.length;
   const cur = sample(series, state.simT);
@@ -34,12 +45,12 @@ export function KpiPanel({ scenario, state }: { scenario: Scenario; state: Story
   const curX = xOf(Math.max(0, Math.min(steps - 1, state.simT - 1)));
 
   // 代表性劣化链路 sparkline
-  const degradedEdges = FLOW_EDGES.filter((e) => series && kpi.edges[e.id]?.some((v) => v < kpi.threshold)).slice(0, 3);
+  const degradedEdges = g.flowEdges.filter((e) => series && kpi.edges[e.id]?.some((v) => v < kpi.threshold)).slice(0, 3);
 
   return (
     <HudFrame title="网络 KPI · 实时遥测" subtitle="OVERALL SUCCESS RATE" right={<LiveTag on={state.showAnomaly} />}>
       <div style={{ fontSize: 11, color: "#9fb0c9", marginBottom: 6 }}>
-        全网 <b style={{ color: "#eaf4ff" }}>{FLOW_EDGES.length}</b> 条业务链路聚合成功率 · 阈值 <span style={{ color: STATUS.warning }}>0.995</span>
+        全网 <b style={{ color: "#eaf4ff" }}>{g.flowEdges.length}</b> 条业务链路聚合成功率 · 阈值 <span style={{ color: STATUS.warning }}>0.995</span>
       </div>
       <svg viewBox={`0 0 ${CW} ${CH}`} width="100%" height={CH} style={{ display: "block" }}>
         {/* 故障窗阴影 */}
@@ -77,7 +88,7 @@ export function KpiPanel({ scenario, state }: { scenario: Scenario; state: Story
             return (
               <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                 <span style={{ width: 96, fontSize: 9, color: "#8a9bb5", fontFamily: "var(--font-mono)" }}>
-                  {NODE_BY_ID[e.a]?.id}↔{NODE_BY_ID[e.b]?.id}
+                  {g.nodeById[e.a]?.id}↔{g.nodeById[e.b]?.id}
                 </span>
                 <svg style={{ flex: 1 }} height={SH} viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none">
                   <path d={sPath} fill="none" stroke={srColor(ecv)} strokeWidth={1.4} />

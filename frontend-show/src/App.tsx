@@ -2,12 +2,18 @@
 // App —— 高稳智能体 · 5GC 数字孪生指挥中心(沉浸式三栏布局)
 //   左:大脑架构(Brain)  中:数字孪生(DigitalTwin)  右:阶段详情面板
 //   顶:TopBar  底:Timeline
+//   DEMO 模式:内置样本数据自动循环。LIVE 模式:真实用例文件驱动孪生 + KPI。
 // ============================================================================
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DEFAULT_SCENARIO_ID, SCENARIOS, getScenario } from "./data/scenarios";
 import { fetchHealth } from "./data/api";
+import { buildLiveModel, buildLiveScenario, type CaseMeta } from "./data/live";
+import type { LiveModel } from "./data/live";
+import type { Scenario } from "./data/types";
+import type { NetworkGraph } from "./data/network";
+import type { KpiBundle } from "./data/kpi";
 import { useStoryClock } from "./story/useStoryClock";
 import { TopBar } from "./components/Shell/TopBar";
 import { Timeline } from "./components/Timeline/Timeline";
@@ -20,15 +26,26 @@ import { ReasoningTrace } from "./components/panels/ReasoningTrace";
 import { RecoveryPanel } from "./components/panels/RecoveryPanel";
 import { EvaluationPanel } from "./components/panels/EvaluationPanel";
 
+interface CaseListItem {
+  case_id: number;
+  fault_type: string | null;
+  is_normal?: boolean;
+  difficulty?: string | null;
+}
+
 export default function App() {
   const [scenarioId, setScenarioId] = useState(DEFAULT_SCENARIO_ID);
-  const scenario = getScenario(scenarioId);
-  const clock = useStoryClock(scenario);
-  const { state } = clock;
-
   const [mode, setMode] = useState<"demo" | "live">("demo");
   const [liveConnected, setLiveConnected] = useState(false);
 
+  // LIVE 用例状态
+  const [liveCases, setLiveCases] = useState<CaseListItem[]>([]);
+  const [liveCaseId, setLiveCaseId] = useState<number | null>(null);
+  const [liveModel, setLiveModel] = useState<LiveModel | null>(null);
+  const [liveScenario, setLiveScenario] = useState<Scenario | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
+
+  // 健康轮询
   useEffect(() => {
     if (mode !== "live") {
       setLiveConnected(false);
@@ -47,13 +64,79 @@ export default function App() {
     };
   }, [mode]);
 
+  // 拉取用例列表
+  useEffect(() => {
+    if (!(mode === "live" && liveConnected)) {
+      setLiveCases([]);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/v1/generation/cases?page=1&page_size=30", { cache: "no-store" });
+        const d = await r.json();
+        const cases: CaseListItem[] = d.cases ?? [];
+        if (!alive) return;
+        setLiveCases(cases);
+        if (cases.length && liveCaseId == null) setLiveCaseId(cases[0].case_id);
+      } catch {
+        if (alive) setLiveError("无法获取用例列表");
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [mode, liveConnected]);
+
+  // 拉取用例文件 → 构建真实图 + KPI + 场景
+  useEffect(() => {
+    if (!(mode === "live" && liveCaseId != null)) {
+      setLiveModel(null);
+      setLiveScenario(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch(`/api/v1/generation/cases/${liveCaseId}/files`, { cache: "no-store" });
+        if (!r.ok) throw new Error("http");
+        const d = await r.json();
+        const files: Record<string, string> = d.files ?? {};
+        const meta: CaseMeta = JSON.parse(files["metadata.json"] || "{}");
+        const result = JSON.parse(files["result.txt"] || "{}");
+        const model = buildLiveModel(files["topo.txt"] || "", files["data.csv"] || "", meta);
+        const scn = buildLiveScenario(meta, result, liveCaseId);
+        if (!alive) return;
+        setLiveModel(model);
+        setLiveScenario(scn);
+        setLiveError(null);
+      } catch {
+        if (alive) {
+          setLiveModel(null);
+          setLiveScenario(null);
+          setLiveError("用例文件加载失败");
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [mode, liveCaseId]);
+
+  const isLive = mode === "live" && liveScenario && liveModel;
+  const scenario: Scenario = isLive ? (liveScenario as Scenario) : getScenario(scenarioId);
+  const clock = useStoryClock(scenario);
+  const { state } = clock;
+  const liveGraph: NetworkGraph | undefined = isLive ? (liveModel as LiveModel).graph : undefined;
+  const liveKpi: KpiBundle | undefined = isLive ? (liveModel as LiveModel).kpi : undefined;
+
   const renderPanel = () => {
     switch (state.phaseIndex) {
       case 1:
         return <GenerationPanel scenario={scenario} state={state} />;
       case 2:
       case 6:
-        return <KpiPanel scenario={scenario} state={state} />;
+        return <KpiPanel scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />;
       case 3:
         return <ConfidencePanel state={state} />;
       case 4:
@@ -63,7 +146,7 @@ export default function App() {
       case 7:
         return <EvaluationPanel state={state} />;
       default:
-        return <KpiPanel scenario={scenario} state={state} />;
+        return <KpiPanel scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />;
     }
   };
 
@@ -95,10 +178,39 @@ export default function App() {
                 <span className="dot" />
                 数字孪生 · 网络本体
               </span>
-              <span style={{ color: "#5f6f87" }}>{scenario.cn} · {scenario.en}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 10, color: "#5f6f87" }}>
+                {isLive ? (
+                  <>
+                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, color: "#22c55e", border: "1px solid #22c55e55", fontFamily: "var(--font-mono)" }}>真实遥测</span>
+                    <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#7e8aa3" }}>
+                      用例
+                      <select
+                        value={liveCaseId ?? ""}
+                        onChange={(e) => setLiveCaseId(Number(e.target.value))}
+                        style={{ background: "#0a1020", color: "#cde7ff", border: "1px solid rgba(56,189,248,0.3)", borderRadius: 4, padding: "2px 4px", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                      >
+                        {liveCases.map((c) => (
+                          <option key={c.case_id} value={c.case_id}>
+                            #{c.case_id} · {c.is_normal ? "normal" : c.fault_type ?? "?"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : (
+                  <span>
+                    {scenario.cn} · {scenario.en}
+                  </span>
+                )}
+              </span>
             </div>
             <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-              <DigitalTwin scenario={scenario} state={state} />
+              {mode === "live" && liveError && (
+                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, color: "#fb7185", fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                  {liveError} · 显示内置样本
+                </div>
+              )}
+              <DigitalTwin scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />
             </div>
           </div>
 
@@ -121,10 +233,14 @@ export default function App() {
 
         <Timeline clock={clock} />
 
-        {/* live 模式提示条 */}
+        {/* LIVE 模式说明条 */}
         {mode === "live" && (
-          <div style={{ position: "fixed", bottom: 12, right: 16, fontSize: 9, color: liveConnected ? "#22c55e" : "#ef4444", fontFamily: "var(--font-mono)", background: "rgba(4,7,15,0.8)", padding: "4px 9px", borderRadius: 6, border: `1px solid ${liveConnected ? "#22c55e44" : "#ef444444"}` }}>
-            {liveConnected ? "● 后端已连接 · /health 200" : "● 后端离线 · 运行 uvicorn api.app:app --port 8000"}
+          <div style={{ position: "fixed", bottom: 12, right: 16, fontSize: 9, color: liveConnected ? "#22c55e" : "#ef4444", fontFamily: "var(--font-mono)", background: "rgba(4,7,15,0.8)", padding: "4px 9px", borderRadius: 6, border: `1px solid ${liveConnected ? "#22c55e44" : "#ef444444"}`, maxWidth: 360, lineHeight: 1.5 }}>
+            {liveConnected
+              ? isLive
+                ? "● 真实遥测驱动孪生 · 置信度为实时估算 · 评估假定命中(真实诊断需运行 Agent 2/3 闭环)"
+                : "● 后端已连接 · 加载真实用例中…"
+              : "● 后端离线 · 运行 python -m uvicorn api.app:app --port 8000"}
           </div>
         )}
       </div>
