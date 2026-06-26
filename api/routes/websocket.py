@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+from typing import Callable
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -40,3 +42,20 @@ async def broadcast_event(event: dict):
             disconnected.append(client)
     for client in disconnected:
         _clients.remove(client)
+
+
+def make_ws_callback() -> Callable[[dict], None]:
+    """构造一个同步 progress_callback,把 Agent 事件桥接到 WebSocket 客户端。
+
+    Agent 的 _emit_progress 同步调用 progress_callback(无 await),故此处用
+    get_running_loop().create_task 调度异步 broadcast_event。
+    """
+
+    def _callback(event: dict) -> None:
+        try:
+            asyncio.get_running_loop().create_task(broadcast_event(event))
+        except RuntimeError:
+            # 无运行中的事件循环(非异步上下文),静默丢弃
+            pass
+
+    return _callback

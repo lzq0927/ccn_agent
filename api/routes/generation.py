@@ -26,8 +26,9 @@ async def create_generation_batch(
 
     async def run_batch():
         from agents.data_generation.agent import FaultDataGenerationAgent
+        from api.routes.websocket import make_ws_callback
 
-        agent = FaultDataGenerationAgent(storage=Storage())
+        agent = FaultDataGenerationAgent(storage=Storage(), progress_callback=make_ws_callback())
         packages = await agent.generate_batch(count=count, seed=seed)
         _jobs[batch_id]["status"] = "completed"
         _jobs[batch_id]["completed"] = len(packages)
@@ -73,3 +74,19 @@ async def get_case(case_id: int):
         return {"error": "Case not found"}
     files = storage.load_case_files(case_id)
     return {**case, "files": files is not None}
+
+
+@router.get("/cases/{case_id}/files")
+async def get_case_files(case_id: int):
+    """返回用例 5 个原始文件内容(topo/process/data.csv/result/metadata)。
+
+    供数字孪生前端解析拓扑与业务流。原 /cases/{id} 仅返回 files:bool。
+    """
+    storage = Storage()
+    case = storage.get_case(case_id)
+    if not case:
+        return {"error": "Case not found"}
+    files = storage.load_case_files(case_id)
+    if not files:
+        return {"error": "Case files not found on disk"}
+    return {"case_id": case_id, "files": files}

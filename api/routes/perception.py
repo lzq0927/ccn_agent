@@ -30,8 +30,9 @@ async def submit_diagnosis(request: DiagnoseRequest):
 
     async def run_diagnosis():
         from agents.fault_perception.agent import FaultPerceptionAgent
+        from api.routes.websocket import make_ws_callback
 
-        agent = FaultPerceptionAgent(storage=Storage())
+        agent = FaultPerceptionAgent(storage=Storage(), progress_callback=make_ws_callback())
 
         # Load case data
         if request.case_id:
