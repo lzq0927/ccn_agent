@@ -1,30 +1,35 @@
-# LLM provider configurations
-# Copy to llm.local.yaml and fill in your API keys
-
+# LLM provider configuration (template — NO secrets committed).
+# 复制为 llm.local.yaml(已 gitignore)后填写 api_key,或通过环境变量提供。
+# 由 agents/shared/llm_config.py::load_llm_config() 加载;llm.local.yaml 覆盖本文件。
+#
+# 默认 provider:MiniMax(MiniMax-M3)。MiniMax 提供 OpenAI 兼容网关(/v1),
+# 本项目的 LLMClient 走 OpenAI 协议,故使用 /v1。
+default:
+  provider: minimax
+  model: MiniMax-M3
 providers:
-  openai:
-    base_url: "https://api.openai.com/v1"
-    api_key_env: "OPENAI_API_KEY"
+  minimax:
+    base_url: "https://api.minimaxi.com/v1"
+    api_key: ""                  # ← 留空:复制到 llm.local.yaml 后填写真实 key
+    api_key_env: "MINIMAX_API_KEY"  # 或设置环境变量 MINIMAX_API_KEY
     models:
-      - name: "gpt-4o"
-        max_tokens: 4096
-        context_window: 128000
-      - name: "gpt-4o-mini"
-        max_tokens: 4096
-        context_window: 128000
+      - name: "MiniMax-M3"
+        max_tokens: 163840  # reasoning model — 需留足余量,避免 tool_calls 被截断
 
-  openrouter:
-    base_url: "https://openrouter.ai/api/v1"
-    api_key_env: "OPENROUTER_API_KEY"
-    models:
-      - name: "anthropic/claude-sonnet-4-20250514"
-        max_tokens: 4096
-        context_window: 200000
-
-  local:
-    base_url: "http://localhost:11434/v1"
-    api_key: "dummy"
-    models:
-      - name: "qwen2.5:72b"
-        max_tokens: 4096
-        context_window: 32768
+  # —— 备选 provider(按需取消注释,填 key)——
+  # openai:
+  #   base_url: "https://api.openai.com/v1"
+  #   api_key: ""
+  #   api_key_env: "OPENAI_API_KEY"
+  #   models:
+  #     - name: "gpt-4o"
+  #       max_tokens: 4096
+  #       context_window: 128000
+  # openrouter:
+  #   base_url: "https://openrouter.ai/api/v1"
+  #   api_key: ""
+  #   api_key_env: "OPENROUTER_API_KEY"
+  #   models:
+  #     - name: "anthropic/claude-sonnet-4-20250514"
+  #       max_tokens: 4096
+  #       context_window: 200000
