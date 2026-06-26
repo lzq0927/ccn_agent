@@ -173,8 +173,14 @@ python -m simulator.main
 # —— API 服务(FastAPI,端口 8000)——
 python -m uvicorn api.app:app --reload --port 8000
 
-# —— 前端(端口 5173,首次需 npm install)——
+# —— 管理后台前端(端口 5173,首次需 npm install)——
 cd frontend && npm install && npm run dev
+
+# —— 展会演示前端 · 高稳智能体数字孪生指挥中心(端口 5174)——
+cd frontend-show && npm install && npm run dev
+#   DEMO 模式(默认):内置真实样本数据,自动循环播放完整闭环故事,无需后端/LLM。
+#   LIVE 模式(可选):另起后端 `python -m uvicorn api.app:app --port 8000`,
+#                    再到前端顶栏点 DEMO → LIVE,即可用真实用例文件驱动孪生。
 ```
 
 > 💡 用 `python -m uvicorn ...` 而非裸 `uvicorn` 更稳妥——`pip install` 后 `uvicorn.exe` 所在的 `Scripts/` 目录未必在 `PATH` 中,直接敲 `uvicorn` 可能「无法识别命令」。
@@ -259,7 +265,7 @@ timestamp, level, ue_id, src, dst, success_rate, message_name, procedure
 
 启动:`python -m uvicorn api.app:app --reload --port 8000`,交互文档在 http://localhost:8000/docs。
 
-### 前端(React 18 + TypeScript + Vite + recharts)
+### 管理后台前端 `frontend/`(React 18 + TypeScript + Vite + recharts)
 
 - **Dashboard**:三环进度、关键指标、实时事件流
 - **DataGenView**:用例生成与浏览
@@ -267,6 +273,19 @@ timestamp, level, ue_id, src, dst, success_rate, message_name, procedure
 - **EvaluationView**:评估指标与优化建议
 
 启动:`cd frontend && npm install && npm run dev`,打开 http://localhost:5173。Vite 把 `/api`、`/ws` 代理到后端 8000;CORS 已锁定到本地开发端口。
+
+### 展会演示前端 `frontend-show/`(高稳智能体 · 5GC 数字孪生指挥中心)
+
+独立的沉浸式指挥中心,面向通讯展会大屏,全新设计、不参考 `frontend/`。三栏布局:中央**数字孪生**(网络本体)+ 左侧**大脑架构**(三 Agent 闭环)+ 右侧**阶段详情**,底部 8 阶段时间轴,自动循环播放「数据生成→异常检测→置信度评估→根因推理→执行恢复→网络恢复→评估优化」完整故事。技术栈 React 18 + TS + Vite + Framer Motion,数字孪生为手写 SVG。
+
+```bash
+cd frontend-show && npm install && npm run dev    # → http://localhost:5174
+```
+
+- **DEMO 模式(默认)**:内置取自真实 `storage/cases` 的样本数据,确定性自动循环,**不依赖后端/LLM**,展会现场 100% 可靠。顶栏可切场景(A 全域 gNB / B AMF 单点 / C 用户面链路)、播放暂停、变速、拖拽时间轴。
+- **LIVE 模式(可选)**:顶栏点 `DEMO` → `LIVE`,用真实用例的 `topo/data.csv/result` 驱动孪生与 KPI(需后端 `python -m uvicorn api.app:app --port 8000`)。置信度为实时估算、评估假定命中,真实诊断需运行 Agent 2/3 闭环。
+
+详见 [`frontend-show/README.md`](frontend-show/README.md)。
 
 ---
 
