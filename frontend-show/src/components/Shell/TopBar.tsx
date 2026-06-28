@@ -10,15 +10,19 @@ import { STATUS } from "../../theme";
 interface Props {
   clock: ClockApi;
   state: StoryState;
-  scenarios: Scenario[];
   scenario: Scenario;
-  onSelectScenario: (id: string) => void;
   mode: "demo" | "live";
   onToggleMode: () => void;
   liveConnected: boolean;
 }
 
-export function TopBar({ clock, state, scenarios, scenario, onSelectScenario, mode, onToggleMode, liveConnected }: Props) {
+/** 双主题徽标(始终展示,按当前场景 pillars 点亮) */
+const PILLARS = [
+  { key: "userLevel" as const, cn: "用户级韧性", color: "#34d399" },
+  { key: "autonomy" as const, cn: "网络自治", color: "#a78bfa" },
+];
+
+export function TopBar({ clock, state, scenario, mode, onToggleMode, liveConnected }: Props) {
   return (
     <div className="hud" style={{ borderRadius: 10, padding: "8px 16px", display: "flex", alignItems: "center", gap: 16 }}>
       {/* 标识 */}
@@ -48,20 +52,35 @@ export function TopBar({ clock, state, scenarios, scenario, onSelectScenario, mo
 
       {/* 控件 */}
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {/* 场景选择 */}
-        <div style={{ display: "flex", gap: 3, padding: 3, border: "1px solid rgba(56,189,248,0.18)", borderRadius: 7, background: "rgba(4,7,15,0.5)" }}>
-          {scenarios.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => onSelectScenario(s.id)}
-              className={s.id === scenario.id ? "btn active" : "btn"}
-              title={s.cn}
-              style={{ padding: "4px 9px", fontSize: 10, textTransform: "none", letterSpacing: 0 }}
-            >
-              <b>{s.id}</b>·{s.cn.slice(0, 4)}
-            </button>
-          ))}
-        </div>
+        {/* 双主题徽标(用户级韧性 × 网络自治)*/}
+        {scenario.pillars && (
+          <div style={{ display: "flex", gap: 5 }}>
+            {PILLARS.map((p) => {
+              const on = scenario.pillars?.[p.key];
+              return (
+                <span
+                  key={p.key}
+                  title={p.cn}
+                  style={{
+                    fontSize: 9,
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    fontFamily: "var(--font-mono)",
+                    letterSpacing: "0.04em",
+                    color: on ? p.color : "#475569",
+                    border: `1px solid ${on ? p.color + "88" : "rgba(71,85,105,0.4)"}`,
+                    background: on ? p.color + "1a" : "transparent",
+                    boxShadow: on ? `0 0 9px ${p.color}55` : "none",
+                    whiteSpace: "nowrap",
+                    transition: "all 0.4s ease",
+                  }}
+                >
+                  {on ? "●" : "○"} {p.cn}
+                </span>
+              );
+            })}
+          </div>
+        )}
 
         {/* 播放/暂停 */}
         <button className="btn" onClick={clock.toggle} title={clock.playing ? "暂停" : "播放"} style={{ minWidth: 38 }}>

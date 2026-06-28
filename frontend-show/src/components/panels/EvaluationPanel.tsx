@@ -4,6 +4,7 @@
 // ============================================================================
 
 import type { StoryState } from "../../story/types";
+import type { Scenario } from "../../data/types";
 import { STATUS } from "../../theme";
 import { Gauge } from "../shared/Gauge";
 import { Radar } from "../shared/Radar";
@@ -22,7 +23,7 @@ const SUG_META: Record<string, { color: string; to: string; icon: string }> = {
   NEW_CASE: { color: "#f59e0b", to: "→ Agent 1 · 新增难例", icon: "✚" },
 };
 
-export function EvaluationPanel({ state }: { state: StoryState }) {
+export function EvaluationPanel({ state, scenario }: { state: StoryState; scenario: Scenario }) {
   const ev = state.evalMetrics;
   if (!ev) return null;
   const cat = CAT_META[ev.category];
@@ -104,6 +105,62 @@ export function EvaluationPanel({ state }: { state: StoryState }) {
           })}
         </div>
       )}
+
+      {/* 能力沉淀 · 闭环学习(场景 B/C) */}
+      <Consolidation scenario={scenario} reveal={state.skillReveal} />
     </HudFrame>
+  );
+}
+
+function Consolidation({ scenario, reveal }: { scenario: Scenario; reveal: number }) {
+  const se = scenario.skillEvolution;
+  const accent = se?.kind === "NEW" ? "#34d399" : "#38bdf8";
+  if (!se) {
+    return (
+      <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px dashed rgba(56,189,248,0.18)", textAlign: "center" }}>
+        <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", fontFamily: "var(--font-mono)", marginBottom: 4 }}>能力沉淀 · CAPABILITY CONSOLIDATION</div>
+        <div style={{ fontSize: 10, color: "#7e8aa3" }}>本场景确定性命中 · 置信度足够 · 无需沉淀技能</div>
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{
+        marginTop: 12,
+        opacity: 0.25 + 0.75 * reveal,
+        transition: "opacity 0.5s ease",
+        border: `1px solid ${accent}55`,
+        borderRadius: 8,
+        padding: "9px 10px",
+        background: `${accent}0e`,
+        boxShadow: reveal > 0.5 ? `0 0 14px ${accent}22` : "none",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <span style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>能力沉淀 · CAPABILITY CONSOLIDATION</span>
+        <span style={{ marginLeft: "auto", fontSize: 8, padding: "1px 6px", borderRadius: 3, color: accent, border: `1px solid ${accent}66`, fontFamily: "var(--font-mono)" }}>{se.kind === "NEW" ? "✚ NEW SKILL" : "↻ UPDATE SKILL"}</span>
+      </div>
+      <div style={{ fontSize: 9.5, color: "#cdd9ea", lineHeight: 1.45, marginBottom: 6 }}>
+        <span style={{ color: accent }}>💡 洞察</span> {se.insight}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 6 }}>
+        <span style={{ fontSize: 9.5, padding: "2px 8px", borderRadius: 4, color: accent, border: `1px solid ${accent}88`, background: `${accent}14`, fontFamily: "var(--font-mono)" }}>⚡ {se.skillCn}</span>
+        <span style={{ fontSize: 8, color: "#475569", fontFamily: "var(--font-mono)" }}>@{se.skillId}</span>
+      </div>
+      {se.before && (
+        <div style={{ fontSize: 9, color: "#7e8aa3", marginBottom: 6, lineHeight: 1.4 }}>
+          <span style={{ color: STATUS.fault }}>前:</span> {se.before}
+          <br />
+          <span style={{ color: STATUS.healthy }}>后:</span> {se.after}
+        </div>
+      )}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+        <span style={{ fontSize: 9, color: "#7e8aa3" }}>下次命中率</span>
+        <div style={{ flex: 1, height: 5, borderRadius: 3, background: "rgba(56,189,248,0.1)", overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${se.nextHitRate * 100 * reveal}%`, background: accent, boxShadow: `0 0 6px ${accent}`, transition: "width 0.6s ease" }} />
+        </div>
+        <span style={{ fontSize: 11, fontWeight: 700, color: accent, fontFamily: "var(--font-mono)" }}>↑ {(se.nextHitRate * 100).toFixed(0)}%</span>
+      </div>
+    </div>
   );
 }

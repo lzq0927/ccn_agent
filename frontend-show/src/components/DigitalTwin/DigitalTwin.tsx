@@ -1,7 +1,10 @@
 // ============================================================================
-// DigitalTwin —— 中央 SVG 网络数字孪生
+// DigitalTwin —— 中央 SVG 网络数字孪生(用户级韧性 × 网络自治增强版)
 //   节点(9 类 NE,按数据流分层) + 业务流/注册链路 + 流动数据粒子
 //   健康着色由 KPI(simT) 驱动;异常脉冲 / 推理聚焦 / 根因标定 / 恢复叠加
+//   ★ 用户级:UE 接入簇按 gNB 分组、CHR 原因值弹窗(场景B)
+//   ★ 网络自治:误报拦截标记(场景C)、用户群体异常标记(场景C,网络保持绿)
+//   ★ 步骤-拓扑联动:当前执行步的高亮 NE 加「当前排查」脉冲标记
 //   graph / kpi 可由 LIVE 模式注入真实数据;缺省用内置 DEMO 网络。
 // ============================================================================
 
@@ -24,6 +27,21 @@ function lineBetween(ax: number, ay: number, bx: number, by: number, r: number) 
   return { x1: ax + ux * r, y1: ay + uy * r, x2: bx - ux * r, y2: by - uy * r };
 }
 
+/** 简单字符宽度折行(SVG 文本无自动换行) */
+function wrap(text: string, max: number): string[] {
+  const out: string[] = [];
+  let cur = "";
+  for (const ch of text) {
+    cur += ch;
+    if (ch === "，" || ch === "," || cur.length >= max) {
+      out.push(cur.trim());
+      cur = "";
+    }
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out.slice(0, 3);
+}
+
 interface Props {
   scenario: Scenario;
   state: StoryState;
@@ -41,6 +59,12 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
   const rootSet = new Set(state.rootCause.nes);
   const cordonedSet = new Set(state.cordonedNe);
   const rerouteSet = new Set(state.rerouteEdges);
+
+  // ★ 扩展派生态集合
+  const userFaultGnbs = state.userLevelActive && state.userLevel ? new Set(state.userLevel.gnbs) : new Set<string>();
+  const currentStepNes = new Set(state.currentStep?.highlight?.nes ?? []);
+  const falseAlarmNe = state.falseAlarmActive && scenario.falseAlarm ? scenario.falseAlarm.naiveNe : null;
+  const userFault = state.userLevelActive ? state.userLevel : null;
 
   function edgeLine(a: string, b: string) {
     const A = g.nodeById[a];
@@ -90,8 +114,8 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
         DC1 · 5GC SA CORE · DIGITAL TWIN
       </text>
 
-      {/* UE 接入簇(左) */}
-      <UeCluster nodes={g.nodes} active={state.twinMode !== "healed" || state.phaseIndex <= 1} anomaly={state.showAnomaly} />
+      {/* UE 接入簇(左)—— 用户级:受影响 gNB 的接入线染琥珀 */}
+      <UeCluster nodes={g.nodes} active={state.twinMode !== "healed" || state.phaseIndex <= 1} anomaly={state.showAnomaly} userFaultGnbs={userFaultGnbs} />
 
       {/* 注册链路(弱) */}
       <g opacity={0.9}>
@@ -143,18 +167,50 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
         {g.nodes.map((n) => {
           const sr = sample(kpi.nodes[n.id] ?? [0.999], simT);
           const degraded = sr < threshold && state.showAnomaly;
+          const isUserFaultGnb = userFaultGnbs.has(n.id); // 场景 C:用户级异常(琥珀,非红)
           const isFocus = focusSet.has(n.id);
           const isRoot = rootSet.has(n.id);
           const isCordoned = cordonedSet.has(n.id);
+          const isCurrentStep = currentStepNes.has(n.id) && state.phaseIndex === 4; // 步骤-拓扑联动
+          const isFalseAlarm = falseAlarmNe === n.id; // 场景 C:误报标记
           const tc = NE_COLORS[n.type] ?? { base: "#38bdf8", glow: "#7dd3fc" };
-          const ringColor = isCordoned ? "#64748b" : degraded ? STATUS.fault : isFocus ? tc.glow : tc.base;
-          const fillUrl = degraded ? "url(#node-fault)" : "url(#node-healthy)";
+          const ringColor = isCordoned ? "#64748b" : isUserFaultGnb ? STATUS.warning : degraded ? STATUS.fault : isFocus ? tc.glow : tc.base;
+          const fillUrl = degraded && !isUserFaultGnb ? "url(#node-fault)" : "url(#node-healthy)";
           return (
             <g key={n.id} transform={`translate(${n.x} ${n.y})`}>
-              {degraded && <circle r={R} fill="none" stroke={STATUS.fault} strokeWidth={1.5} className="alert-ring" opacity={0.8} />}
+              {/* 网络故障告警脉冲(用户级异常的 gNB 不走红色告警) */}
+              {degraded && !isUserFaultGnb && <circle r={R} fill="none" stroke={STATUS.fault} strokeWidth={1.5} className="alert-ring" opacity={0.8} />}
+              {/* 用户群体异常标记(场景 C):琥珀脉冲环 + UE 数,网络本体保持健康 */}
+              {isUserFaultGnb && (
+                <g filter="url(#twin-glow)">
+                  <circle r={R + 6} fill="none" stroke={STATUS.warning} strokeWidth={1.6} strokeDasharray="5 4" className="alert-ring" opacity={0.9} />
+                  <text y={-R - 11} textAnchor="middle" fontSize={9} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">
+                    {userFault?.affectedUe ?? 0} UE 群体异常
+                  </text>
+                </g>
+              )}
+              {/* 误报标记(场景 C):朴素网络视角误判的 NE;phase≥3 被置信度拦截 */}
+              {isFalseAlarm && (
+                <g opacity={state.falseAlarmIntercepted ? 0.55 : 0.95}>
+                  <circle r={R + 8} fill="none" stroke={state.falseAlarmIntercepted ? STATUS.fault : STATUS.warning} strokeWidth={1.3} strokeDasharray="3 4" />
+                  <text y={-R - 12} textAnchor="middle" fontSize={9} fontWeight={700} fill={state.falseAlarmIntercepted ? STATUS.faultGlow : STATUS.warning} fontFamily="var(--font-mono)">
+                    {state.falseAlarmIntercepted ? "✗ 已拦截·误报" : "？ 误报嫌疑"}
+                  </text>
+                  {state.falseAlarmIntercepted && (
+                    <line x1={-R - 6} y1={-R - 14} x2={R + 6} y2={-R - 8} stroke={STATUS.fault} strokeWidth={1.4} opacity={0.8} />
+                  )}
+                </g>
+              )}
+              {/* 当前排查标记(步骤-拓扑联动):执行中步骤的高亮 NE */}
+              {isCurrentStep && (
+                <g>
+                  <circle r={R + 5} fill="none" stroke={tc.glow} strokeWidth={1.1} className="alert-ring" opacity={0.7} />
+                  <text y={R + 26} textAnchor="middle" fontSize={8} fontWeight={700} fill={tc.glow} fontFamily="var(--font-mono)">▶ 当前排查</text>
+                </g>
+              )}
               {isRoot && (
                 <g className="spin-slow" filter="url(#twin-glow-strong)">
-                  <circle r={R + 9} fill="none" stroke={STATUS.fault} strokeWidth={1.4} strokeDasharray="14 6" opacity={0.9} />
+                  <circle r={R + 9} fill="none" stroke={isUserFaultGnb ? STATUS.warning : STATUS.fault} strokeWidth={1.4} strokeDasharray="14 6" opacity={0.9} />
                 </g>
               )}
               {isCordoned && (
@@ -164,10 +220,11 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
               <text y={3} textAnchor="middle" fontSize={9.5} fontWeight={700} fill={isCordoned ? "#94a3b8" : tc.glow} fontFamily="var(--font-mono)">
                 {n.type}
               </text>
-              <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? STATUS.faultGlow : isCordoned ? "#64748b" : "#9fb0c9"} fontFamily="var(--font-mono)">
+              <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? (isUserFaultGnb ? STATUS.warning : STATUS.faultGlow) : isCordoned ? "#64748b" : "#9fb0c9"} fontFamily="var(--font-mono)">
                 {n.id}
               </text>
-              {degraded && (
+              {/* 劣化 SR% —— 用户级异常 gNB 改显示 UE 数(上方已有),网络故障 NE 显示 SR% */}
+              {degraded && !isUserFaultGnb && (
                 <text y={-R - 8} textAnchor="middle" fontSize={8} fill={STATUS.faultGlow} fontFamily="var(--font-mono)">
                   {(sr * 100).toFixed(1)}%
                 </text>
@@ -185,6 +242,9 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
         })}
       </g>
 
+      {/* CHR 用户级原因值弹窗(场景 B) */}
+      {state.chrPopup && <ChrCallout neId={state.chrPopup.nes[0]} node={g.nodeById[state.chrPopup.nes[0]]} chr={state.chrPopup} />}
+
       {/* 实时读数 */}
       <g transform={`translate(${VIEW_W - 188} 60)`}>
         <rect x={0} y={0} width={178} height={74} rx={8} fill="rgba(4,7,15,0.7)" stroke="rgba(56,189,248,0.25)" />
@@ -197,16 +257,46 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
         <text x={104} y={42} fontSize={9} fill="#7e8aa3" fontFamily="var(--font-mono)">
           overall SR
         </text>
-        <text x={12} y={62} fontSize={9} fill={degradedCount > 0 ? STATUS.fault : STATUS.healthy} fontFamily="var(--font-mono)">
-          {degradedCount > 0 ? `▲ ${degradedCount} NE degraded` : "● all NE nominal"}
+        <text x={12} y={62} fontSize={9} fill={userFault ? STATUS.warning : degradedCount > 0 ? STATUS.fault : STATUS.healthy} fontFamily="var(--font-mono)">
+          {userFault ? `▲ 用户级异常 · ${userFault.affectedUe} UE` : degradedCount > 0 ? `▲ ${degradedCount} NE degraded` : "● all NE nominal"}
         </text>
       </g>
     </svg>
   );
 }
 
-/** UE 接入簇 + 到 gNB 的弱流动 */
-function UeCluster({ nodes, active, anomaly }: { nodes: NetworkGraph["nodes"]; active: boolean; anomaly: boolean }) {
+/** CHR 用户级根因弹窗(场景 B):受影响 NE 旁 callout,含原因值与说明 */
+function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: number } | undefined; chr: NonNullable<StoryState["chrPopup"]> }) {
+  if (!node) return null;
+  const cx = node.x + 30;
+  const cy = node.y - 92;
+  const w = 180;
+  const lines = wrap(chr.detail, 18);
+  const h = 46 + lines.length * 11;
+  return (
+    <g style={{ animation: "float-up 0.4s ease" }}>
+      <line x1={node.x + 12} y1={node.y - 12} x2={cx} y2={cy + 12} stroke={STATUS.warning} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />
+      <rect x={cx} y={cy} width={w} height={h} rx={7} fill="rgba(4,7,15,0.9)" stroke={`${STATUS.warning}77`} filter="url(#twin-glow)" />
+      <text x={cx + 8} y={cy + 13} fontSize={8.5} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
+        CHR · 用户级根因 @ {neId}
+      </text>
+      <text x={cx + 8} y={cy + 27} fontSize={9.5} fontWeight={700} fill="#eaf4ff" fontFamily="var(--font-sans)">
+        {chr.causeCn}
+      </text>
+      <text x={cx + 8} y={cy + 40} fontSize={8.5} fill={STATUS.warning} fontFamily="var(--font-mono)">
+        {chr.causeCode}
+      </text>
+      {lines.map((ln, i) => (
+        <text key={i} x={cx + 8} y={cy + 52 + i * 11} fontSize={7.5} fill="#9fb0c9" fontFamily="var(--font-sans)">
+          {ln}
+        </text>
+      ))}
+    </g>
+  );
+}
+
+/** UE 接入簇 + 到 gNB 的弱流动(用户级:受影响 gNB 接入线染琥珀) */
+function UeCluster({ nodes, active, anomaly, userFaultGnbs }: { nodes: NetworkGraph["nodes"]; active: boolean; anomaly: boolean; userFaultGnbs: Set<string> }) {
   const gnbs = nodes.filter((n) => n.type === "gNB");
   const ueYs = [300, 340, 380];
   return (
@@ -217,18 +307,21 @@ function UeCluster({ nodes, active, anomaly }: { nodes: NetworkGraph["nodes"]; a
       {ueYs.map((y, i) => (
         <g key={i}>
           <circle cx={26} cy={y} r={5} fill={anomaly ? STATUS.fault : "#38bdf8"} opacity={0.9} filter="url(#twin-glow)" />
-          {gnbs.map((nd, j) => (
-            <line
-              key={j}
-              x1={31}
-              y1={y}
-              x2={nd.x - R}
-              y2={nd.y}
-              stroke={anomaly && j === 0 ? "rgba(239,68,68,0.3)" : "rgba(56,189,248,0.16)"}
-              strokeWidth={0.8}
-              className={active ? "flow-dash" : undefined}
-            />
-          ))}
+          {gnbs.map((nd, j) => {
+            const ug = userFaultGnbs.has(nd.id);
+            return (
+              <line
+                key={j}
+                x1={31}
+                y1={y}
+                x2={nd.x - R}
+                y2={nd.y}
+                stroke={ug ? "rgba(245,158,11,0.45)" : anomaly && j === 0 ? "rgba(239,68,68,0.3)" : "rgba(56,189,248,0.16)"}
+                strokeWidth={ug ? 1.1 : 0.8}
+                className={active ? "flow-dash" : undefined}
+              />
+            );
+          })}
         </g>
       ))}
     </g>

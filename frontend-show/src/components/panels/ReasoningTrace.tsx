@@ -57,17 +57,22 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                  <span style={{ fontSize: 9, color: m.color, fontWeight: 700, letterSpacing: "0.05em" }}>
+                  <span style={{ fontSize: isLast ? 11 : 9, color: m.color, fontWeight: 700, letterSpacing: "0.05em" }}>
                     {m.icon} {m.cn}
                   </span>
                   {s.tool && (
-                    <span style={{ fontSize: 9, color: "#cde7ff", fontFamily: "var(--font-mono)", background: "rgba(167,139,250,0.15)", padding: "0 5px", borderRadius: 3 }}>
+                    <span style={{ fontSize: isLast ? 10 : 9, color: "#cde7ff", fontFamily: "var(--font-mono)", background: "rgba(167,139,250,0.15)", padding: "0 5px", borderRadius: 3 }}>
                       {s.tool}()
                     </span>
                   )}
                   {s.args && <span style={{ fontSize: 8, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>{s.args}</span>}
+                  {isLast && (
+                    <span style={{ marginLeft: "auto", fontSize: 8.5, padding: "1px 6px", borderRadius: 3, color: m.color, border: `1px solid ${m.color}88`, background: `${m.color}14`, fontFamily: "var(--font-mono)", animation: "blink 1.3s infinite", whiteSpace: "nowrap" }}>
+                      ▶ 执行中
+                    </span>
+                  )}
                 </div>
-                <div style={{ fontSize: 10.5, color: "#cdd9ea", lineHeight: 1.45 }}>{s.text}</div>
+                <div style={{ fontSize: isLast ? 12 : 10.5, color: isLast ? "#eaf4ff" : "#cdd9ea", lineHeight: 1.45, fontWeight: isLast ? 600 : 400 }}>{s.text}</div>
                 {s.result && (
                   <div
                     style={{

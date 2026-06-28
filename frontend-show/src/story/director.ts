@@ -5,7 +5,7 @@
 
 import { buildKpi, type KpiBundle } from "../data/kpi";
 import { affectedEntities, recoveryReroute } from "../data/network";
-import type { ConfidenceBreakdown, EvalMetrics, ReasonStep, RouteKey, Scenario } from "../data/types";
+import type { ChrInsight, ConfidenceBreakdown, EvalMetrics, ReasonStep, RouteKey, Scenario } from "../data/types";
 import { PHASES } from "../theme";
 import type { GenerationCheck, RecoveryAction, StoryState } from "./types";
 
@@ -34,16 +34,27 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
         { id: "reselect", cn: "触发 UE 重选 / 邻区切换", en: "UE RESELECTION" },
         { id: "reroute", cn: "AMF 侧锚定,无线流量重路由", en: "RAN TRAFFIC REROUTE" },
       ];
-    case "single_ne":
+    case "single_ne": {
+      // 按实际故障 NE 动态生成(AMF_3 / SMF_1 / …)
+      const ne = s.fault.elements[0] ?? "AMF_3";
+      const type = ne.replace(/_\d+$/, "");
       return [
-        { id: "isolate", cn: "隔离 AMF_3(摘除负载)", en: "ISOLATE AMF_3" },
-        { id: "failover", cn: "AMF Set 内 AMF_1/AMF_2 接管会话", en: "AMF-SET FAILOVER" },
-        { id: "reattach", cn: "受影响 UE 重附着至健康 AMF", en: "UE REATTACH" },
+        { id: "isolate", cn: `隔离 ${ne}(摘除负载)`, en: `ISOLATE ${ne}` },
+        { id: "failover", cn: `${type} Set 内健康实例接管会话`, en: `${type}-SET FAILOVER` },
+        { id: "reattach", cn: "受影响 UE 重附着 / 重建会话", en: "UE REATTACH · REBUILD" },
       ];
+    }
     case "path_link":
       return [
         { id: "reroute", cn: "SMF 将会话切换至备用 UPF_3", en: "SWITCH TO STANDBY UPF" },
         { id: "quarantine", cn: "隔离劣化链路 SMF_1–UPF_{1,2}", en: "QUARANTINE DEGRADED LINK" },
+      ];
+    case "terminal_group":
+      // 网络无责 · 主动服务用户:通知重选路,不隔离任何网元
+      return [
+        { id: "notify", cn: "网络主动通知受影响 UE 重选 / 切换邻区", en: "NOTIFY UE RESELECTION" },
+        { id: "guide", cn: "引导 gNB_2 流量至邻区健康 gNB", en: "GUIDE TO NEIGHBOR gNB" },
+        { id: "restore", cn: "用户侧恢复 · 网络无需隔离网元", en: "USER-SIDE RESTORE" },
       ];
     default:
       return [{ id: "reroute", cn: "流量重路由至健康路径", en: "TRAFFIC REROUTE" }];
@@ -129,6 +140,28 @@ const HEADLINES: Record<number, { h: string; s: string }> = {
   7: { h: "评估优化 · 闭环反馈", s: "Agent 3 比对真值 · 推理链质析 · 优化建议回流" },
 };
 
+/** 场景化动作解说(覆盖关键相位,讲清「此刻在干什么」;LIVE 无条目则回落) */
+const SCENARIO_SUB: Record<string, Record<number, string>> = {
+  A: {
+    2: "AMF_3 方向 KPI 跌破 0.995 · 异常特征清晰",
+    3: "置信度 0.74 > 0.7 · 直达确定性工作流(不走 LLM)",
+    4: "工作流固定 5 步 · 秒级锁定 AMF_3 · 网络自治",
+    5: "隔离 AMF_3 · AMF Set 接管会话 · 自愈中",
+  },
+  B: {
+    2: "网络 KPI 仅微损 0.987 · 叠加终端噪声 · 信号模糊",
+    3: "置信度 0.54 · 技能引导 Loop · 触发多维校验",
+    4: "多维校验:CHR 5xx 集中 + 排除终端共性 → 锁定 SMF_1",
+    5: "隔离 SMF_1 · 会话重建 · 保护受影响用户体验",
+  },
+  C: {
+    2: "网络 KPI 微损 · AMF 侧失败略升 · 朴素视角易误报 AMF",
+    3: "置信度 0.42 · 信号模糊 · 拦截快速归因 · 触发多维探索",
+    4: "多维探索:CHR/UE 共因集中于 gNB_2 · 排除网络根因",
+    5: "网络无责 · 主动通知 gNB_2 用户重选路 · 用户侧恢复",
+  },
+};
+
 export function direct(s: Scenario, t: number, loop: number): StoryState {
   const { index: phaseIndex, progress } = phaseAt(t);
   const phase = PHASES[phaseIndex];
@@ -201,7 +234,30 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
       ? { nes: s.predicted.elements, links: s.predicted.links }
       : { nes: [], links: [] };
 
+  // —— 用户级韧性 × 网络自治 · 扩展派生态(随相位确定性揭示)——
+  // 当前执行中的推理步(最后揭示的一步)
+  const currentStep: ReasonStep | null = reasoningSteps.length ? reasoningSteps[reasoningSteps.length - 1] : null;
+
+  // 对比区「多维探索后」揭示度:phase<4 → 0;phase4 easeOut;phase≥5 → 1
+  // (「仅网络KPI」朴素侧在 phase≥2 即出现,由 ComparisonPanel 按 phaseIndex 处理)
+  const comparisonReveal = phaseIndex < 4 ? 0 : phaseIndex === 4 ? easeOut(progress) : 1;
+
+  // 用户级 CHR 原因值弹窗(场景 B):推理起至恢复前
+  const chrPopup: ChrInsight | null = s.chrInsight && phaseIndex >= 4 && phaseIndex <= 6 ? s.chrInsight : null;
+
+  // 误报拦截(场景 C):phase 2-4 可见,phase≥3 被置信度拦截/划掉
+  const falseAlarmActive = !!s.falseAlarm && phaseIndex >= 2 && phaseIndex <= 4;
+  const falseAlarmIntercepted = !!s.falseAlarm && phaseIndex >= 3;
+
+  // 用户侧群体异常(场景 C):检测至恢复期间渲染,恢复后清除
+  const userLevel = s.userFault ? { gnbs: s.userFault.gnbs, affectedUe: s.userFault.affectedUe, kind: s.userFault.kind } : null;
+  const userLevelActive = !!s.userFault && phaseIndex >= 2 && phaseIndex <= 5;
+
+  // 能力沉淀揭示(phase 7)
+  const skillReveal = phaseIndex >= 7 ? easeOut(progress) : 0;
+
   const cap = HEADLINES[phaseIndex];
+  const subline = SCENARIO_SUB[s.id]?.[phaseIndex] ?? cap.s;
   return {
     phaseIndex,
     phase,
@@ -228,6 +284,14 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     generationChecks: GENERATION_CHECKS,
     generationChecksReveal,
     headline: cap.h,
-    subline: cap.s,
+    subline,
+    currentStep,
+    comparisonReveal,
+    chrPopup,
+    falseAlarmActive,
+    falseAlarmIntercepted,
+    userLevel,
+    userLevelActive,
+    skillReveal,
   };
 }

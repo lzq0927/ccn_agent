@@ -6,7 +6,9 @@
 
 import { ROUTE_COLORS } from "../../theme";
 import type { StoryState } from "../../story/types";
+import type { Scenario } from "../../data/types";
 import { HudFrame } from "../shared/HudFrame";
+import { SkillLibrary } from "./SkillLibrary";
 
 const AGENTS = [
   { id: 1, cn: "数据生成", en: "AGENT 1 · DATA GENERATION", role: "设计态 · 仿真 + LLM 自校验闭环", color: "#38bdf8" },
@@ -20,7 +22,7 @@ const ROUTERS = [
   { key: "autonomous", cn: "自主探索 Loop", cond: "score ≤ 0.3", iter: "≤ 30 次迭代" },
 ] as const;
 
-export function Brain({ state }: { state: StoryState }) {
+export function Brain({ state, scenario }: { state: StoryState; scenario: Scenario }) {
   const active = state.activeAgent;
   const route = state.route;
   const conf = state.confidence;
@@ -83,6 +85,9 @@ export function Brain({ state }: { state: StoryState }) {
         <Readout label="路由策略" value={route ? ROUTE_COLORS[route].label : "—"} color={route ? ROUTE_COLORS[route].base : "#7e8aa3"} />
         <Readout label="置信度" value={conf ? conf.score.toFixed(2) : "—"} color={conf ? (conf.score > 0.7 ? "#22c55e" : conf.score > 0.3 ? "#38bdf8" : "#a78bfa") : "#7e8aa3"} />
       </div>
+
+      {/* 常驻技能库(能力沉淀) */}
+      <SkillLibrary scenario={scenario} state={state} />
     </HudFrame>
   );
 }

@@ -92,12 +92,69 @@ export interface Suggestion {
   priority: number;
 }
 
+/** 对比区的一侧(朴素视角 vs 多维探索后) */
+export interface ComparisonSide {
+  title: string;
+  verdict: string;
+  detail: string;
+  kind?: "miss" | "falsealarm" | "hit";
+}
+
+/** 用户级 CHR 洞察 —— 拓扑弹窗展示的原因值(场景 B) */
+export interface ChrInsight {
+  nes: string[];
+  causeCode: string;
+  causeCn: string;
+  detail: string;
+}
+
+/** 误报拦截 —— 朴素网络视角会误判的根因(场景 C) */
+export interface FalseAlarm {
+  naiveNe: string;
+  naiveCn: string;
+  reason: string;
+}
+
+/** 用户侧异常(非网络故障)—— 终端群体异常等(场景 C) */
+export interface UserFault {
+  gnbs: string[];
+  affectedUe: number;
+  kind: string;
+}
+
+/** 能力沉淀 —— 探索后形成/优化的 Skill(场景 B/C) */
+export interface SkillEvolution {
+  kind: "NEW" | "UPDATE";
+  skillId: string;
+  skillCn: string;
+  insight: string;
+  before?: string;
+  after: string;
+  nextHitRate: number;
+}
+
 /** 一个演示场景 */
 export interface Scenario {
   id: string;
   cn: string;
   en: string;
   tagline: string;
+  /** 场景简介(标签悬停/选中弹窗)。LIVE 场景可缺省。 */
+  intro?: string;
+  /** 一句话目标(始终可见的上下文) */
+  objective?: string;
+  /** 双主题点亮:用户级韧性 / 网络自治 */
+  pillars?: { userLevel: boolean; autonomy: boolean };
+  /** 拓扑下对比区数据(建议 2) */
+  comparison?: { naive: ComparisonSide; explored: ComparisonSide };
+  /** 拓扑 CHR 原因值弹窗(场景 B) */
+  chrInsight?: ChrInsight;
+  /** 误报拦截(场景 C) */
+  falseAlarm?: FalseAlarm;
+  /** 用户侧异常(场景 C)——存在时网络 NE 保持健康 */
+  userFault?: UserFault;
+  /** 能力沉淀 / 技能进化(场景 B/C) */
+  skillEvolution?: SkillEvolution;
   fault: FaultSpec;
   truth: { elements: string[]; links: string[] };
   predicted: { elements: string[]; links: string[] };

@@ -2,7 +2,7 @@
 // 故事板类型 —— director 在每个时钟帧产出的派生状态,驱动所有视图
 // ============================================================================
 
-import type { ConfidenceBreakdown, EvalMetrics, ReasonStep, RouteKey } from "../data/types";
+import type { ChrInsight, ConfidenceBreakdown, EvalMetrics, ReasonStep, RouteKey, UserFault } from "../data/types";
 import type { PhaseDef } from "../theme";
 
 export interface RecoveryAction {
@@ -52,4 +52,14 @@ export interface StoryState {
 
   headline: string; // 顶部大字叙事
   subline: string; // 副标题
+
+  // —— 用户级韧性 × 网络自治 · 扩展派生态(确定性,随相位揭示)——
+  currentStep: ReasonStep | null; // 当前执行中的推理步(最后揭示的一步)
+  comparisonReveal: number; // 拓扑下对比区揭示度 0..1
+  chrPopup: ChrInsight | null; // 用户级 CHR 原因值弹窗(场景 B)
+  falseAlarmActive: boolean; // 朴素误报标记可见(场景 C,phase 2-4)
+  falseAlarmIntercepted: boolean; // 误报已被置信度拦截/划掉(phase≥3)
+  userLevel: UserFault | null; // 用户侧群体异常(场景 C)
+  userLevelActive: boolean; // 是否渲染用户级异常标记
+  skillReveal: number; // 能力沉淀揭示度 0..1(phase 7)
 }

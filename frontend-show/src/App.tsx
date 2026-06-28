@@ -19,6 +19,8 @@ import { TopBar } from "./components/Shell/TopBar";
 import { Timeline } from "./components/Timeline/Timeline";
 import { Brain } from "./components/Brain/Brain";
 import { DigitalTwin } from "./components/DigitalTwin/DigitalTwin";
+import { ScenarioTags } from "./components/Twin/ScenarioTags";
+import { ComparisonPanel } from "./components/Twin/ComparisonPanel";
 import { GenerationPanel } from "./components/panels/GenerationPanel";
 import { KpiPanel } from "./components/panels/KpiPanel";
 import { ConfidencePanel } from "./components/panels/ConfidencePanel";
@@ -144,7 +146,7 @@ export default function App() {
       case 5:
         return <RecoveryPanel state={state} />;
       case 7:
-        return <EvaluationPanel state={state} />;
+        return <EvaluationPanel state={state} scenario={scenario} />;
       default:
         return <KpiPanel scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />;
     }
@@ -157,9 +159,7 @@ export default function App() {
         <TopBar
           clock={clock}
           state={state}
-          scenarios={SCENARIOS}
           scenario={scenario}
-          onSelectScenario={setScenarioId}
           mode={mode}
           onToggleMode={() => setMode((m) => (m === "demo" ? "live" : "demo"))}
           liveConnected={liveConnected}
@@ -168,50 +168,54 @@ export default function App() {
         <div style={{ flex: 1, display: "flex", gap: 10, minHeight: 0 }}>
           {/* 左:大脑 */}
           <div style={{ width: 304, minWidth: 304, display: "flex", minHeight: 0 }}>
-            <Brain state={state} />
+            <Brain state={state} scenario={scenario} />
           </div>
 
-          {/* 中:数字孪生 */}
-          <div className="hud" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-            <div className="hud-head">
-              <span className="title">
-                <span className="dot" />
-                数字孪生 · 网络本体
-              </span>
-              <span style={{ display: "flex", alignItems: "center", gap: 10, color: "#5f6f87" }}>
-                {isLive ? (
-                  <>
-                    <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, color: "#22c55e", border: "1px solid #22c55e55", fontFamily: "var(--font-mono)" }}>真实遥测</span>
-                    <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#7e8aa3" }}>
-                      用例
-                      <select
-                        value={liveCaseId ?? ""}
-                        onChange={(e) => setLiveCaseId(Number(e.target.value))}
-                        style={{ background: "#0a1020", color: "#cde7ff", border: "1px solid rgba(56,189,248,0.3)", borderRadius: 4, padding: "2px 4px", fontSize: 9, fontFamily: "var(--font-mono)" }}
-                      >
-                        {liveCases.map((c) => (
-                          <option key={c.case_id} value={c.case_id}>
-                            #{c.case_id} · {c.is_normal ? "normal" : c.fault_type ?? "?"}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </>
-                ) : (
-                  <span>
-                    {scenario.cn} · {scenario.en}
-                  </span>
+          {/* 中:场景标签 + 数字孪生 + 对比区 */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, gap: 10 }}>
+            {mode === "demo" && <ScenarioTags scenarios={SCENARIOS} scenario={scenario} onSelect={setScenarioId} />}
+            <div className="hud" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+              <div className="hud-head">
+                <span className="title">
+                  <span className="dot" />
+                  数字孪生 · 网络本体
+                </span>
+                <span style={{ display: "flex", alignItems: "center", gap: 10, color: "#5f6f87" }}>
+                  {isLive ? (
+                    <>
+                      <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, color: "#22c55e", border: "1px solid #22c55e55", fontFamily: "var(--font-mono)" }}>真实遥测</span>
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#7e8aa3" }}>
+                        用例
+                        <select
+                          value={liveCaseId ?? ""}
+                          onChange={(e) => setLiveCaseId(Number(e.target.value))}
+                          style={{ background: "#0a1020", color: "#cde7ff", border: "1px solid rgba(56,189,248,0.3)", borderRadius: 4, padding: "2px 4px", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                        >
+                          {liveCases.map((c) => (
+                            <option key={c.case_id} value={c.case_id}>
+                              #{c.case_id} · {c.is_normal ? "normal" : c.fault_type ?? "?"}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </>
+                  ) : (
+                    <span>
+                      {scenario.cn} · {scenario.en}
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
+                {mode === "live" && liveError && (
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, color: "#fb7185", fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                    {liveError} · 显示内置样本
+                  </div>
                 )}
-              </span>
+                <DigitalTwin scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />
+              </div>
             </div>
-            <div style={{ flex: 1, position: "relative", minHeight: 0 }}>
-              {mode === "live" && liveError && (
-                <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, color: "#fb7185", fontSize: 12, fontFamily: "var(--font-mono)" }}>
-                  {liveError} · 显示内置样本
-                </div>
-              )}
-              <DigitalTwin scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />
-            </div>
+            {mode === "demo" && <ComparisonPanel scenario={scenario} state={state} />}
           </div>
 
           {/* 右:阶段详情 */}
