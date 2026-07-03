@@ -129,8 +129,10 @@ export default function App() {
   const scenario: Scenario = isLive ? (liveScenario as Scenario) : getScenario(scenarioId);
   const clock = useStoryClock(scenario);
   const { state } = clock;
-  const liveGraph: NetworkGraph | undefined = isLive ? (liveModel as LiveModel).graph : undefined;
-  const liveKpi: KpiBundle | undefined = isLive ? (liveModel as LiveModel).kpi : undefined;
+  // DEMO 模式注入 scenario 的真实拓扑/遥测(优先于内置 DEMO_GRAPH/buildKpi);
+  // LIVE 模式注入后端实时构建的图/KPI。
+  const liveGraph: NetworkGraph | undefined = isLive ? (liveModel as LiveModel).graph : scenario.realGraph;
+  const liveKpi: KpiBundle | undefined = isLive ? (liveModel as LiveModel).kpi : scenario.realKpi;
 
   const renderPanel = () => {
     switch (state.phaseIndex) {
@@ -213,6 +215,31 @@ export default function App() {
                   </div>
                 )}
                 <DigitalTwin scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />
+                {/* 过程中算法标注(随相位高亮) */}
+                {state.algorithms.length > 0 && (
+                  <div style={{ position: "absolute", top: 8, left: 10, zIndex: 3, display: "flex", gap: 6, flexWrap: "wrap", maxWidth: 420, pointerEvents: "none" }}>
+                    {state.algorithms.map((a) => (
+                      <span
+                        key={a.en}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "3px 9px",
+                          borderRadius: 5,
+                          color: state.phase.glow,
+                          border: `1px solid ${state.phase.color}88`,
+                          background: "rgba(4,7,15,0.78)",
+                          boxShadow: `0 0 9px ${state.phase.color}44`,
+                          fontFamily: "var(--font-sans)",
+                          letterSpacing: "0.02em",
+                          animation: "float-up 0.35s ease",
+                        }}
+                      >
+                        {a.cn}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             {mode === "demo" && <ComparisonPanel scenario={scenario} state={state} />}

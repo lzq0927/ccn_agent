@@ -79,7 +79,7 @@ function prepare(s: Scenario): PreparedScenario {
   const cached = prepCache.get(s.id);
   if (cached) return cached;
   const p: PreparedScenario = {
-    kpi: buildKpi(s.fault),
+    kpi: s.realKpi ?? buildKpi(s.fault),
     recoveryActions: recoveryActionsFor(s),
     rerouteEdges: recoveryReroute(s.fault),
     cordoned: cordonedFor(s),
@@ -132,7 +132,7 @@ function simTFor(s: Scenario, phaseIndex: number, p: number): number {
 const HEADLINES: Record<number, { h: string; s: string }> = {
   0: { h: "网络稳态运行", s: "高稳智能体待命 · 5GC 全网健康 · 成功率 99.8%" },
   1: { h: "数字孪生 · 数据生成", s: "Agent 1 仿真故障用例 · LLM 多维校验闭环" },
-  2: { h: "异常检测", s: "KPI 跌破 0.995 · 链路级告警 · 触发故障感知" },
+  2: { h: "异常检测", s: "KPI 跌破阈值 · 链路级告警 · 触发故障感知" },
   3: { h: "置信度评估 · 路由决策", s: "特征提取 → 加权评分 → 三路径分流" },
   4: { h: "Agent 推理 · 根因定位", s: "Hermes Agent Loop · 工具自注册 · 推理链收敛" },
   5: { h: "执行恢复动作", s: "高稳智能体下发恢复策略 · 网络自愈中" },
@@ -140,25 +140,89 @@ const HEADLINES: Record<number, { h: string; s: string }> = {
   7: { h: "评估优化 · 闭环反馈", s: "Agent 3 比对真值 · 推理链质析 · 优化建议回流" },
 };
 
+/** 过程中标注的算法(除相位4外,各相位通用) */
+const ALGO_BY_PHASE: Record<number, { cn: string; en: string }[]> = {
+  0: [],
+  1: [
+    { cn: "离散事件仿真", en: "DISCRETE-EVENT SIM" },
+    { cn: "LLM 多维校验", en: "LLM VALIDATION" },
+  ],
+  2: [
+    { cn: "阈值检测", en: "THRESHOLD DETECT" },
+    { cn: "EWMA/CUSUM 变点", en: "EWMA/CUSUM" },
+  ],
+  3: [
+    { cn: "特征加权评分", en: "WEIGHTED SCORING" },
+    { cn: "路由分流", en: "ROUTE DISPATCH" },
+  ],
+  4: [], // 场景相关,见 ALGO_REASON
+  5: [{ cn: "恢复策略编排", en: "POLICY ORCHESTRATION" }],
+  6: [{ cn: "闭环验证", en: "CLOSED-LOOP VERIFY" }],
+  7: [
+    { cn: "P/R/F1 比对", en: "P/R/F1 MATCH" },
+    { cn: "推理链质析", en: "TRACE QUALITY" },
+  ],
+};
+
+/** 相位4(根因推理)的场景化算法链 —— 讲清每类故障用了哪些算法 */
+const ALGO_REASON: Record<string, { cn: string; en: string }[]> = {
+  A: [
+    { cn: "KPI 异常检测", en: "KPI ANOMALY" },
+    { cn: "故障传播原则", en: "FAULT PROPAGATION" },
+    { cn: "故障聚合原则", en: "FAULT AGGREGATION" },
+    { cn: "根因定位", en: "ROOT-CAUSE" },
+  ],
+  B: [
+    { cn: "KPI 异常检测", en: "KPI ANOMALY" },
+    { cn: "CHR 聚类", en: "CHR CLUSTERING" },
+    { cn: "跨层证据融合", en: "CROSS-LAYER FUSION" },
+    { cn: "根因定位", en: "ROOT-CAUSE" },
+  ],
+  C: [
+    { cn: "CHR 聚类", en: "CHR CLUSTERING" },
+    { cn: "共因分析", en: "COMMON-CAUSE" },
+    { cn: "贝叶斯融合", en: "BAYES FUSION" },
+    { cn: "消融鲁棒", en: "ABLATION" },
+  ],
+  D: [
+    { cn: "KPI 异常检测", en: "KPI ANOMALY" },
+    { cn: "CHR 聚类", en: "CHR CLUSTERING" },
+    { cn: "用户分群追踪", en: "USER-SEGMENT TRACK" },
+    { cn: "群体异常定位", en: "GROUP ANOMALY" },
+  ],
+};
+
+/** 当前相位激活的算法标签 */
+function algorithmsFor(s: Scenario, phaseIndex: number): { cn: string; en: string }[] {
+  if (phaseIndex === 4) return ALGO_REASON[s.id] ?? ALGO_REASON.A;
+  return ALGO_BY_PHASE[phaseIndex] ?? [];
+}
+
 /** 场景化动作解说(覆盖关键相位,讲清「此刻在干什么」;LIVE 无条目则回落) */
 const SCENARIO_SUB: Record<string, Record<number, string>> = {
   A: {
-    2: "AMF_3 方向 KPI 跌破 0.995 · 异常特征清晰",
-    3: "置信度 0.74 > 0.7 · 直达确定性工作流(不走 LLM)",
-    4: "工作流固定 5 步 · 秒级锁定 AMF_3 · 网络自治",
-    5: "隔离 AMF_3 · AMF Set 接管会话 · 自愈中",
+    2: "签约/鉴权方向多链路跌破阈值 · SMF 与 UDM 方向现异常表象",
+    3: "置信度 0.74 > 0.7 · 命中故障传播签名 · 直达确定性工作流(不走 LLM)",
+    4: "确定性工作流:故障传播 + 故障聚合原则 · 秒级锁定 UDM_1",
+    5: "隔离 UDM_1 · UDM Set 健康实例接管签约数据 · 自愈中",
   },
   B: {
     2: "网络 KPI 仅微损 0.987 · 叠加终端噪声 · 信号模糊",
     3: "置信度 0.54 · 技能引导 Loop · 触发多维校验",
-    4: "多维校验:CHR 5xx 集中 + 排除终端共性 → 锁定 SMF_1",
-    5: "隔离 SMF_1 · 会话重建 · 保护受影响用户体验",
+    4: "CHR 聚类:5GMM#22 集中 + 剥离终端干扰 → 锁定 gNB_1",
+    5: "隔离 gNB_1 · 邻区切换 · 保护受影响用户体验",
   },
   C: {
     2: "网络 KPI 微损 · AMF 侧失败略升 · 朴素视角易误报 AMF",
-    3: "置信度 0.42 · 信号模糊 · 拦截快速归因 · 触发多维探索",
-    4: "多维探索:CHR/UE 共因集中于 gNB_2 · 排除网络根因",
-    5: "网络无责 · 主动通知 gNB_2 用户重选路 · 用户侧恢复",
+    3: "置信度 0.42 · 信号模糊 · 拦截 AMF 误报 · 触发多维探索",
+    4: "CHR 聚类:终端群体共因集中于 gNB_2 · 贝叶斯融合收敛",
+    5: "隔离 gNB_2 · 邻区接管 · 受影响终端群体恢复",
+  },
+  D: {
+    2: "总体 KPI 微跌 · 无网元跌破阈值 · CHR 原因值分散",
+    3: "置信度 0.38 · 信号模糊 · 朴素归因停滞 · 触发多维探索",
+    4: "用户分群追踪:物联终端群体 38% 失败集中涌现 · 网络健康",
+    5: "网络无责 · 主动通知物联终端群体重选/重注册 · 用户侧恢复",
   },
 };
 
@@ -285,6 +349,7 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     generationChecksReveal,
     headline: cap.h,
     subline,
+    algorithms: algorithmsFor(s, phaseIndex),
     currentStep,
     comparisonReveal,
     chrPopup,

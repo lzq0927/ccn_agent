@@ -53,6 +53,9 @@ export interface StoryState {
   headline: string; // 顶部大字叙事
   subline: string; // 副标题
 
+  /** 当前相位激活的算法标签(过程中标注:异常检测/CHR聚类/故障聚合/根因定位…) */
+  algorithms: { cn: string; en: string }[];
+
   // —— 用户级韧性 × 网络自治 · 扩展派生态(确定性,随相位揭示)——
   currentStep: ReasonStep | null; // 当前执行中的推理步(最后揭示的一步)
   comparisonReveal: number; // 拓扑下对比区揭示度 0..1

@@ -227,11 +227,11 @@ export function buildLiveScenario(meta: CaseMeta, result: { fault_elements?: str
 
   const reasoning: ReasonStep[] = isNormal
     ? [
-        { n: 1, type: "tool_call", tool: "analyze_kpi_anomalies", args: "threshold=0.995", text: "扫描全层 KPI", result: "未检出低于 0.995 的异常链路", highlight: { nes: [] } },
+        { n: 1, type: "tool_call", tool: "analyze_kpi_anomalies", args: "全层扫描", text: "扫描全层 KPI", result: "未检出低于阈值的异常链路", highlight: { nes: [] } },
         { n: 2, type: "conclusion", text: "判定网络正常 (normal),无根因。", result: "confidence=0.95 · route=WORKFLOW" },
       ]
     : [
-        { n: 1, type: "tool_call", tool: "analyze_kpi_anomalies", args: "level=link, threshold=0.995", text: "扫描 link 层 KPI", result: `检出劣化链路,触及 ${nes.join(", ")}`, highlight: { nes } },
+        { n: 1, type: "tool_call", tool: "analyze_kpi_anomalies", args: "level=link", text: "扫描 link 层 KPI", result: `检出劣化链路,触及 ${nes.join(", ")}`, highlight: { nes } },
         { n: 2, type: "tool_call", tool: "find_common_ne", args: "", text: "统计公共网元", result: `主导 NE: ${nes.join(", ")}(dominance 高)`, highlight: { nes } },
         { n: 3, type: "tool_call", tool: "check_temporal_pattern", args: `ne=${nes[0]}`, text: "时序模式分析", result: `故障窗 T${fault.faultStart}-${fault.faultStart + fault.faultDuration},突发 onset` },
         { n: 4, type: "tool_call", tool: "check_ne_membership", args: `ne=${nes.join(",")}`, text: "归属聚类核对", result: `聚类:${multi ? "多 NE / 跨资源池" : "单一 NE"}`, highlight: { nes } },

@@ -31,7 +31,7 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
         </span>
       }
     >
-      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 7, paddingRight: 2 }}>
+      <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 5, paddingRight: 2 }}>
         {steps.length === 0 && <div style={{ fontSize: 10, color: "#5f6f87", textAlign: "center", padding: "20px 0" }}>等待 Agent Loop 启动…</div>}
         {steps.map((s, i) => {
           const m = TYPE_META[s.type] ?? TYPE_META.thinking;
@@ -51,12 +51,12 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
               </div>
               <div
                 style={{
-                  border: `1px solid ${isLast ? m.color : "rgba(56,189,248,0.12)"}`,
-                  borderRadius: 7, padding: "7px 9px", background: isLast ? `${m.color}10` : "rgba(10,16,30,0.5)",
+                  border: `1px solid ${isLast ? m.color : "rgba(56,189,248,0.1)"}`,
+                  borderRadius: 7, padding: isLast ? "7px 9px" : "4px 9px", background: isLast ? `${m.color}10` : "rgba(10,16,30,0.4)",
                   boxShadow: isLast ? `0 0 14px ${m.color}22` : "none",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                   <span style={{ fontSize: isLast ? 11 : 9, color: m.color, fontWeight: 700, letterSpacing: "0.05em" }}>
                     {m.icon} {m.cn}
                   </span>
@@ -65,19 +65,28 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
                       {s.tool}()
                     </span>
                   )}
-                  {s.args && <span style={{ fontSize: 8, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>{s.args}</span>}
                   {isLast && (
                     <span style={{ marginLeft: "auto", fontSize: 8.5, padding: "1px 6px", borderRadius: 3, color: m.color, border: `1px solid ${m.color}88`, background: `${m.color}14`, fontFamily: "var(--font-mono)", animation: "blink 1.3s infinite", whiteSpace: "nowrap" }}>
                       ▶ 执行中
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: isLast ? 12 : 10.5, color: isLast ? "#eaf4ff" : "#cdd9ea", lineHeight: 1.45, fontWeight: isLast ? 600 : 400 }}>{s.text}</div>
-                {s.result && (
+                <div
+                  style={{
+                    fontSize: isLast ? 12 : 10,
+                    color: isLast ? "#eaf4ff" : "#cdd9ea",
+                    lineHeight: 1.4,
+                    fontWeight: isLast ? 600 : 400,
+                    ...(isLast ? {} : { display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }),
+                  }}
+                >
+                  {s.text}
+                </div>
+                {s.result && isLast && (
                   <div
                     style={{
-                      marginTop: 5, fontSize: 9.5, color: "#9fb0c9", fontFamily: "var(--font-mono)",
-                      background: "rgba(4,7,15,0.5)", borderLeft: `2px solid ${m.color}`, padding: "4px 7px", borderRadius: 3, lineHeight: 1.4,
+                      marginTop: 4, fontSize: 9, color: "#9fb0c9", fontFamily: "var(--font-mono)",
+                      background: "rgba(4,7,15,0.5)", borderLeft: `2px solid ${m.color}`, padding: "3px 7px", borderRadius: 3, lineHeight: 1.4,
                     }}
                   >
                     {s.result}

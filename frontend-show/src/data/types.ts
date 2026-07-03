@@ -2,6 +2,9 @@
 // 数据层共享类型 —— 与后端真实数据契约对齐
 // ============================================================================
 
+import type { KpiBundle } from "./kpi";
+import type { NetworkGraph } from "./network";
+
 export type NEType = "gNB" | "AMF" | "SMF" | "UPF" | "PCF" | "UDM" | "AUSF" | "NRF" | "NSSF";
 export type Role = "master" | "standby" | "lb";
 
@@ -100,12 +103,14 @@ export interface ComparisonSide {
   kind?: "miss" | "falsealarm" | "hit";
 }
 
-/** 用户级 CHR 洞察 —— 拓扑弹窗展示的原因值(场景 B) */
+/** 用户级 CHR 洞察 —— 拓扑弹窗展示的原因值(场景 B/C/D) */
 export interface ChrInsight {
   nes: string[];
   causeCode: string;
   causeCn: string;
   detail: string;
+  /** 伴随的相关原因值(聚类旁证,场景 C/D) */
+  related?: { code: string; cn: string }[];
 }
 
 /** 误报拦截 —— 朴素网络视角会误判的根因(场景 C) */
@@ -163,4 +168,8 @@ export interface Scenario {
   evaluation: EvalMetrics;
   routeIterations: number;
   llmModel: string;
+  /** 真实遥测时序(来自 data.csv 聚合,优先于 buildKpi 合成) */
+  realKpi?: KpiBundle;
+  /** 真实拓扑图(来自 topo.txt,优先于 DEMO_GRAPH) */
+  realGraph?: NetworkGraph;
 }

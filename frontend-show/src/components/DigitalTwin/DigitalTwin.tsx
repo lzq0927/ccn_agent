@@ -76,6 +76,8 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
 
   const overallSr = sample(kpi.overall, simT);
   const degradedCount = g.nodes.filter((n) => sample(kpi.nodes[n.id] ?? [0.999], simT) < threshold).length;
+  // 边线密度自适应:边多的场景(A,168 条)整体调浅调细,避免扎眼;边少的(B/C/D,27 条)保持原样
+  const dense = g.flowEdges.length > 60;
 
   return (
     <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
@@ -133,9 +135,11 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
           const degraded = sr < threshold;
           const isReroute = rerouteSet.has(e.id);
           const isFocus = focusSet.has(e.a) || focusSet.has(e.b) || rootSet.has(e.a) || rootSet.has(e.b);
-          const color = isReroute ? STATUS.recovered : degraded ? srColor(sr) : "rgba(56,189,248,0.28)";
+          const baseColor = dense ? "rgba(56,189,248,0.14)" : "rgba(56,189,248,0.28)";
+          const color = isReroute ? STATUS.recovered : degraded ? srColor(sr) : baseColor;
           const dashClass = isReroute ? "flow-dash-fast" : "flow-dash";
-          const width = isReroute ? 3.4 : isFocus ? 2.2 : 1.3 + e.weight * 0.5;
+          const width = isReroute ? 3.4 : isFocus ? 2.2 : dense ? 0.8 + e.weight * 0.25 : 1.3 + e.weight * 0.5;
+          const opacity = isReroute ? 1 : degraded ? (dense ? 0.6 : 0.95) : dense ? 0.22 : 0.5;
           return (
             <g key={e.id}>
               <line
@@ -147,7 +151,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
                 strokeWidth={width}
                 strokeLinecap="round"
                 className={state.phaseIndex >= 1 ? dashClass : undefined}
-                opacity={isReroute ? 1 : degraded ? 0.95 : 0.5}
+                opacity={opacity}
                 filter={degraded || isReroute ? "url(#twin-glow)" : undefined}
               />
               {(isFocus || isReroute) && state.phaseIndex >= 1 && (
@@ -230,10 +234,10 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
                 </text>
               )}
               {n.role !== "lb" && (
-                <g transform={`translate(${R - 3} ${-R + 3})`}>
-                  <circle r={5} fill={n.role === "master" ? "#facc15" : "#475569"} stroke="#04070f" strokeWidth={1} />
-                  <text y={2.5} textAnchor="middle" fontSize={6.5} fontWeight={700} fill="#04070f" fontFamily="var(--font-mono)">
-                    {n.role === "master" ? "M" : "S"}
+                <g transform={`translate(${R - 1} ${-R + 1})`}>
+                  <circle r={8} fill={n.role === "master" ? "#facc15" : "#64748b"} stroke="#04070f" strokeWidth={1.2} filter="url(#twin-glow)" />
+                  <text y={3} textAnchor="middle" fontSize={9.5} fontWeight={800} fill={n.role === "master" ? "#3a2a00" : "#e8eefb"} fontFamily="var(--font-sans)">
+                    {n.role === "master" ? "主" : "备"}
                   </text>
                 </g>
               )}
@@ -265,31 +269,52 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
   );
 }
 
-/** CHR 用户级根因弹窗(场景 B):受影响 NE 旁 callout,含原因值与说明 */
+/** CHR 用户级根因弹窗(场景 B/C/D):放大版,含主导原因值、聚类旁证与说明 */
 function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: number } | undefined; chr: NonNullable<StoryState["chrPopup"]> }) {
   if (!node) return null;
-  const cx = node.x + 30;
-  const cy = node.y - 92;
-  const w = 180;
-  const lines = wrap(chr.detail, 18);
-  const h = 46 + lines.length * 11;
+  const w = 286;
+  const related = chr.related ?? [];
+  const lines = wrap(chr.detail, 30);
+  const relPart = related.length > 0 ? 21 + related.length * 15 : 0;
+  const h = 22 + 51 + relPart + lines.length * 14 + 12;
+  const cx = Math.min(node.x + 22, VIEW_W - w - 8);
+  const cy = Math.max(8, node.y - h - 22);
+  // 文本基线(相对 cy)
+  const yTitle = cy + 15;
+  const yCauseLbl = cy + 38;
+  const yCauseCn = cy + 56;
+  const yCauseCode = cy + 72;
+  const yRelLbl = cy + 90;
+  const yRelStart = cy + 105;
+  const yDetailStart = related.length > 0 ? cy + 105 + related.length * 15 : cy + 90;
   return (
     <g style={{ animation: "float-up 0.4s ease" }}>
-      <line x1={node.x + 12} y1={node.y - 12} x2={cx} y2={cy + 12} stroke={STATUS.warning} strokeWidth={1} strokeDasharray="3 3" opacity={0.6} />
-      <rect x={cx} y={cy} width={w} height={h} rx={7} fill="rgba(4,7,15,0.9)" stroke={`${STATUS.warning}77`} filter="url(#twin-glow)" />
-      <text x={cx + 8} y={cy + 13} fontSize={8.5} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
+      <line x1={node.x + 8} y1={node.y - 10} x2={cx + 14} y2={cy + h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.55} />
+      <rect x={cx} y={cy} width={w} height={h} rx={10} fill="rgba(4,7,15,0.93)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
+      {/* 标题条 */}
+      <path d={`M ${cx} ${cy + 10} Q ${cx} ${cy} ${cx + 10} ${cy} L ${cx + w - 10} ${cy} Q ${cx + w} ${cy} ${cx + w} ${cy + 10} L ${cx + w} ${cy + 22} L ${cx} ${cy + 22} Z`} fill="rgba(245,158,11,0.16)" />
+      <text x={cx + 12} y={yTitle} fontSize={11} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
         CHR · 用户级根因 @ {neId}
       </text>
-      <text x={cx + 8} y={cy + 27} fontSize={9.5} fontWeight={700} fill="#eaf4ff" fontFamily="var(--font-sans)">
-        {chr.causeCn}
-      </text>
-      <text x={cx + 8} y={cy + 40} fontSize={8.5} fill={STATUS.warning} fontFamily="var(--font-mono)">
-        {chr.causeCode}
-      </text>
+      {/* 主导原因值 */}
+      <text x={cx + 12} y={yCauseLbl} fontSize={10} fill="#7e8aa3" fontFamily="var(--font-sans)" letterSpacing="0.04em">主导原因值</text>
+      <text x={cx + 12} y={yCauseCn} fontSize={16} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-sans)">{chr.causeCn}</text>
+      <text x={cx + 12} y={yCauseCode} fontSize={11.5} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">{chr.causeCode}</text>
+      {/* 聚类旁证(伴随原因值) */}
+      {related.length > 0 && (
+        <g>
+          <text x={cx + 12} y={yRelLbl} fontSize={9.5} fill="#7e8aa3" fontFamily="var(--font-sans)" letterSpacing="0.04em">伴随原因值</text>
+          {related.map((r, i) => (
+            <text key={i} x={cx + 12} y={yRelStart + i * 15} fontSize={10.5} fill="#cde7ff" fontFamily="var(--font-sans)">
+              · {r.cn}
+              <tspan dx={6} fill={STATUS.warning} fontFamily="var(--font-mono)" fontSize={9.5}>{r.code}</tspan>
+            </text>
+          ))}
+        </g>
+      )}
+      {/* 说明 */}
       {lines.map((ln, i) => (
-        <text key={i} x={cx + 8} y={cy + 52 + i * 11} fontSize={7.5} fill="#9fb0c9" fontFamily="var(--font-sans)">
-          {ln}
-        </text>
+        <text key={`d${i}`} x={cx + 12} y={yDetailStart + i * 14} fontSize={10} fill="#9fb0c9" fontFamily="var(--font-sans)">{ln}</text>
       ))}
     </g>
   );
@@ -301,8 +326,11 @@ function UeCluster({ nodes, active, anomaly, userFaultGnbs }: { nodes: NetworkGr
   const ueYs = [300, 340, 380];
   return (
     <g>
-      <text x={20} y={262} fontSize={9} fill="#7e8aa3" fontFamily="var(--font-mono)" letterSpacing="0.1em">
-        UE × 85
+      <text x={4} y={252} fontSize={11.5} fontWeight={700} fill="#9fb0c9" fontFamily="var(--font-sans)" letterSpacing="0.04em">
+        在网用户
+      </text>
+      <text x={4} y={273} fontSize={16} fontWeight={800} fill="#dff3ff" fontFamily="var(--font-sans)" letterSpacing="0.02em">
+        12.8万
       </text>
       {ueYs.map((y, i) => (
         <g key={i}>
