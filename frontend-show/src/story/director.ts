@@ -35,9 +35,25 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
         { id: "reroute", cn: "AMF 侧锚定,无线流量重路由", en: "RAN TRAFFIC REROUTE" },
       ];
     case "single_ne": {
-      // 按实际故障 NE 动态生成(AMF_3 / SMF_1 / …)
+      // 按实际故障 NE 动态生成(UDM_1 / SMF_1 / …)
       const ne = s.fault.elements[0] ?? "AMF_3";
       const type = ne.replace(/_\d+$/, "");
+      // UDM 主备:先核查备机容量,再隔离主机,流量切备
+      if (type === "UDM") {
+        return [
+          { id: "capacity", cn: "容量核查:UDM_2(备)可接管控量", en: "CHECK STANDBY CAPACITY" },
+          { id: "isolate", cn: `隔离 ${ne}(主)`, en: `ISOLATE ${ne} (PRIMARY)` },
+          { id: "promote", cn: "UDM_2(备)升主,流量切换过去", en: "PROMOTE STANDBY UDM" },
+        ];
+      }
+      // SMF:隔离故障实例,切换至健康 SMF_2 接管
+      if (type === "SMF") {
+        return [
+          { id: "isolate", cn: `隔离 ${ne}`, en: `ISOLATE ${ne}` },
+          { id: "failover", cn: "切换至健康 SMF_2 接管会话", en: "FAILOVER TO SMF_2" },
+          { id: "reattach", cn: "受影响 UE 重建会话", en: "UE REBUILD SESSION" },
+        ];
+      }
       return [
         { id: "isolate", cn: `隔离 ${ne}(摘除负载)`, en: `ISOLATE ${ne}` },
         { id: "failover", cn: `${type} Set 内健康实例接管会话`, en: `${type}-SET FAILOVER` },
@@ -50,9 +66,9 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
         { id: "quarantine", cn: "隔离劣化链路 SMF_1–UPF_{1,2}", en: "QUARANTINE DEGRADED LINK" },
       ];
     case "terminal_group":
-      // 网络无责 · 主动服务用户:通知重选路,不隔离任何网元
+      // gNB 无法隔离 · 只能通知用户换路
       return [
-        { id: "notify", cn: "网络主动通知受影响 UE 重选 / 切换邻区", en: "NOTIFY UE RESELECTION" },
+        { id: "notify", cn: "网络侧无法隔离 gNB · 通知受影响 UE 换路/重选", en: "NOTIFY UE REROUTE" },
         { id: "guide", cn: "引导 gNB_2 流量至邻区健康 gNB", en: "GUIDE TO NEIGHBOR gNB" },
         { id: "restore", cn: "用户侧恢复 · 网络无需隔离网元", en: "USER-SIDE RESTORE" },
       ];
@@ -147,10 +163,7 @@ const ALGO_BY_PHASE: Record<number, { cn: string; en: string }[]> = {
     { cn: "离散事件仿真", en: "DISCRETE-EVENT SIM" },
     { cn: "LLM 多维校验", en: "LLM VALIDATION" },
   ],
-  2: [
-    { cn: "阈值检测", en: "THRESHOLD DETECT" },
-    { cn: "EWMA/CUSUM 变点", en: "EWMA/CUSUM" },
-  ],
+  2: [{ cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" }],
   3: [
     { cn: "特征加权评分", en: "WEIGHTED SCORING" },
     { cn: "路由分流", en: "ROUTE DISPATCH" },
@@ -167,25 +180,19 @@ const ALGO_BY_PHASE: Record<number, { cn: string; en: string }[]> = {
 /** 相位4(根因推理)的场景化算法链 —— 讲清每类故障用了哪些算法 */
 const ALGO_REASON: Record<string, { cn: string; en: string }[]> = {
   A: [
-    { cn: "KPI 异常检测", en: "KPI ANOMALY" },
-    { cn: "故障传播原则", en: "FAULT PROPAGATION" },
-    { cn: "故障聚合原则", en: "FAULT AGGREGATION" },
+    { cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" },
+    { cn: "均质化对比", en: "HOMOGENIZATION CMP" },
+    { cn: "故障聚合", en: "FAULT AGGREGATION" },
     { cn: "根因定位", en: "ROOT-CAUSE" },
   ],
   B: [
-    { cn: "KPI 异常检测", en: "KPI ANOMALY" },
-    { cn: "CHR 聚类", en: "CHR CLUSTERING" },
-    { cn: "跨层证据融合", en: "CROSS-LAYER FUSION" },
+    { cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" },
+    { cn: "CHR 多维校验", en: "CHR VALIDATION" },
+    { cn: "终端干扰排除", en: "TERMINAL EXCLUSION" },
     { cn: "根因定位", en: "ROOT-CAUSE" },
   ],
   C: [
-    { cn: "CHR 聚类", en: "CHR CLUSTERING" },
-    { cn: "共因分析", en: "COMMON-CAUSE" },
-    { cn: "贝叶斯融合", en: "BAYES FUSION" },
-    { cn: "消融鲁棒", en: "ABLATION" },
-  ],
-  D: [
-    { cn: "KPI 异常检测", en: "KPI ANOMALY" },
+    { cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" },
     { cn: "CHR 聚类", en: "CHR CLUSTERING" },
     { cn: "用户分群追踪", en: "USER-SEGMENT TRACK" },
     { cn: "群体异常定位", en: "GROUP ANOMALY" },
@@ -201,28 +208,22 @@ function algorithmsFor(s: Scenario, phaseIndex: number): { cn: string; en: strin
 /** 场景化动作解说(覆盖关键相位,讲清「此刻在干什么」;LIVE 无条目则回落) */
 const SCENARIO_SUB: Record<string, Record<number, string>> = {
   A: {
-    2: "签约/鉴权方向多链路跌破阈值 · SMF 与 UDM 方向现异常表象",
-    3: "置信度 0.74 > 0.7 · 命中故障传播签名 · 直达确定性工作流(不走 LLM)",
-    4: "确定性工作流:故障传播 + 故障聚合原则 · 秒级锁定 UDM_1",
-    5: "隔离 UDM_1 · UDM Set 健康实例接管签约数据 · 自愈中",
+    2: "iFFusion 检出多网元异常 · 含多个 SMF 与 UDM 方向",
+    3: "置信度 0.74 > 0.7 · 命中均质化对比签名 · 直达确定性工作流(不走 LLM)",
+    4: "均质化对比排除 SMF 共性异常 · 故障聚合定位 UDM_1",
+    5: "容量核查 UDM_2(备) · 隔离 UDM_1(主) · UDM_2 升主并切流量",
   },
   B: {
-    2: "网络 KPI 仅微损 0.987 · 叠加终端噪声 · 信号模糊",
-    3: "置信度 0.54 · 技能引导 Loop · 触发多维校验",
-    4: "CHR 聚类:5GMM#22 集中 + 剥离终端干扰 → 锁定 gNB_1",
-    5: "隔离 gNB_1 · 邻区切换 · 保护受影响用户体验",
+    2: "网络 KPI 微损·叠加少量终端异常·信号模糊",
+    3: "置信度 0.55·技能引导 Loop·多维数据校验",
+    4: "CHR 校验:5GSM 集中 + 排除终端原因 → 锁定 SMF_1",
+    5: "隔离 SMF_1·切换至健康 SMF 接管·UE 恢复",
   },
   C: {
-    2: "网络 KPI 微损 · AMF 侧失败略升 · 朴素视角易误报 AMF",
-    3: "置信度 0.42 · 信号模糊 · 拦截 AMF 误报 · 触发多维探索",
-    4: "CHR 聚类:终端群体共因集中于 gNB_2 · 贝叶斯融合收敛",
-    5: "隔离 gNB_2 · 邻区接管 · 受影响终端群体恢复",
-  },
-  D: {
-    2: "总体 KPI 微跌 · 无网元跌破阈值 · CHR 原因值分散",
-    3: "置信度 0.38 · 信号模糊 · 朴素归因停滞 · 触发多维探索",
-    4: "用户分群追踪:物联终端群体 38% 失败集中涌现 · 网络健康",
-    5: "网络无责 · 主动通知物联终端群体重选/重注册 · 用户侧恢复",
+    2: "总体 KPI 微跌·无网元跌破阈值·CHR 原因值分散",
+    3: "置信度 0.28·信号模糊·自主探索·拦截 AMF 误报",
+    4: "CHR 聚类 + 用户分群追踪:物联终端群体 38% 失败·网络健康",
+    5: "网络侧无法隔离 gNB·通知物联终端群体换路·用户侧恢复",
   },
 };
 

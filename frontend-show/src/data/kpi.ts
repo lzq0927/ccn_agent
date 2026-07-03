@@ -23,6 +23,16 @@ function clamp(x: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, x));
 }
 
+/** 健康基线序列:每条序列独立基线(0.997~0.9995)+ 共模慢漂移 + 抖动 → 曲线有波动、各网元有差异(均 ≥0.995) */
+function healthySeries(rng: () => number): number[] {
+  const base = 0.997 + rng() * 0.0025;
+  const s: number[] = [];
+  for (let t = 1; t <= TIMESTEPS; t++) {
+    s.push(clamp(base + Math.sin(t / 8.5) * 0.0012 + (rng() - 0.5) * 0.001, 0.995, 0.9995));
+  }
+  return s;
+}
+
 export interface KpiBundle {
   steps: number;
   overall: number[]; // 网络总体(均值)
@@ -46,19 +56,16 @@ export function buildKpi(fault: FaultSpec): KpiBundle {
   const overallAcc = new Array(TIMESTEPS).fill(0);
   let flowCount = 0;
 
-  const baseSr = () => clamp(1 - (0.0015 + rng() * 0.0015), 0.99, 0.9995);
-
   for (const e of EDGES) {
     if (e.kind !== "flow") continue;
     flowCount++;
-    const aff = edgeSet.has(e.id);
-    const s: number[] = [];
-    for (let t = 1; t <= TIMESTEPS; t++) {
-      if (aff && inWindow(t)) {
-        const drop = clamp(fault.lossRate + (rng() - 0.5) * 0.02, 0.01, 0.15);
-        s.push(clamp(1 - drop, 0.8, 0.999));
-      } else {
-        s.push(baseSr());
+    const s = healthySeries(rng);
+    if (edgeSet.has(e.id)) {
+      for (let t = 1; t <= TIMESTEPS; t++) {
+        if (inWindow(t)) {
+          const drop = clamp(fault.lossRate + (rng() - 0.5) * 0.02, 0.01, 0.15);
+          s[t - 1] = clamp(1 - drop, 0.8, 0.999);
+        }
       }
     }
     edges[e.id] = s;
@@ -66,14 +73,13 @@ export function buildKpi(fault: FaultSpec): KpiBundle {
   }
 
   for (const n of NODES) {
-    const aff = neSet.has(n.id);
-    const s: number[] = [];
-    for (let t = 1; t <= TIMESTEPS; t++) {
-      if (aff && inWindow(t)) {
-        const drop = clamp(fault.lossRate + (rng() - 0.5) * 0.02, 0.01, 0.15);
-        s.push(clamp(1 - drop, 0.8, 0.999));
-      } else {
-        s.push(baseSr());
+    const s = healthySeries(rng);
+    if (neSet.has(n.id)) {
+      for (let t = 1; t <= TIMESTEPS; t++) {
+        if (inWindow(t)) {
+          const drop = clamp(fault.lossRate + (rng() - 0.5) * 0.02, 0.01, 0.15);
+          s[t - 1] = clamp(1 - drop, 0.8, 0.999);
+        }
       }
     }
     nodes[n.id] = s;
@@ -120,7 +126,6 @@ export function buildKpiFor(
   const faultStart = fault.faultStart;
   const faultEnd = fault.faultStart + fault.faultDuration;
   const inWindow = (t: number) => t >= faultStart && t < faultEnd;
-  const baseSr = () => clamp(1 - (0.0015 + rng() * 0.0015), 0.99, 0.9995);
 
   const edges: Record<string, number[]> = {};
   const nodes: Record<string, number[]> = {};
@@ -128,20 +133,16 @@ export function buildKpiFor(
   let flowCount = 0;
 
   const pushSeries = (aff: boolean, neigh: boolean): number[] => {
-    const s: number[] = [];
+    const s = healthySeries(rng);
+    if (!aff && !(neigh && propagate > 0)) return s;
     for (let t = 1; t <= TIMESTEPS; t++) {
-      if (inWindow(t)) {
-        if (aff) {
-          const drop = clamp(fault.lossRate + (rng() - 0.5) * 0.02, 0.01, 0.15);
-          s.push(clamp(1 - drop, 0.8, 0.999));
-        } else if (neigh && propagate > 0) {
-          const drop = clamp(fault.lossRate * propagate + (rng() - 0.5) * 0.01, 0.003, 0.05);
-          s.push(clamp(1 - drop, 0.8, 0.999));
-        } else {
-          s.push(baseSr());
-        }
-      } else {
-        s.push(baseSr());
+      if (!inWindow(t)) continue;
+      if (aff) {
+        const drop = clamp(fault.lossRate + (rng() - 0.5) * 0.02, 0.01, 0.15);
+        s[t - 1] = clamp(1 - drop, 0.8, 0.999);
+      } else if (neigh && propagate > 0) {
+        const drop = clamp(fault.lossRate * propagate + (rng() - 0.5) * 0.01, 0.003, 0.05);
+        s[t - 1] = clamp(1 - drop, 0.8, 0.999);
       }
     }
     return s;
@@ -175,11 +176,10 @@ export function buildMildOverallKpi(
 ): KpiBundle {
   const faultEnd = faultStart + faultDuration;
   const rng = mulberry32(((faultStart * 97 + dip * 1000) | 0) + 13);
-  const baseSr = () => clamp(1 - (0.0012 + rng() * 0.0012), 0.99, 0.9995);
   const edges: Record<string, number[]> = {};
   const nodes: Record<string, number[]> = {};
-  for (const e of graph.flowEdges) edges[e.id] = Array.from({ length: TIMESTEPS }, () => baseSr());
-  for (const n of graph.nodes) nodes[n.id] = Array.from({ length: TIMESTEPS }, () => baseSr());
+  for (const e of graph.flowEdges) edges[e.id] = healthySeries(rng);
+  for (const n of graph.nodes) nodes[n.id] = healthySeries(rng);
   const edgeList = graph.flowEdges;
   const overall: number[] = [];
   for (let t = 1; t <= TIMESTEPS; t++) {

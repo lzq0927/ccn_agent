@@ -98,6 +98,82 @@
 
 > 二轮同样**未做浏览器视觉确认**。建议人工复核:场景 A 边线不再扎眼、中列「场景」字与简介完整、右侧推理链清爽、左下「在网用户」不再被遮挡。
 
+## 三轮打磨:可读性 / 命名 / 弹窗(2026-07-03,6 项)
+
+> 自动化校验:`tsc --noEmit` 通过 · `vite build` 通过(415 模块)。
+
+| # | 反馈 | 落地 |
+|---|---|---|
+| 1 | 算法徽标挡住上方文字 | `App.tsx` 算法徽标条从 `top:8` 改到 **`bottom:6` 居中**(拓扑框最下方),不再遮挡。 |
+| 2 | 阈值 → 动态阈值 | `KpiPanel` 图表阈值线标签「阈值」→「动态阈值」。 |
+| 3 | 不要叫指挥中心,叫平台 | `index.html` 浏览器标题、`README.md`、`App.tsx`/`theme.ts` 注释的「指挥中心」→「平台」。 |
+| 4 | 右侧推理字符多且看不懂 | `ReasoningTrace`:去掉 `tool()` 函数名徽标,类型标签改通俗(思考→分析、工具调用→探测);`real.ts` 给 B/C **重写为简洁中文推理链**(替换原英文术语 "Exploration fused… posterior=…");`constructed.ts` A/D 推理改通俗短句、各 4 步。 |
+| 5 | 弹窗具体内容字体太小 | `ChrCallout` 字号整体放大:主因 16→17、原因码 11.5→12.5、**伴随原因值 10.5→13**、**说明 10→12.5**、标签 9.5→11.5;弹窗 286→314 宽并重算几何。 |
+| 6 | 整体文字简化 | `scenarios.ts` 四场景 intro/objective/tagline/对比 detail/chrInsight.detail 全部缩短为短句。 |
+
+**三轮改动文件**:`App.tsx`、`index.html`、`README.md`、`theme.ts`(注释)、`KpiPanel.tsx`、`ReasoningTrace.tsx`、`DigitalTwin.tsx`(ChrCallout 放大)、`real.ts`(B/C 中文推理)、`constructed.ts`(A/D 简化)、`scenarios.ts`(文案精简)。
+
+> 过程小插曲:三轮中 ChrCallout 的一次整段重写触发 TSX 解析报错(疑似 `·`/tspan 多行子节点边角问题),已回退为「在已验证结构上做最小字号改动」解决;tsc/build 均通过。
+
+## 四轮打磨:KPI 波动 / 算法改名 / A 均质化+主备切换 / B 改 SMF(2026-07-03)
+
+> 自动化校验:`tsc --noEmit` 通过 · `vite build` 通过(415 模块) · node 实跑四场景通过。
+
+**界面**
+1. **KPI 曲线加波动 + 各网元差异**:kpi.ts 新增 `healthySeries`(每条序列独立基线 0.997~0.9995 + 共模慢漂移 sin + 抖动),`buildKpi`/`buildKpiFor`/`buildMildOverallKpi` 统一改用。overall 不再是一条直线,各 NE sparkline 基线互不相同(均 ≥0.995 不误报)。
+2. **去掉「---体现网络自治/用户级韧性」**:三轮已从 intro 移除;本轮确认四场景 intro/objective 均无此尾缀。
+3. **EWMA / 阈值检测 → iFusion 融合异常检测**:`director.ALGO_BY_PHASE[2]` 改为单个「iFusion 融合异常检测」徽标;`ALGO_REASON` 各场景首项统一为 iFusion。
+
+**场景 A(UDM,构造)**
+- **拓扑统一**:TOPO_A(原 case_003,45 NE)删除,A/B/D 共用 `COMMON_TOPO`(case_101,21 NE),与真实场景 C 同构。
+- **对比区改误报**:`comparison.naive.kind` miss→**falsealarm**(「易误报 SMF 为根因」)。
+- **推理改均质化对比 + 故障聚合**:均质化对比排除 SMF 共性异常(多 SMF 都出问题)→ 故障聚合定位 UDM_1(原"故障传播原则"作废)。
+- **恢复改主备切换**:UDM 分支 = 容量核查(备 UDM)→ 隔离 UDM_1(主)→ 流量切换至 UDM_2(备)。
+- 算法链:iFusion 融合异常检测 · 均质化对比 · 故障聚合 · 根因定位。
+
+**场景 B(改 SMF,构造)**
+- 由真实 gNB_1(case_101)改为**构造式 SMF_1**:`SPEC_B`(SMF_1,lossRate 0.03 网络微损)。
+- 叙事按用户复述:网络异常(SMF_1)+ 少量终端异常 → 多维数据校验 → CHR 用户级异常(弹窗:主因 5GSM:37 PDU 会话建立失败 + 终端干扰 5GMM:23/24)→ 排除终端原因 → 识别网络根因 SMF_1 → 恢复。
+- SCENARIOS 改用 `buildConstructedScenario("B", …, SPEC_B)`;real-cases.json 的 B(case_101 gNB)不再使用。
+- 现四场景:A/B/D 构造(case_101 拓扑),C 真实(case_9001 gNB_2)。
+
+**改动文件**:`kpi.ts`(healthySeries)、`constructed.ts`(重写:COMMON_TOPO + A 均质化 + 新增 SPEC_B)、`director.ts`(ALGO iFusion + SCENARIO_SUB A/B + recoveryActionsFor UDM 分支)、`scenarios.ts`(NARRATIVES A/B + SCENARIOS 用构造 B + 头注释)。
+
+> iFusion 取 isolation-Fusion 之意(异常检测融合算法);若需更名告诉我。
+
+## 五轮打磨:三场景定稿 / 路由三档 / gNB 不可隔离 / iFFusion(2026-07-03)
+
+> 自动化校验:`tsc --noEmit` 通过 · `vite build` 通过(包体 480KB→345KB,real-cases.json 不再打包)。
+
+**需求落地**
+1. **D 合入 C、删除 D**:四场景→**三场景**。C 吸收 D 的「用户分群追踪 → 物联终端群体异常」(userFault gNB_2/1280UE)与旧 C 的 chrInsight/falseAlarm(AMF_1),成为 gNB 用户侧群体异常场景。
+2. **路由三档(去掉「多算法探索」)**:A=**确定性工作流** WORKFLOW(0.74)、B=**技能引导** GUIDED(0.55)、C=**自主探索** AUTONOMOUS(0.28)。置信度相应调整;EXPLORATION 路由不再被任何场景使用。
+3. **B 恢复切换健康 SMF**:recoveryActionsFor 新增 SMF 分支 = 隔离 SMF_1 → **切换至健康 SMF 接管会话** → UE 重建会话。
+4. **gNB 无法隔离,只能通知换路**:terminal_group 分支恢复动作改为「网络侧无法隔离 gNB · 通知受影响 UE 换路/重选」(C 场景)。
+5. **iFFusion**:算法名统一为「iFFusion 融合异常检测」(双 F),director ALGO + constructed 推理链全部更名。
+
+**三场景速查**
+
+| 场景 | 路由 | 置信度 | 故障 | 恢复 | 看点 |
+|---|---|---|---|---|---|
+| A | WORKFLOW | 0.74 | UDM_1 | 容量核查→隔离主→切备 UDM | 均质化对比排除 SMF + 故障聚合定位 UDM |
+| B | GUIDED | 0.55 | SMF_1 | 隔离→切健康 SMF | CHR 多维校验排除终端 → 识别网络根因 |
+| C | AUTONOMOUS | 0.28 | gNB 用户侧(空) | 无法隔离·通知换路 | CHR 聚类 + 用户分群 → 物联终端群体异常 |
+
+**改动文件**:`constructed.ts`(删 SPEC_D、新增 SPEC_C 自主;B route→guided;全 iFFusion)、`scenarios.ts`(删 D、C 合并、去 real 引用、SCENARIOS 三场景)、`director.ts`(ALGO iFFusion + 删 D;SCENARIO_SUB B引导/C自主/删D;recovery SMF 分支 + terminal_group 改通知换路)。
+
+> 副作用:三场景全为构造式(case_101 拓扑 + 合成遥测)。`real-cases.json` / `real.ts::buildRealScenario` / `scripts/export_demo_scenarios.py` 现未被 demo 引用(留作真实管线工件,未删除;real-cases.json 不再进打包)。LIVE 模式仍走 `live.ts`,不受影响。
+
+## 六轮打磨:恢复动作具体化 + CHR 弹窗再放大(2026-07-03)
+
+> 自动化校验:`tsc --noEmit` 通过 · `vite build` 通过。
+
+1. **场景 A 恢复:备 UDM 升主 + 切流量** — UDM 分支恢复动作改为:容量核查(UDM_2 备)→ 隔离 UDM_1(主)→ **UDM_2(备)升主,流量切换过去**(原"流量切换至备 UDM"改为显式升主);SCENARIO_SUB A[5] 同步。
+2. **场景 B 恢复:切到 SMF_2** — SMF 分支 failover 由"切换至健康 SMF"改为**「切换至健康 SMF_2 接管会话」**(具体到 SMF_2)。
+3. **CHR 弹窗再放大** — ChrCallout 字号在五轮基础上再提:主因 17→**19**、原因码 12.5→**14**、伴随原因值 13→**14.5**、说明 12.5→**14**、标签→13、标题→13.5;弹窗宽 314→**344**,行距/几何同步重算。
+
+**改动文件**:`director.ts`(recovery UDM/SMF 分支 + SCENARIO_SUB A[5])、`DigitalTwin.tsx`(ChrCallout 字号+几何)。
+
 ## 后续
 - 改动未提交(工作区 `local_dev` 分支)。确认后可提交。
 - `real-cases.json` 中残留的 scenario "A"(case_003 AMF)已被构造式 A 取代、不再使用,无害但冗余;若重跑 `export_demo_scenarios.py` 会再生成,可忽略或清理。

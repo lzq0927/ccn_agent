@@ -7,8 +7,8 @@ import type { StoryState } from "../../story/types";
 import { HudFrame } from "../shared/HudFrame";
 
 const TYPE_META: Record<string, { color: string; icon: string; cn: string }> = {
-  thinking: { color: "#38bdf8", icon: "💭", cn: "思考" },
-  tool_call: { color: "#a78bfa", icon: "🔧", cn: "工具调用" },
+  thinking: { color: "#38bdf8", icon: "💭", cn: "分析" },
+  tool_call: { color: "#a78bfa", icon: "🔍", cn: "探测" },
   tool_result: { color: "#64748b", icon: "↳", cn: "结果" },
   conclusion: { color: "#22c55e", icon: "✓", cn: "结论" },
 };
@@ -57,14 +57,9 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: isLast ? 11 : 9, color: m.color, fontWeight: 700, letterSpacing: "0.05em" }}>
+                  <span style={{ fontSize: isLast ? 11 : 9.5, color: m.color, fontWeight: 700, letterSpacing: "0.05em" }}>
                     {m.icon} {m.cn}
                   </span>
-                  {s.tool && (
-                    <span style={{ fontSize: isLast ? 10 : 9, color: "#cde7ff", fontFamily: "var(--font-mono)", background: "rgba(167,139,250,0.15)", padding: "0 5px", borderRadius: 3 }}>
-                      {s.tool}()
-                    </span>
-                  )}
                   {isLast && (
                     <span style={{ marginLeft: "auto", fontSize: 8.5, padding: "1px 6px", borderRadius: 3, color: m.color, border: `1px solid ${m.color}88`, background: `${m.color}14`, fontFamily: "var(--font-mono)", animation: "blink 1.3s infinite", whiteSpace: "nowrap" }}>
                       ▶ 执行中

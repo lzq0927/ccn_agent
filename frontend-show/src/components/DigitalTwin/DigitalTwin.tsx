@@ -272,49 +272,49 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
 /** CHR 用户级根因弹窗(场景 B/C/D):放大版,含主导原因值、聚类旁证与说明 */
 function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: number } | undefined; chr: NonNullable<StoryState["chrPopup"]> }) {
   if (!node) return null;
-  const w = 286;
+  const w = 344;
   const related = chr.related ?? [];
-  const lines = wrap(chr.detail, 30);
-  const relPart = related.length > 0 ? 21 + related.length * 15 : 0;
-  const h = 22 + 51 + relPart + lines.length * 14 + 12;
+  const lines = wrap(chr.detail, 22);
+  const relPart = related.length > 0 ? 30 + related.length * 20 : 0;
+  const h = 26 + 66 + relPart + lines.length * 19 + 20;
   const cx = Math.min(node.x + 22, VIEW_W - w - 8);
   const cy = Math.max(8, node.y - h - 22);
   // 文本基线(相对 cy)
-  const yTitle = cy + 15;
-  const yCauseLbl = cy + 38;
-  const yCauseCn = cy + 56;
-  const yCauseCode = cy + 72;
-  const yRelLbl = cy + 90;
-  const yRelStart = cy + 105;
-  const yDetailStart = related.length > 0 ? cy + 105 + related.length * 15 : cy + 90;
+  const yTitle = cy + 19;
+  const yCauseLbl = cy + 46;
+  const yCauseCn = cy + 68;
+  const yCauseCode = cy + 88;
+  const yRelLbl = cy + 110;
+  const yRelStart = cy + 128;
+  const yDetailStart = related.length > 0 ? cy + 128 + related.length * 20 + 12 : cy + 108;
   return (
     <g style={{ animation: "float-up 0.4s ease" }}>
       <line x1={node.x + 8} y1={node.y - 10} x2={cx + 14} y2={cy + h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.55} />
       <rect x={cx} y={cy} width={w} height={h} rx={10} fill="rgba(4,7,15,0.93)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
       {/* 标题条 */}
       <path d={`M ${cx} ${cy + 10} Q ${cx} ${cy} ${cx + 10} ${cy} L ${cx + w - 10} ${cy} Q ${cx + w} ${cy} ${cx + w} ${cy + 10} L ${cx + w} ${cy + 22} L ${cx} ${cy + 22} Z`} fill="rgba(245,158,11,0.16)" />
-      <text x={cx + 12} y={yTitle} fontSize={11} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
+      <text x={cx + 12} y={yTitle} fontSize={13.5} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
         CHR · 用户级根因 @ {neId}
       </text>
       {/* 主导原因值 */}
-      <text x={cx + 12} y={yCauseLbl} fontSize={10} fill="#7e8aa3" fontFamily="var(--font-sans)" letterSpacing="0.04em">主导原因值</text>
-      <text x={cx + 12} y={yCauseCn} fontSize={16} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-sans)">{chr.causeCn}</text>
-      <text x={cx + 12} y={yCauseCode} fontSize={11.5} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">{chr.causeCode}</text>
+      <text x={cx + 12} y={yCauseLbl} fontSize={13} fill="#9fb0c9" fontFamily="var(--font-sans)" letterSpacing="0.04em">主导原因值</text>
+      <text x={cx + 12} y={yCauseCn} fontSize={19} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-sans)">{chr.causeCn}</text>
+      <text x={cx + 12} y={yCauseCode} fontSize={14} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">{chr.causeCode}</text>
       {/* 聚类旁证(伴随原因值) */}
       {related.length > 0 && (
         <g>
-          <text x={cx + 12} y={yRelLbl} fontSize={9.5} fill="#7e8aa3" fontFamily="var(--font-sans)" letterSpacing="0.04em">伴随原因值</text>
+          <text x={cx + 12} y={yRelLbl} fontSize={13} fill="#9fb0c9" fontFamily="var(--font-sans)" letterSpacing="0.04em">伴随原因值</text>
           {related.map((r, i) => (
-            <text key={i} x={cx + 12} y={yRelStart + i * 15} fontSize={10.5} fill="#cde7ff" fontFamily="var(--font-sans)">
+            <text key={i} x={cx + 12} y={yRelStart + i * 20} fontSize={14.5} fill="#dff1ff" fontFamily="var(--font-sans)">
               · {r.cn}
-              <tspan dx={6} fill={STATUS.warning} fontFamily="var(--font-mono)" fontSize={9.5}>{r.code}</tspan>
+              <tspan dx={7} fill={STATUS.warning} fontFamily="var(--font-mono)" fontSize={12.5}>{r.code}</tspan>
             </text>
           ))}
         </g>
       )}
       {/* 说明 */}
       {lines.map((ln, i) => (
-        <text key={`d${i}`} x={cx + 12} y={yDetailStart + i * 14} fontSize={10} fill="#9fb0c9" fontFamily="var(--font-sans)">{ln}</text>
+        <text key={`d${i}`} x={cx + 12} y={yDetailStart + i * 19} fontSize={14} fill="#b8c8de" fontFamily="var(--font-sans)">{ln}</text>
       ))}
     </g>
   );

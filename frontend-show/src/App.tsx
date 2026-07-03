@@ -1,5 +1,5 @@
 // ============================================================================
-// App —— 高稳智能体 · 5GC 数字孪生指挥中心(沉浸式三栏布局)
+// App —— 高稳智能体 · 5GC 数字孪生平台(沉浸式三栏布局)
 //   左:大脑架构(Brain)  中:数字孪生(DigitalTwin)  右:阶段详情面板
 //   顶:TopBar  底:Timeline
 //   DEMO 模式:内置样本数据自动循环。LIVE 模式:真实用例文件驱动孪生 + KPI。
@@ -215,9 +215,9 @@ export default function App() {
                   </div>
                 )}
                 <DigitalTwin scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />
-                {/* 过程中算法标注(随相位高亮) */}
+                {/* 过程中算法标注(随相位高亮)—— 放在拓扑框底部,避免遮挡上方 */}
                 {state.algorithms.length > 0 && (
-                  <div style={{ position: "absolute", top: 8, left: 10, zIndex: 3, display: "flex", gap: 6, flexWrap: "wrap", maxWidth: 420, pointerEvents: "none" }}>
+                  <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, zIndex: 3, display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", pointerEvents: "none" }}>
                     {state.algorithms.map((a) => (
                       <span
                         key={a.en}
@@ -228,7 +228,7 @@ export default function App() {
                           borderRadius: 5,
                           color: state.phase.glow,
                           border: `1px solid ${state.phase.color}88`,
-                          background: "rgba(4,7,15,0.78)",
+                          background: "rgba(4,7,15,0.8)",
                           boxShadow: `0 0 9px ${state.phase.color}44`,
                           fontFamily: "var(--font-sans)",
                           letterSpacing: "0.02em",

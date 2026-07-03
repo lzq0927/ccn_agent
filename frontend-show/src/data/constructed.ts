@@ -1,9 +1,10 @@
 // ============================================================================
 // 构造式演示场景 —— 真实拓扑文本 + 合成遥测 + 手写推理链
-//   场景 A:UDM_1 异常 · 确定性工作流(故障传播原则 + 故障聚合原则)定位根因
-//   场景 D:用户追踪 —— KPI/CHR 仅见模糊信号 → 用户分群追踪发现物联终端群体异常
-//   拓扑取自真实 storage/cases(case_003 / case_101)的网络结构;遥测与推理为
-//   据叙事定稿的合成数据(真实管线无对应可观测 UDM 用例,故构造)。
+//   场景 A:UDM_1 异常 · 确定性工作流(均质化对比排除 SMF + 故障聚合定位)
+//   场景 B:SMF_1 异常 · 技能引导(网络微损+终端噪声 → 多维校验排除终端)
+//   场景 C:gNB 用户侧异常 · 自主探索(CHR 聚类 + 用户分群追踪发现物联终端群体异常)
+//   三场景共用真实 case_101 拓扑(21 NE);遥测与推理为合成。路由分落三档:
+//   A=WORKFLOW(>0.7)、B=GUIDED(0.3~0.7)、C=AUTONOMOUS(≤0.3)。
 // ============================================================================
 
 import { buildGraphFromTopoText, type NetworkGraph } from "./network";
@@ -17,61 +18,8 @@ import type {
   Scenario,
 } from "./types";
 
-/** 场景 A 网络画布(真实 case_003 拓扑:DC1+DC2,UDM_1 master) */
-const TOPO_A = `DC: DC1
-  ResourcePool: RP_DC1_1
-    gNB: gNB_7
-    AMF: AMF_1
-    SMF: SMF_5
-    SMF: SMF_7
-    PCF: PCF_1
-    NSSF: NSSF_3
-  ResourcePool: RP_DC1_2
-    gNB: gNB_2
-    gNB: gNB_3
-    gNB: gNB_8
-    gNB: gNB_11
-    gNB: gNB_12
-    AMF: AMF_2
-    AMF: AMF_4
-    SMF: SMF_1
-    SMF: SMF_6
-    UPF: UPF_1
-    UPF: UPF_5
-    UPF: UPF_6
-    PCF: PCF_2
-    UDM: UDM_1(master)
-    AUSF: AUSF_2(standby)
-    NRF: NRF_2
-    NRF: NRF_4
-    NSSF: NSSF_1
-DC: DC2
-  ResourcePool: RP_DC2_1
-    gNB: gNB_1
-    gNB: gNB_5
-    SMF: SMF_8
-    UPF: UPF_7
-    PCF: PCF_3
-    AUSF: AUSF_1(master)
-    NSSF: NSSF_2
-  ResourcePool: RP_DC2_2
-    gNB: gNB_4
-    gNB: gNB_6
-    gNB: gNB_9
-    gNB: gNB_10
-    AMF: AMF_3
-    SMF: SMF_2
-    SMF: SMF_3
-    SMF: SMF_4
-    UPF: UPF_2
-    UPF: UPF_3
-    UPF: UPF_4
-    UDM: UDM_2(standby)
-    NRF: NRF_1
-    NRF: NRF_3`;
-
-/** 场景 D 网络画布(真实 case_101 拓扑:单 DC,gNB_2 为用户异常接入点) */
-const TOPO_D = `DC: DC1
+/** 三场景共用网络画布(真实 case_101 拓扑:单 DC,21 NE,UDM_1/AUSF_1 主备) */
+const COMMON_TOPO = `DC: DC1
   ResourcePool: RP_DC1_1
     gNB: gNB_3
     AMF: AMF_3
@@ -138,7 +86,7 @@ export function buildConstructedScenario(id: string, n: ScenarioNarrative, spec:
 }
 
 // ---------------------------------------------------------------------------
-// 场景 A —— UDM_1 异常 · 确定性工作流(故障传播原则 + 故障聚合原则)
+// 场景 A —— UDM_1 异常 · 确定性工作流(均质化对比排除 SMF + 故障聚合定位)
 // ---------------------------------------------------------------------------
 
 const FAULT_A: FaultSpec = {
@@ -154,48 +102,10 @@ const FAULT_A: FaultSpec = {
 };
 
 const REASONING_A: ReasonStep[] = [
-  {
-    n: 1,
-    type: "tool_call",
-    tool: "analyze_kpi_anomalies",
-    args: "level=link",
-    text: "签约/鉴权方向多链路跌破阈值,异常表象涉及 SMF 与 UDM_1 方向。",
-    result: "劣化链路:SMF_1/2/6/7 → UDM_1",
-    highlight: { nes: ["UDM_1"] },
-  },
-  {
-    n: 2,
-    type: "tool_call",
-    tool: "trace_fault_propagation",
-    args: "故障传播原则",
-    text: "沿业务流回溯:所有劣化汇聚于 Nudm 接口,异常由 UDM_1 向 SMF 传播。",
-    result: "传播汇聚点 = UDM_1(Nudm),SMF 为表象",
-    highlight: { nes: ["UDM_1"] },
-  },
-  {
-    n: 3,
-    type: "tool_call",
-    tool: "aggregate_faults",
-    args: "故障聚合原则",
-    text: "按网元聚合受影响流程,UDM_1 命中度最高,其余 NE 仅各 1 条。",
-    result: "UDM_1 score=0.96 · 次优 SMF_1=0.31",
-    highlight: { nes: ["UDM_1"] },
-  },
-  {
-    n: 4,
-    type: "tool_call",
-    tool: "check_temporal_pattern",
-    args: "ne=UDM_1",
-    text: "时序核对:劣化 onset 与 UDM_1 故障窗吻合,矩形下跌。",
-    result: "onset=T32 · 窗口吻合",
-  },
-  {
-    n: 5,
-    type: "conclusion",
-    text: "确定性工作流判定根因 UDM_1,秒级定位,无需 LLM 介入。",
-    result: "fault_elements=[UDM_1] · WORKFLOW · F1=1.00",
-    highlight: { nes: ["UDM_1"] },
-  },
+  { n: 1, type: "tool_call", text: "iFFusion 异常检测:多个网元出现异常,含多个 SMF 与 UDM 方向。", result: "SMF_1/2、UDM_1 方向劣化", highlight: { nes: ["UDM_1"] } },
+  { n: 2, type: "tool_call", text: "均质化对比:多个 SMF 同现异常(共性),排除 SMF 为单点根因。", highlight: { nes: ["UDM_1"] } },
+  { n: 3, type: "tool_call", text: "故障聚合:聚合受影响流程,UDM_1 集中度最高。", highlight: { nes: ["UDM_1"] } },
+  { n: 4, type: "conclusion", text: "根因为 UDM_1,确定性工作流秒级定位。", result: "WORKFLOW · 命中", highlight: { nes: ["UDM_1"] } },
 ];
 
 const CONFIDENCE_A: ConfidenceBreakdown = {
@@ -206,8 +116,8 @@ const CONFIDENCE_A: ConfidenceBreakdown = {
   ambiguity: 0.08,
   score: 0.74,
   route: "workflow",
-  patternName: "udm_subscription_propagation (故障传播签名)",
-  matchedSkills: ["core/fault_propagation", "core/fault_aggregation"],
+  patternName: "udm_homogenization (均质化对比签名)",
+  matchedSkills: ["core/homogenization_compare", "core/fault_aggregation"],
   affectedNeCount: 1,
 };
 
@@ -223,7 +133,7 @@ const EVAL_A: EvalMetrics = {
 };
 
 export const SPEC_A: ConstructedSpec = {
-  topo: TOPO_A,
+  topo: COMMON_TOPO,
   fault: FAULT_A,
   kpi: (graph) => buildKpiFor(graph, FAULT_A, { propagate: 0.35 }),
   reasoning: REASONING_A,
@@ -235,10 +145,69 @@ export const SPEC_A: ConstructedSpec = {
 };
 
 // ---------------------------------------------------------------------------
-// 场景 D —— 用户追踪:KPI/CHR 模糊信号 → 用户分群追踪发现物联终端群体异常
+// 场景 B —— SMF_1 异常 · 技能引导(网络微损+终端噪声 → 多维校验排除终端)
 // ---------------------------------------------------------------------------
 
-const FAULT_D: FaultSpec = {
+const FAULT_B: FaultSpec = {
+  faultType: "single_ne",
+  faultMode: "link",
+  elements: ["SMF_1"],
+  links: [],
+  lossRate: 0.03,
+  faultStart: 28,
+  faultDuration: 10,
+  ueCount: 60,
+  difficulty: "medium",
+};
+
+const REASONING_B: ReasonStep[] = [
+  { n: 1, type: "tool_call", text: "iFFusion 异常检测:网络 KPI 微损,叠加少量终端异常。", result: "SMF 方向劣化 + 终端噪声", highlight: { nes: ["SMF_1"] } },
+  { n: 2, type: "tool_call", text: "多维数据校验:CHR 用户级失败集中于会话建立。", highlight: { nes: ["SMF_1"] } },
+  { n: 3, type: "thinking", text: "排除终端原因(鉴权 / 兼容性干扰),锁定网络侧。", highlight: { nes: ["SMF_1"] } },
+  { n: 4, type: "conclusion", text: "根因为 SMF_1,实施恢复。", result: "GUIDED · 命中", highlight: { nes: ["SMF_1"] } },
+];
+
+const CONFIDENCE_B: ConfidenceBreakdown = {
+  pattern: 0.55,
+  severity: 0.4,
+  temporal: 0.7,
+  spatial: 0.6,
+  ambiguity: 0.3,
+  score: 0.55,
+  route: "guided",
+  patternName: "network_with_terminal_noise (技能引导)",
+  matchedSkills: ["core/chr_fusion", "core/terminal_exclusion"],
+  affectedNeCount: 1,
+};
+
+const EVAL_B: EvalMetrics = {
+  precision: 1,
+  recall: 1,
+  f1: 1,
+  exactMatch: true,
+  faultTypeMatch: true,
+  category: "SUCCESS",
+  traceAxes: { logicalCoherence: 0.9, toolEfficiency: 0.85, evidenceQuality: 0.9, missedSignals: 0.12, overall: 0.89 },
+  suggestions: [],
+};
+
+export const SPEC_B: ConstructedSpec = {
+  topo: COMMON_TOPO,
+  fault: FAULT_B,
+  kpi: (graph) => buildKpiFor(graph, FAULT_B),
+  reasoning: REASONING_B,
+  confidence: CONFIDENCE_B,
+  evaluation: EVAL_B,
+  predicted: { elements: ["SMF_1"], links: [] },
+  routeIterations: 7,
+  llmModel: "MiniMax-M3",
+};
+
+// ---------------------------------------------------------------------------
+// 场景 C —— gNB 用户侧异常 · 自主探索(CHR 聚类 + 用户分群追踪 → 物联终端群体异常)
+// ---------------------------------------------------------------------------
+
+const FAULT_C: FaultSpec = {
   faultType: "terminal_group",
   faultMode: "business",
   elements: [],
@@ -250,76 +219,34 @@ const FAULT_D: FaultSpec = {
   difficulty: "hard",
 };
 
-const REASONING_D: ReasonStep[] = [
-  {
-    n: 1,
-    type: "tool_call",
-    tool: "analyze_kpi_anomalies",
-    args: "level=link",
-    text: "总体 SR 温和下跌,但无单一网元跌破阈值——信号模糊。",
-    result: "无 NE 跌破阈值 · 信号分散",
-  },
-  {
-    n: 2,
-    type: "tool_call",
-    tool: "chr_failure_clustering",
-    args: "CHR 聚类",
-    text: "CHR 失败集中于 gNB_2,但原因值分散,无明显网络根因。",
-    result: "cluster: gNB_2 · 原因值分散",
-    highlight: { nes: ["gNB_2"] },
-  },
-  {
-    n: 3,
-    type: "thinking",
-    text: "网络侧无根因,触发用户级分群追踪。",
-    result: "route=EXPLORATION · 启动用户追踪",
-  },
-  {
-    n: 4,
-    type: "tool_call",
-    tool: "track_user_segment",
-    args: "按终端类型分群",
-    text: "按终端类型分群:gNB_2 物联终端群体失败率 38%。",
-    result: "物联终端 · fail=38% · 1280 UE",
-    highlight: { nes: ["gNB_2"] },
-  },
-  {
-    n: 5,
-    type: "tool_call",
-    tool: "cluster_group_anomaly",
-    args: "群体异常定位",
-    text: "该群体跨多切片共因,网络 NE 健康 → 终端群体异常。",
-    result: "群体异常确认 · 网络正常",
-  },
-  {
-    n: 6,
-    type: "conclusion",
-    text: "判定用户侧群体异常(物联终端),网络无责,下发用户侧恢复。",
-    result: "user-segment=IoT(1280 UE) · EXPLORATION · F1=1.00",
-  },
+const REASONING_C: ReasonStep[] = [
+  { n: 1, type: "tool_call", text: "iFFusion 异常检测:总体微跌,无网元异常。", result: "无 NE 跌破阈值" },
+  { n: 2, type: "tool_call", text: "CHR 聚类:失败原因分散,无网络根因。", highlight: { nes: ["gNB_2"] } },
+  { n: 3, type: "thinking", text: "用户分群追踪:物联终端群体失败率 38%。", highlight: { nes: ["gNB_2"] } },
+  { n: 4, type: "conclusion", text: "物联终端群体异常,网络健康。", result: "AUTONOMOUS · 用户侧恢复" },
 ];
 
-const CONFIDENCE_D: ConfidenceBreakdown = {
-  pattern: 0.5,
-  severity: 0.35,
-  temporal: 0.6,
-  spatial: 0.35,
-  ambiguity: 0.45,
-  score: 0.38,
-  route: "exploration",
-  patternName: "fuzzy_signal (信号模糊·需用户级追踪)",
+const CONFIDENCE_C: ConfidenceBreakdown = {
+  pattern: 0.3,
+  severity: 0.3,
+  temporal: 0.45,
+  spatial: 0.3,
+  ambiguity: 0.5,
+  score: 0.28,
+  route: "autonomous",
+  patternName: "fuzzy_signal (信号模糊·自主探索)",
   matchedSkills: ["core/chr_clustering", "core/user_segment_tracking"],
   affectedNeCount: 0,
 };
 
-const EVAL_D: EvalMetrics = {
+const EVAL_C: EvalMetrics = {
   precision: 1,
   recall: 1,
   f1: 1,
   exactMatch: true,
   faultTypeMatch: true,
   category: "SUCCESS",
-  traceAxes: { logicalCoherence: 0.88, toolEfficiency: 0.8, evidenceQuality: 0.86, missedSignals: 0.18, overall: 0.85 },
+  traceAxes: { logicalCoherence: 0.86, toolEfficiency: 0.78, evidenceQuality: 0.84, missedSignals: 0.2, overall: 0.83 },
   suggestions: [
     {
       type: "SKILL_UPDATE",
@@ -330,14 +257,14 @@ const EVAL_D: EvalMetrics = {
   ],
 };
 
-export const SPEC_D: ConstructedSpec = {
-  topo: TOPO_D,
-  fault: FAULT_D,
-  kpi: (graph) => buildMildOverallKpi(graph, FAULT_D.faultStart, FAULT_D.faultDuration, 0.011),
-  reasoning: REASONING_D,
-  confidence: CONFIDENCE_D,
-  evaluation: EVAL_D,
+export const SPEC_C: ConstructedSpec = {
+  topo: COMMON_TOPO,
+  fault: FAULT_C,
+  kpi: (graph) => buildMildOverallKpi(graph, FAULT_C.faultStart, FAULT_C.faultDuration, 0.011),
+  reasoning: REASONING_C,
+  confidence: CONFIDENCE_C,
+  evaluation: EVAL_C,
   predicted: { elements: [], links: [] },
-  routeIterations: 9,
+  routeIterations: 11,
   llmModel: "MiniMax-M3",
 };

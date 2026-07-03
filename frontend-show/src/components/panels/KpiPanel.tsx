@@ -59,7 +59,7 @@ export function KpiPanel({
         <line x1={winX1} y1={0} x2={winX1} y2={CH} stroke="rgba(239,68,68,0.3)" strokeDasharray="2 3" />
         {/* 阈值线 */}
         <line x1={0} y1={yOf(kpi.threshold)} x2={CW} y2={yOf(kpi.threshold)} stroke="rgba(245,158,11,0.4)" strokeDasharray="3 4" />
-        <text x={4} y={yOf(kpi.threshold) - 3} fontSize={8} fill="rgba(245,158,11,0.7)" fontFamily="var(--font-mono)">阈值</text>
+        <text x={4} y={yOf(kpi.threshold) - 3} fontSize={8} fill="rgba(245,158,11,0.75)" fontFamily="var(--font-mono)">动态阈值</text>
         {/* 面积+线 */}
         <path d={areaPath} fill={`${srColor(cur)}22`} />
         <path d={linePath} fill="none" stroke={srColor(cur)} strokeWidth={1.8} style={{ filter: `drop-shadow(0 0 4px ${srColor(cur)})` }} />

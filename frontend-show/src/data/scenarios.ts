@@ -1,16 +1,13 @@
 // ============================================================================
-// 演示场景 —— 四场景编排
-//   A 核心网 UDM 异常 · 确定性工作流(故障传播+聚合原则)定位     [构造:真实拓扑+合成]
-//   B 无线接入 gNB_1 故障 · CHR 用户级定位 + 剥离终端干扰       [真实 case_101]
-//   C 无线接入 gNB_2 故障 · CHR 聚类锁定终端群体共因            [真实 case_9001]
-//   D 用户追踪 · KPI/CHR 模糊 → 用户分群发现物联终端群体异常    [构造:真实拓扑+合成]
-// A/D:真实管线无对应可观测用例(UDM standby 不可观测 / 用户追踪为新概念),
-//     故取真实拓扑文本 + 合成遥测 + 手写推理链。B/C:全真驱动。
+// 演示场景 —— 三场景编排(路由分落三档:工作流 / 技能引导 / 自主探索)
+//   A 核心网 UDM 异常 · 确定性工作流(均质化对比排除 SMF + 故障聚合)
+//   B 核心网 SMF 异常 · 技能引导(多维校验排除终端 → 识别网络根因)
+//   C 无线接入 gNB · 自主探索(CHR 聚类 + 用户分群追踪 → 物联终端群体异常)
+// 三场景共用真实 case_101 拓扑(21 NE)+ 合成遥测 + 手写推理链。
 // ============================================================================
 
-import realCasesJson from "./real-cases.json";
-import { buildRealScenario, type RealCase, type ScenarioNarrative } from "./real";
-import { buildConstructedScenario, SPEC_A, SPEC_D } from "./constructed";
+import { type ScenarioNarrative } from "./real";
+import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C } from "./constructed";
 import type { Scenario } from "./types";
 
 // 每个场景的叙事层(数据全真或合成,文案据诊断结果定稿)
@@ -18,162 +15,117 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
   A: {
     cn: "核心网 UDM 异常·确定性工作流定位",
     en: "UDM FAULT · DETERMINISTIC WORKFLOW",
-    tagline: "签约管理 UDM_1 链路故障 · 多网元异常表象 · 故障传播+聚合原则秒级收敛 · 网络自治",
-    intro:
-      "核心网签约管理 UDM_1 发生链路故障,异常沿 Nudm 接口向 SMF 侧传播,多个网元呈现异常表象。置信度评估命中故障传播签名(0.74>0.7),直达确定性工作流:沿业务流回溯(故障传播原则)+ 按网元聚合受影响流程(故障聚合原则),一致收敛到 UDM_1(命中度 0.96,次优差 3 倍),秒级锁定根因,无需 LLM 介入——体现网络自治。",
-    objective: "UDM_1 异常 · 确定性工作流(故障传播+聚合原则)秒级定位,多网元表象下一击收敛",
+    tagline: "签约管理 UDM_1 故障 · 多网元(含多 SMF)异常表象 · 均质化对比+聚合秒级收敛",
+    intro: "核心网 UDM_1 故障,多网元(含多个 SMF)现异常表象。均质化对比排除 SMF 共性异常,故障聚合定位 UDM_1 根因。",
+    objective: "UDM_1 异常 · 均质化对比排除 SMF + 故障聚合定位",
     pillars: { userLevel: false, autonomy: true },
     comparison: {
       naive: {
         title: "仅网络聚合 KPI",
-        verdict: "多网元劣化·易误指 SMF",
-        detail: "UDM 故障向 SMF 侧传播,朴素归因易指向表象网元 SMF_1/SMF_2",
-        kind: "miss",
+        verdict: "易误报 SMF 为根因",
+        detail: "多 SMF 共性异常,朴素归因误指 SMF",
+        kind: "falsealarm",
       },
       explored: {
-        title: "确定性工作流(传播+聚合)",
+        title: "确定性工作流(均质化+聚合)",
         verdict: "秒级锁定 UDM_1 根因",
-        detail: "故障传播原则回溯 Nudm + 故障聚合原则汇聚 → UDM_1 命中度 0.96",
+        detail: "均质化对比排除 SMF + 聚合 → UDM_1",
       },
     },
   },
   B: {
-    cn: "无线接入 gNB_1 故障·CHR 用户级定位",
-    en: "gNB_1 FAULT · CHR USER-LEVEL",
-    tagline: "无线接入 gNB_1 故障 · KPI+CHR 跨层融合 · 原因值集中锁定无线侧 · 用户级韧性",
-    intro:
-      "无线接入侧 gNB_1 发生故障,部分终端接入失败。网络聚合 KPI 仅微损,叠加终端噪声,信号模糊。多维探索下钻到 CHR 用户级记录:失败原因值(无线资源不足)集中分布于 gNB_1,同时识别并剥离伴随的终端侧干扰原因(终端不兼容 / 鉴权失败),跨层证据融合后锁定 gNB_1,排除核心网与终端干扰——体现用户级韧性。",
-    objective: "gNB_1 异常 · CHR 原因值集中 + 剥离终端干扰,跨层融合锁定无线侧根因",
+    cn: "核心网 SMF 异常·多维校验识别网络根因",
+    en: "SMF FAULT · MULTI-DIM VALIDATION",
+    tagline: "会话管理 SMF_1 异常 · 网络微损+终端噪声 · CHR 多维校验排除终端 · 定位网络根因",
+    intro: "网络 SMF_1 异常,叠加少量终端异常,KPI 仅微损。多维数据校验发现 CHR 用户级异常,排除终端原因后准确识别网络根因 SMF_1,实施恢复。",
+    objective: "SMF_1 异常 · CHR 多维校验排除终端,识别网络根因",
     pillars: { userLevel: true, autonomy: true },
     comparison: {
       naive: {
         title: "仅网络聚合 KPI",
-        verdict: "易误指核心网网元",
-        detail: "接入失败经 AMF/SMF 传导,朴素归因易指向核心网接入门",
+        verdict: "网络微损·难分网络/终端",
+        detail: "KPI 微损叠加终端噪声,朴素方法难定根因",
         kind: "miss",
       },
       explored: {
-        title: "KPI+CHR 跨层融合",
-        verdict: "锁定无线侧 gNB_1",
-        detail: "CHR 原因值集中 + 剥离终端干扰 → 融合收敛 gNB_1",
+        title: "多维数据校验(KPI+CHR)",
+        verdict: "锁定网络侧 SMF_1",
+        detail: "CHR 集中 + 排除终端原因 → SMF_1",
       },
     },
     chrInsight: {
-      nes: ["gNB_1"],
-      causeCode: "5GMM:22",
-      causeCn: "无线资源不足(RRC 拒绝)",
-      detail: "gNB_1 接入失败集中于 5GMM cause#22(占比 41%),并伴随两类终端侧干扰原因,已剥离。",
+      nes: ["SMF_1"],
+      causeCode: "5GSM:37",
+      causeCn: "PDU 会话建立失败",
+      detail: "SMF_1 会话建立失败集中于 5GSM#37,伴随少量终端侧干扰原因,已排除。",
       related: [
-        { code: "5GMM:23", cn: "鉴权失败(终端侧干扰)" },
-        { code: "5GMM:24", cn: "协议不兼容(终端侧干扰)" },
+        { code: "5GMM:23", cn: "鉴权失败(终端侧)" },
+        { code: "5GMM:24", cn: "协议不兼容(终端侧)" },
       ],
     },
     skillEvolution: {
       kind: "UPDATE",
-      skillId: "skills/learned/ran_chr_fusion",
-      skillCn: "无线侧 CHR 融合定位",
-      insight: "CHR 原因值集中度 + 终端干扰剥离 → 锁定无线侧根因",
-      before: "仅依赖链路 KPI,接入类故障易误指核心网",
-      after: "新增 CHR 原因值聚类 + 干扰剥离步骤,接入类命中率达 0.94",
-      nextHitRate: 0.94,
+      skillId: "skills/learned/chr_terminal_exclusion",
+      skillCn: "CHR 多维校验 + 终端排除",
+      insight: "CHR 原因值校验 + 终端干扰排除 → 识别网络根因",
+      before: "网络微损叠加终端噪声,易漏判或误指终端",
+      after: "新增终端排除步骤,网络/终端区分命中率达 0.93",
+      nextHitRate: 0.93,
     },
   },
   C: {
-    cn: "无线接入 gNB_2·CHR 聚类锁定终端群体共因",
-    en: "gNB_2 · CHR CLUSTERING · GROUP CAUSE",
-    tagline: "无线接入 gNB_2 故障 · CHR 聚类 + 共因分析 · 伴随多原因值 · 鲁棒融合",
-    intro:
-      "gNB_2 接入段出现失败,网络聚合 KPI 仅微损,朴素视角易误报核心网 AMF。多维探索在 CHR 用户级记录上聚类:失败集中于同一批终端的共因(接入受限),并伴随多个相关原因值,贝叶斯融合后定位终端群体异常并锁定 gNB_2,消融分析显示结论鲁棒——体现网络自治在群体异常下的稳定诊断。",
-    objective: "gNB_2 异常 · CHR 聚类锁定终端群体共因 + 伴随原因值,排除核心网误报",
-    pillars: { userLevel: true, autonomy: true },
-    comparison: {
-      naive: {
-        title: "仅网络聚合 KPI",
-        verdict: "易误报核心网 AMF",
-        detail: "接入失败经 AMF 传导,朴素视角误指 AMF_1 为根因",
-        kind: "falsealarm",
-      },
-      explored: {
-        title: "CHR 聚类 + 共因分析",
-        verdict: "锁定 gNB_2 · 终端群体共因",
-        detail: "CHR 共因集中于同一批终端 + 伴随多原因值 → 贝叶斯融合收敛 gNB_2",
-      },
-    },
-    chrInsight: {
-      nes: ["gNB_2"],
-      causeCode: "5GMM:22",
-      causeCn: "接入受限(终端群体共因)",
-      detail: "gNB_2 下失败聚类于同一批终端,主因为接入受限,伴随多个相关原因值,判定终端群体异常并锁定 gNB_2。",
-      related: [
-        { code: "5GMM:23", cn: "鉴权超时" },
-        { code: "5GSM:37", cn: "PDU 会话建立失败" },
-        { code: "5GMM:24", cn: "协议不兼容" },
-      ],
-    },
-    falseAlarm: {
-      naiveNe: "AMF_1",
-      naiveCn: "误报:AMF_1 接入故障",
-      reason: "接入失败经 AMF 传导,朴素视角误判 AMF_1;CHR 共因集中于 gNB_2 终端,AMF_1 健康。",
-    },
-    skillEvolution: {
-      kind: "NEW",
-      skillId: "skills/learned/terminal_group_clustering",
-      skillCn: "终端群体共因聚类",
-      insight: "CHR 多原因值共因聚类 → 识别终端群体异常,排除核心网误报",
-      after: "新增终端群体共因聚类 Skill,群体异常场景命中率达 0.91",
-      nextHitRate: 0.91,
-    },
-  },
-  D: {
-    cn: "用户追踪·物联终端群体异常",
-    en: "USER TRACK · IoT TERMINAL GROUP",
-    tagline: "KPI/CHR 信号模糊无法定根因 · 用户分群追踪发现物联终端群体异常 · 用户级韧性",
-    intro:
-      "总体 KPI 温和下跌、CHR 原因值分散,网络侧无任何网元跌破阈值,朴素归因停滞。触发用户级分群追踪:按终端类型分群 gNB_2 失败 UE,物联终端(IMSI-001xxx)群体失败率 38% 集中涌现,跨多切片共因,而网络 NE 全部健康——判定为用户侧群体异常,网络无责,下发用户侧恢复——体现用户级韧性与精准溯源。",
-    objective: "KPI/CHR 模糊 → 用户分群追踪定位物联终端群体异常,网络本体健康",
+    cn: "无线接入 gNB·物联终端群体异常自主定位",
+    en: "gNB · IoT GROUP · AUTONOMOUS",
+    tagline: "gNB 信号模糊·自主探索 CHR 聚类 + 用户分群追踪·定位物联终端群体异常·网络健康",
+    intro: "总体 KPI 微跌、CHR 原因分散,网络无网元异常。自主探索经 CHR 聚类与用户分群追踪,发现 gNB_2 下物联终端群体失败率 38%,网络健康,下发用户侧恢复。",
+    objective: "gNB 信号模糊·自主探索定位物联终端群体异常,网络无法隔离只能通知换路",
     pillars: { userLevel: true, autonomy: false },
     comparison: {
       naive: {
         title: "仅 KPI/CHR 聚合",
-        verdict: "信号模糊·无法定根因",
-        detail: "总体微跌 0.989、CHR 原因值分散,朴素方法无法收敛,易误报某 NE",
-        kind: "miss",
+        verdict: "信号模糊·易误报 AMF",
+        detail: "总体微跌、CHR 原因分散,朴素方法无法收敛,易误报 AMF_1",
+        kind: "falsealarm",
       },
       explored: {
-        title: "用户分群追踪",
+        title: "CHR 聚类 + 用户分群追踪",
         verdict: "定位物联终端群体异常",
-        detail: "按 SUPI/终端类型分群 → 物联终端 38% 失败集中涌现,网络健康",
+        detail: "CHR 共因聚类 + 用户分群 → 物联终端群体 38% 失败",
       },
     },
     chrInsight: {
       nes: ["gNB_2"],
       causeCode: "5GSM:37",
       causeCn: "物联终端群体接入失败",
-      detail: "gNB_2 下物联终端(IMSI-001xxx)群体失败率 38%,跨多切片集中涌现;网络 NE 健康,判定终端侧群体异常。",
+      detail: "gNB_2 物联终端群体失败率 38%,集中涌现;主因接入受限,伴随多原因值,网络健康。",
       related: [
         { code: "5GMM:22", cn: "非接入层拥塞" },
         { code: "5GSM:39", cn: "PDU 会话建立失败" },
+        { code: "5GMM:24", cn: "协议不兼容" },
       ],
     },
+    falseAlarm: {
+      naiveNe: "AMF_1",
+      naiveCn: "误报:AMF_1 接入故障",
+      reason: "接入失败经 AMF 传导误判;CHR 共因集中于 gNB_2 物联终端,AMF_1 健康。",
+    },
     userFault: { gnbs: ["gNB_2"], affectedUe: 1280, kind: "物联终端群体异常" },
+    skillEvolution: {
+      kind: "NEW",
+      skillId: "skills/learned/user_segment_tracking",
+      skillCn: "用户分群追踪",
+      insight: "CHR 聚类 + 用户分群 → 定位物联终端群体异常",
+      after: "新增用户分群追踪 Skill,群体异常命中率达 0.91",
+      nextHitRate: 0.91,
+    },
   },
 };
 
-// B/C 来自真实管线产出(case_101 / case_9001)
-const realCases = realCasesJson as unknown as RealCase[];
-const REAL_BY_ID: Record<string, Scenario> = {};
-for (const rc of realCases) {
-  if (NARRATIVES[rc.scenario_id]) {
-    REAL_BY_ID[rc.scenario_id] = buildRealScenario(rc, NARRATIVES[rc.scenario_id]);
-  }
-}
-
-// 四场景:A(构造 UDM)、B(真实)、C(真实)、D(构造 用户追踪)
+// 三场景:A(构造 UDM · 工作流)、B(构造 SMF · 技能引导)、C(构造 gNB 物联终端群体 · 自主探索)
 export const SCENARIOS: Scenario[] = [
   buildConstructedScenario("A", NARRATIVES.A, SPEC_A),
-  REAL_BY_ID.B,
-  REAL_BY_ID.C,
-  buildConstructedScenario("D", NARRATIVES.D, SPEC_D),
+  buildConstructedScenario("B", NARRATIVES.B, SPEC_B),
+  buildConstructedScenario("C", NARRATIVES.C, SPEC_C),
 ];
 
 export const DEFAULT_SCENARIO_ID = "A";
