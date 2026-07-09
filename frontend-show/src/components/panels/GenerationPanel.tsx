@@ -1,5 +1,5 @@
 // ============================================================================
-// GenerationPanel —— Agent 1 数据生成:仿真参数 + 5 项 LLM 校验灯(逐项点亮)
+// GenerationPanel —— Agent 1 数据采集:现网采集校验 + 5 项 LLM 校验灯(逐项点亮)
 // ============================================================================
 
 import type { Scenario } from "../../data/types";
@@ -13,9 +13,9 @@ export function GenerationPanel({ scenario, state }: { scenario: Scenario; state
   const checks = state.generationChecks;
 
   return (
-    <HudFrame title="数据生成 · 仿真自校验" subtitle="AGENT 1 · SIMULATION" right={<span style={{ fontSize: 8, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>case_{scenario.id}</span>}>
+    <HudFrame title="数据采集 · 多维校验" subtitle="AGENT 1 · DATA COLLECTION" right={<span style={{ fontSize: 8, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>case_{scenario.id}</span>}>
       <div style={{ fontSize: 10, color: "#9fb0c9", marginBottom: 8, lineHeight: 1.5 }}>
-        离散事件仿真器生成故障用例,LLM 校验器从 5 个维度检查;不通过则调参重试(自校验闭环)。
+        现网实时采集网络遥测(KPI / 拓扑 / 业务流),LLM 校验器从 5 个维度检查数据质量;不通过则重新采集(自校验闭环)。
       </div>
 
       {/* 用例参数 */}

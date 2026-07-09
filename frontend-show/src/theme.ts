@@ -47,9 +47,9 @@ export interface PhaseDef {
 }
 export const PHASES: PhaseDef[] = [
   { id: 0, key: "idle", cn: "网络就绪", en: "STEADY STATE", color: "#34d399", glow: "#6ee7b7" },
-  { id: 1, key: "generation", cn: "数据生成", en: "AGENT 1 · SIMULATION", color: "#38bdf8", glow: "#7dd3fc" },
+  { id: 1, key: "generation", cn: "数据采集", en: "AGENT 1 · DATA COLLECTION", color: "#38bdf8", glow: "#7dd3fc" },
   { id: 2, key: "anomaly", cn: "异常检测", en: "ANOMALY DETECTED", color: "#f59e0b", glow: "#fbbf24" },
-  { id: 3, key: "confidence", cn: "方案决策", en: "PLAN DECISION", color: "#a78bfa", glow: "#c4b5fd" },
+  { id: 3, key: "confidence", cn: "智能研判", en: "INTELLIGENT JUDGMENT", color: "#a78bfa", glow: "#c4b5fd" },
   { id: 4, key: "reasoning", cn: "根因推理", en: "AGENT 2 · REASONING", color: "#818cf8", glow: "#a5b4fc" },
   { id: 5, key: "recovery", cn: "执行恢复", en: "RECOVERY ACTION", color: "#fb7185", glow: "#fda4af" },
   { id: 6, key: "healed", cn: "网络恢复", en: "NETWORK HEALED", color: "#10b981", glow: "#34d399" },

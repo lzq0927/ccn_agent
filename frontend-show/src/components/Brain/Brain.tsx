@@ -11,9 +11,9 @@ import { HudFrame } from "../shared/HudFrame";
 import { SkillLibrary } from "./SkillLibrary";
 
 const AGENTS = [
-  { id: 1, cn: "数据生成 Agent", en: "AGENT 1 · DATA GENERATION", role: "设计态 · 仿真 + LLM 自校验闭环", color: "#38bdf8" },
-  { id: 2, cn: "故障感知 Agent", en: "AGENT 2 · FAULT PERCEPTION", role: "运行态 · 方案决策 + 推理(系统核心)", color: "#a78bfa", core: true },
-  { id: 3, cn: "评估优化 Agent", en: "AGENT 3 · EVALUATION", role: "设计态 · 真值比对 + 优化建议", color: "#2dd4bf" },
+  { id: 1, cn: "数据采集 Agent", en: "AGENT 1 · DATA COLLECTION", role: "运行态 · 现网采集 + LLM 自校验闭环", color: "#38bdf8" },
+  { id: 2, cn: "故障感知 Agent", en: "AGENT 2 · FAULT PERCEPTION", role: "运行态 · 智能研判 + 推理(系统核心)", color: "#a78bfa", core: true },
+  { id: 3, cn: "评估优化 Agent", en: "AGENT 3 · EVALUATION", role: "运行态 · 真值比对 + 优化建议", color: "#2dd4bf" },
 ];
 
 const ROUTERS = [
@@ -29,7 +29,7 @@ export function Brain({ state, scenario }: { state: StoryState; scenario: Scenar
   const feedbackOn = state.phaseIndex === 7;
 
   return (
-    <HudFrame title="高稳智能体 · 大脑架构" subtitle="RESILIENT AGENT · 3-LOOP BRAIN" tall>
+    <HudFrame title="高稳智能体 · 大脑架构" subtitle="HIGH STABILITY AGENT · 3-LOOP BRAIN" tall>
       {/* 神经脑动机 */}
       <BrainMotif active={active !== 0} color={active ? AGENTS[active - 1].color : "#38bdf8"} />
 

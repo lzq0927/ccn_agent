@@ -35,7 +35,7 @@ export function TopBar({ clock, state, scenario, mode, onToggleMode, liveConnect
         </div>
         <div>
           <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "0.04em", color: "#eaf4ff", lineHeight: 1.1 }}>高稳智能体</div>
-          <div style={{ fontSize: 8.5, letterSpacing: "0.16em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>RESILIENT AGENT · 5GC DIGITAL TWIN</div>
+          <div style={{ fontSize: 8.5, letterSpacing: "0.16em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>HIGH STABILITY AGENT · 5GC DIGITAL TWIN</div>
         </div>
       </div>
 

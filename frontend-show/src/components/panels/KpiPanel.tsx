@@ -45,7 +45,11 @@ export function KpiPanel({
   const curX = xOf(Math.max(0, Math.min(steps - 1, state.simT - 1)));
 
   // 代表性劣化链路 sparkline
-  const degradedEdges = g.flowEdges.filter((e) => series && kpi.edges[e.id]?.some((v) => v < kpi.threshold)).slice(0, 3);
+  // 按劣化严重度(窗内最低点)排序后取前 5 —— 让根因直连链路(如 SMF↔UDM)优先于轻度传播链路(AMF↔SMF)显现
+  const degradedEdges = g.flowEdges
+    .filter((e) => kpi.edges[e.id]?.some((v) => v < kpi.threshold))
+    .sort((a, b) => Math.min(...kpi.edges[a.id]) - Math.min(...kpi.edges[b.id]))
+    .slice(0, 5);
 
   return (
     <HudFrame title="网络 KPI · 实时遥测" subtitle="OVERALL SUCCESS RATE" right={<LiveTag on={state.showAnomaly} />}>

@@ -147,9 +147,9 @@ function simTFor(s: Scenario, phaseIndex: number, p: number): number {
 
 const HEADLINES: Record<number, { h: string; s: string }> = {
   0: { h: "网络稳态运行", s: "高稳智能体待命 · 5GC 全网健康 · 成功率 99.8%" },
-  1: { h: "数字孪生 · 数据生成", s: "Agent 1 仿真故障用例 · LLM 多维校验闭环" },
+  1: { h: "数字孪生 · 数据采集", s: "Agent 1 现网采集遥测 · LLM 多维校验闭环" },
   2: { h: "异常检测", s: "KPI 跌破阈值 · 链路级告警 · 触发故障感知" },
-  3: { h: "方案决策", s: "特征提取 → 加权评分 → 三路径分流" },
+  3: { h: "智能研判", s: "特征提取 → 加权评分 → 三路径分流" },
   4: { h: "Agent 推理 · 根因定位", s: "Hermes Agent Loop · 工具自注册 · 推理链收敛" },
   5: { h: "执行恢复动作", s: "高稳智能体下发恢复策略 · 网络自愈中" },
   6: { h: "网络恢复正常", s: "成功率回升至 99.8% · 闭环验证通过" },
@@ -160,7 +160,7 @@ const HEADLINES: Record<number, { h: string; s: string }> = {
 const ALGO_BY_PHASE: Record<number, { cn: string; en: string }[]> = {
   0: [],
   1: [
-    { cn: "离散事件仿真", en: "DISCRETE-EVENT SIM" },
+    { cn: "现网遥测采集", en: "LIVE TELEMETRY" },
     { cn: "LLM 多维校验", en: "LLM VALIDATION" },
   ],
   2: [{ cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" }],
@@ -222,7 +222,7 @@ const SCENARIO_SUB: Record<string, Record<number, string>> = {
   C: {
     2: "总体 KPI 微跌·无网元跌破阈值·CHR 原因值分散",
     3: "置信度 0.28·信号模糊·自主探索·拦截 AMF 误报",
-    4: "CHR 聚类 + 用户分群追踪:物联终端群体 38% 失败·网络健康",
+    4: "CHR 聚类 + 用户分群追踪:物联终端群体 52% 失败·网络健康",
     5: "网络侧无法隔离 gNB·通知物联终端群体换路·用户侧恢复",
   },
 };

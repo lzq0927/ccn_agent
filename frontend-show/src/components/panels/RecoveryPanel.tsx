@@ -16,7 +16,7 @@ export function RecoveryPanel({ state }: { state: StoryState }) {
   return (
     <HudFrame
       title="执行恢复动作 · 网络自愈"
-      subtitle="RESILIENT AUTO-RECOVERY"
+      subtitle="HIGH STABILITY AUTO-RECOVERY"
       right={<span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, color: done ? STATUS.recovered : STATUS.faultGlow, border: `1px solid ${done ? STATUS.recovered : STATUS.fault}55`, fontFamily: "var(--font-mono)" }}>{done ? "● HEALED" : "● EXECUTING"}</span>}
     >
       <div style={{ fontSize: 10, color: "#9fb0c9", marginBottom: 8, lineHeight: 1.5 }}>

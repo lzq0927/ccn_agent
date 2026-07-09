@@ -124,7 +124,8 @@ function buildRegistryEdges(nodes: NEInstance[]): GraphEdge[] {
   const edges: GraphEdge[] = [];
   const nrfs = instancesOf(nodes, "NRF");
   if (nrfs.length === 0) return edges;
-  const sbiTypes: NEType[] = ["AMF", "SMF", "UPF", "PCF", "UDM", "AUSF", "NSSF"];
+  // UPF 不向 NRF 注册(用户面不展示注册连线),故 sbiTypes 不含 UPF
+  const sbiTypes: NEType[] = ["AMF", "SMF", "PCF", "UDM", "AUSF", "NSSF"];
   const primaryNrf = nrfs[0];
   for (const t of sbiTypes) {
     for (const id of instancesOf(nodes, t)) {

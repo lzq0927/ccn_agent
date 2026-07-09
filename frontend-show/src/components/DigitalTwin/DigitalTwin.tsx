@@ -307,14 +307,14 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
   const yCauseCode = 84;
   const yDistLbl = 104;
   const distTop = 114;
-  const pieR = 32, pieRIn = 18;
-  const rowH = 15;
-  const sectionH = Math.max(pieR * 2 + 8, segs.length * rowH + 10);
-  const pieCx = 48;
+  const pieR = 40, pieRIn = 24;
+  const rowH = 17;
+  const sectionH = Math.max(pieR * 2 + 10, segs.length * rowH + 12);
+  const pieCx = 56;
   const pieCy = distTop + sectionH / 2;
-  const legendX = 96;
-  const legendY0 = distTop + 8;
-  const yDetailStart = distTop + sectionH + 8;
+  const legendX = 108;
+  const legendY0 = distTop + 12;
+  const yDetailStart = distTop + sectionH + 10;
   const h = yDetailStart + lines.length * 19 + 14;
 
   const cx = Math.min(node.x + 22, VIEW_W - w - 8);
@@ -347,22 +347,22 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
       <text x={12} y={yDistLbl} fontSize={12} fill="#7e8aa3" fontFamily="var(--font-sans)" letterSpacing="0.06em">原因值分布</text>
       <g>
         {arcs.map((s, i) => (
-          <path key={i} d={donutSeg(pieCx, pieCy, pieR, pieRIn, s.a0, s.a1)} fill={s.color} opacity={0.92} stroke="rgba(4,7,15,0.9)" strokeWidth={0.8} />
+          <path key={i} d={donutSeg(pieCx, pieCy, pieR, pieRIn, s.a0, s.a1)} fill={s.color} opacity={0.92} stroke="rgba(4,7,15,0.9)" strokeWidth={0.9} />
         ))}
-        <text x={pieCx} y={pieCy - 1} fontSize={15} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-mono)" textAnchor="middle">{Math.round(domShare)}%</text>
-        <text x={pieCx} y={pieCy + 12} fontSize={8.5} fill="#7e8aa3" fontFamily="var(--font-sans)" textAnchor="middle" letterSpacing="0.08em">主导占比</text>
+        <text x={pieCx} y={pieCy - 2} fontSize={20} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-mono)" textAnchor="middle">{Math.round(domShare)}%</text>
+        <text x={pieCx} y={pieCy + 14} fontSize={9} fill="#7e8aa3" fontFamily="var(--font-sans)" textAnchor="middle" letterSpacing="0.08em">主导占比</text>
       </g>
       <g>
         {segs.map((s, i) => {
-          const ry = legendY0 + i * rowH + 4;
+          const ry = legendY0 + i * rowH + 5;
           return (
             <g key={i}>
-              <circle cx={legendX} cy={ry - 3.5} r={4} fill={s.color} />
-              <text x={legendX + 10} y={ry} fontSize={11} fill="#dff1ff" fontFamily="var(--font-sans)">
+              <circle cx={legendX} cy={ry - 4} r={4.5} fill={s.color} />
+              <text x={legendX + 11} y={ry} fontSize={12.5} fill="#dff1ff" fontFamily="var(--font-sans)">
                 {s.label}
-                {s.code && <tspan dx={5} fill="#7e8aa3" fontFamily="var(--font-mono)" fontSize={9.5}>{s.code}</tspan>}
+                {s.code && <tspan dx={6} fill="#7e8aa3" fontFamily="var(--font-mono)" fontSize={10.5}>{s.code}</tspan>}
               </text>
-              <text x={w - 12} y={ry} fontSize={11} fontWeight={700} fill={s.color} fontFamily="var(--font-mono)" textAnchor="end">{Math.round(s.share)}%</text>
+              <text x={w - 12} y={ry} fontSize={12.5} fontWeight={700} fill={s.color} fontFamily="var(--font-mono)" textAnchor="end">{Math.round(s.share)}%</text>
             </g>
           );
         })}

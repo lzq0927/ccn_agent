@@ -222,7 +222,7 @@ const FAULT_C: FaultSpec = {
 const REASONING_C: ReasonStep[] = [
   { n: 1, type: "tool_call", text: "iFFusion 异常检测:总体微跌,无网元异常。", result: "无 NE 跌破阈值" },
   { n: 2, type: "tool_call", text: "CHR 聚类:失败原因分散,无网络根因。", highlight: { nes: ["gNB_2"] } },
-  { n: 3, type: "thinking", text: "用户分群追踪:物联终端群体失败率 38%。", highlight: { nes: ["gNB_2"] } },
+  { n: 3, type: "thinking", text: "用户分群追踪:物联终端群体失败率 52%。", highlight: { nes: ["gNB_2"] } },
   { n: 4, type: "conclusion", text: "物联终端群体异常,网络健康。", result: "AUTONOMOUS · 用户侧恢复" },
 ];
 

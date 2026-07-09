@@ -78,7 +78,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
     cn: "无线接入 gNB·物联终端群体异常自主定位",
     en: "gNB · IoT GROUP · AUTONOMOUS",
     tagline: "gNB 信号模糊·自主探索 CHR 聚类 + 用户分群追踪·定位物联终端群体异常·网络健康",
-    intro: "总体 KPI 微跌、CHR 原因分散,网络无网元异常。自主探索经 CHR 聚类与用户分群追踪,发现 gNB_2 下物联终端群体失败率 38%,网络健康,下发用户侧恢复。",
+    intro: "总体 KPI 微跌、CHR 原因分散,网络无网元异常。自主探索经 CHR 聚类与用户分群追踪,发现 gNB_2 下物联终端群体失败率 52%,网络健康,下发用户侧恢复。",
     objective: "gNB 信号模糊·自主探索定位物联终端群体异常,网络无法隔离只能通知换路",
     pillars: { userLevel: true, autonomy: false },
     comparison: {
@@ -91,19 +91,19 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       explored: {
         title: "CHR 聚类 + 用户分群追踪",
         verdict: "定位物联终端群体异常",
-        detail: "CHR 共因聚类 + 用户分群 → 物联终端群体 38% 失败",
+        detail: "CHR 共因聚类 + 用户分群 → 物联终端群体 52% 失败",
       },
     },
     chrInsight: {
       nes: ["gNB_2"],
       causeCode: "5GSM:37",
       causeCn: "物联终端群体接入失败",
-      share: 46,
-      detail: "gNB_2 物联终端群体失败率 38%,集中涌现;主因接入受限,伴随多原因值,网络健康。",
+      share: 52,
+      detail: "gNB_2 物联终端群体失败率 52%(原因值分布见饼图);主因接入受限,伴随多原因值,网络健康。",
       related: [
-        { code: "5GMM:22", cn: "非接入层拥塞", share: 19 },
+        { code: "5GMM:22", cn: "非接入层拥塞", share: 18 },
         { code: "5GSM:39", cn: "PDU 会话建立失败", share: 15 },
-        { code: "5GMM:24", cn: "协议不兼容", share: 11 },
+        { code: "5GMM:24", cn: "协议不兼容", share: 9 },
       ],
     },
     falseAlarm: {
