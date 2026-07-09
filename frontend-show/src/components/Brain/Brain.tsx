@@ -11,9 +11,9 @@ import { HudFrame } from "../shared/HudFrame";
 import { SkillLibrary } from "./SkillLibrary";
 
 const AGENTS = [
-  { id: 1, cn: "数据生成", en: "AGENT 1 · DATA GENERATION", role: "设计态 · 仿真 + LLM 自校验闭环", color: "#38bdf8" },
-  { id: 2, cn: "故障感知", en: "AGENT 2 · FAULT PERCEPTION", role: "运行态 · 置信度路由 + 推理(系统核心)", color: "#a78bfa", core: true },
-  { id: 3, cn: "评估优化", en: "AGENT 3 · EVALUATION", role: "设计态 · 真值比对 + 优化建议", color: "#2dd4bf" },
+  { id: 1, cn: "数据生成 Agent", en: "AGENT 1 · DATA GENERATION", role: "设计态 · 仿真 + LLM 自校验闭环", color: "#38bdf8" },
+  { id: 2, cn: "故障感知 Agent", en: "AGENT 2 · FAULT PERCEPTION", role: "运行态 · 方案决策 + 推理(系统核心)", color: "#a78bfa", core: true },
+  { id: 3, cn: "评估优化 Agent", en: "AGENT 3 · EVALUATION", role: "设计态 · 真值比对 + 优化建议", color: "#2dd4bf" },
 ];
 
 const ROUTERS = [
@@ -55,8 +55,9 @@ export function Brain({ state, scenario }: { state: StoryState; scenario: Scenar
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ ...styles.agentIdx, color: a.color, borderColor: a.color }}>{a.id}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? "#eaf4ff" : "#9fb0c9" }}>
-                        {a.cn}
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? "#eaf4ff" : "#9fb0c9", display: "flex", alignItems: "center", gap: 5 }}>
+                        <AgentGlyph color={isActive ? a.color : "#7e8aa3"} size={13} />
+                        <span>{a.cn}</span>
                         {a.core && <span style={styles.coreTag}>核心</span>}
                       </div>
                       <div style={{ fontSize: 8.5, letterSpacing: "0.08em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>{a.en}</div>
@@ -178,6 +179,22 @@ function StatusDot({ active, done, color }: { active: boolean; done: boolean; co
   const c = active ? color : done ? "#22c55e" : "#475569";
   return (
     <span style={{ width: 9, height: 9, borderRadius: "50%", background: c, boxShadow: active ? `0 0 10px ${c}` : "none", animation: active ? "blink 1.4s infinite" : undefined, flexShrink: 0 }} />
+  );
+}
+
+function AgentGlyph({ color, size = 14 }: { color: string; size?: number }) {
+  // 机器人头(天线 + 双眼 + 嘴 + 侧耳)—— 直观体现「这是一个 Agent」
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" style={{ flexShrink: 0 }} aria-hidden>
+      <circle cx="8" cy="1.2" r="1.1" fill={color} />
+      <line x1="8" y1="2.3" x2="8" y2="3.7" stroke={color} strokeWidth="1.1" />
+      <rect x="2.4" y="3.8" width="11.2" height="9" rx="2.2" fill="none" stroke={color} strokeWidth="1.3" />
+      <circle cx="5.7" cy="7.7" r="1.15" fill={color} />
+      <circle cx="10.3" cy="7.7" r="1.15" fill={color} />
+      <line x1="5.8" y1="10.5" x2="10.2" y2="10.5" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="2.4" y1="6.6" x2="0.9" y2="6.6" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+      <line x1="13.6" y1="6.6" x2="15.1" y2="6.6" stroke={color} strokeWidth="1.1" strokeLinecap="round" />
+    </svg>
   );
 }
 

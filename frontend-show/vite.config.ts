@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true, // 监听 0.0.0.0,允许同网段机器通过 IP 访问(展会大屏/他人调试)
     port: 5174,
     strictPort: false,
     proxy: {

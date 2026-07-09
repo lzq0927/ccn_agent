@@ -57,10 +57,11 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       nes: ["SMF_1"],
       causeCode: "5GSM:37",
       causeCn: "PDU 会话建立失败",
+      share: 64,
       detail: "SMF_1 会话建立失败集中于 5GSM#37,伴随少量终端侧干扰原因,已排除。",
       related: [
-        { code: "5GMM:23", cn: "鉴权失败(终端侧)" },
-        { code: "5GMM:24", cn: "协议不兼容(终端侧)" },
+        { code: "5GMM:23", cn: "鉴权失败(终端侧)", share: 14 },
+        { code: "5GMM:24", cn: "协议不兼容(终端侧)", share: 9 },
       ],
     },
     skillEvolution: {
@@ -97,11 +98,12 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       nes: ["gNB_2"],
       causeCode: "5GSM:37",
       causeCn: "物联终端群体接入失败",
+      share: 46,
       detail: "gNB_2 物联终端群体失败率 38%,集中涌现;主因接入受限,伴随多原因值,网络健康。",
       related: [
-        { code: "5GMM:22", cn: "非接入层拥塞" },
-        { code: "5GSM:39", cn: "PDU 会话建立失败" },
-        { code: "5GMM:24", cn: "协议不兼容" },
+        { code: "5GMM:22", cn: "非接入层拥塞", share: 19 },
+        { code: "5GSM:39", cn: "PDU 会话建立失败", share: 15 },
+        { code: "5GMM:24", cn: "协议不兼容", share: 11 },
       ],
     },
     falseAlarm: {

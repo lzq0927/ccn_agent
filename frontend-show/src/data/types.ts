@@ -109,8 +109,10 @@ export interface ChrInsight {
   causeCode: string;
   causeCn: string;
   detail: string;
+  /** 主导原因值占比(0-100),用于原因值分布饼图;缺省则按伴随数量估算 */
+  share?: number;
   /** 伴随的相关原因值(聚类旁证,场景 C/D) */
-  related?: { code: string; cn: string }[];
+  related?: { code: string; cn: string; share?: number }[];
 }
 
 /** 误报拦截 —— 朴素网络视角会误判的根因(场景 C) */

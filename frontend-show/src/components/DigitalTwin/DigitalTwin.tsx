@@ -269,52 +269,107 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
   );
 }
 
-/** CHR 用户级根因弹窗(场景 B/C/D):放大版,含主导原因值、聚类旁证与说明 */
+/** 环形饼图单段路径(角度从正上方顺时针,弧度制) */
+function donutSeg(cx: number, cy: number, rOut: number, rIn: number, a0: number, a1: number) {
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  const pt = (r: number, a: number): [number, number] => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+  const [sx0, sy0] = pt(rOut, a0);
+  const [ex0, ey0] = pt(rOut, a1);
+  const [sx1, sy1] = pt(rIn, a1);
+  const [ex1, ey1] = pt(rIn, a0);
+  return `M ${sx0} ${sy0} A ${rOut} ${rOut} 0 ${large} 1 ${ex0} ${ey0} L ${sx1} ${sy1} A ${rIn} ${rIn} 0 ${large} 0 ${ex1} ${ey1} Z`;
+}
+
+/** CHR 用户级根因弹窗(场景 B/C/D):放大版,含主导原因值、原因值分布饼图与说明 */
 function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: number } | undefined; chr: NonNullable<StoryState["chrPopup"]> }) {
   if (!node) return null;
   const w = 344;
   const related = chr.related ?? [];
-  const lines = wrap(chr.detail, 22);
-  const relPart = related.length > 0 ? 30 + related.length * 20 : 0;
-  const h = 26 + 66 + relPart + lines.length * 19 + 20;
+  const lines = wrap(chr.detail, 24);
+
+  // 原因值分布段(主导 + 伴随 + 其他);share 缺省时按叙事浓度给保守默认
+  const PIE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#2dd4bf", "#f472b6", "#facc15"];
+  const relRaw = related.map((r, i) => ({ label: r.cn, code: r.code, share: r.share ?? Math.max(4, 26 - i * 7) }));
+  const domShare = chr.share ?? Math.max(38, 70 - relRaw.reduce((a, r) => a + r.share, 0));
+  const used = domShare + relRaw.reduce((a, r) => a + r.share, 0);
+  const otherShare = Math.max(0, 100 - used);
+  const segs = [
+    { label: chr.causeCn, code: chr.causeCode, share: domShare, color: PIE_COLORS[0] },
+    ...relRaw.map((r, i) => ({ ...r, color: PIE_COLORS[(i + 1) % PIE_COLORS.length] })),
+    ...(otherShare >= 2 ? [{ label: "其他", code: "", share: otherShare, color: "#475569" }] : []),
+  ];
+  const segTotal = segs.reduce((a, s) => a + s.share, 0) || 1;
+
+  // 几何(相对弹窗左上角)
+  const yTitle = 19;
+  const yCauseLbl = 42;
+  const yCauseCn = 64;
+  const yCauseCode = 84;
+  const yDistLbl = 104;
+  const distTop = 114;
+  const pieR = 32, pieRIn = 18;
+  const rowH = 15;
+  const sectionH = Math.max(pieR * 2 + 8, segs.length * rowH + 10);
+  const pieCx = 48;
+  const pieCy = distTop + sectionH / 2;
+  const legendX = 96;
+  const legendY0 = distTop + 8;
+  const yDetailStart = distTop + sectionH + 8;
+  const h = yDetailStart + lines.length * 19 + 14;
+
   const cx = Math.min(node.x + 22, VIEW_W - w - 8);
   const cy = Math.max(8, node.y - h - 22);
-  // 文本基线(相对 cy)
-  const yTitle = cy + 19;
-  const yCauseLbl = cy + 46;
-  const yCauseCn = cy + 68;
-  const yCauseCode = cy + 88;
-  const yRelLbl = cy + 110;
-  const yRelStart = cy + 128;
-  const yDetailStart = related.length > 0 ? cy + 128 + related.length * 20 + 12 : cy + 108;
+
+  // 饼图角度累加
+  let acc = 0;
+  const arcs = segs.map((s) => {
+    const a0 = (acc / segTotal) * Math.PI * 2;
+    acc += s.share;
+    const a1 = (acc / segTotal) * Math.PI * 2;
+    return { ...s, a0, a1 };
+  });
+
   return (
-    <g style={{ animation: "float-up 0.4s ease" }}>
-      <line x1={node.x + 8} y1={node.y - 10} x2={cx + 14} y2={cy + h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.55} />
-      <rect x={cx} y={cy} width={w} height={h} rx={10} fill="rgba(4,7,15,0.93)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
+    <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
+      {/* 引线 */}
+      <line x1={node.x + 8 - cx} y1={node.y - 10 - cy} x2={14} y2={h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.55} />
+      <rect x={0} y={0} width={w} height={h} rx={10} fill="rgba(4,7,15,0.93)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
       {/* 标题条 */}
-      <path d={`M ${cx} ${cy + 10} Q ${cx} ${cy} ${cx + 10} ${cy} L ${cx + w - 10} ${cy} Q ${cx + w} ${cy} ${cx + w} ${cy + 10} L ${cx + w} ${cy + 22} L ${cx} ${cy + 22} Z`} fill="rgba(245,158,11,0.16)" />
-      <text x={cx + 12} y={yTitle} fontSize={13.5} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
+      <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(245,158,11,0.16)" />
+      <text x={12} y={yTitle} fontSize={13.5} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
         CHR · 用户级根因 @ {neId}
       </text>
       {/* 主导原因值 */}
-      <text x={cx + 12} y={yCauseLbl} fontSize={13} fill="#9fb0c9" fontFamily="var(--font-sans)" letterSpacing="0.04em">主导原因值</text>
-      <text x={cx + 12} y={yCauseCn} fontSize={19} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-sans)">{chr.causeCn}</text>
-      <text x={cx + 12} y={yCauseCode} fontSize={14} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">{chr.causeCode}</text>
-      {/* 聚类旁证(伴随原因值) */}
-      {related.length > 0 && (
-        <g>
-          <text x={cx + 12} y={yRelLbl} fontSize={13} fill="#9fb0c9" fontFamily="var(--font-sans)" letterSpacing="0.04em">伴随原因值</text>
-          {related.map((r, i) => (
-            <text key={i} x={cx + 12} y={yRelStart + i * 20} fontSize={14.5} fill="#dff1ff" fontFamily="var(--font-sans)">
-              · {r.cn}
-              <tspan dx={7} fill={STATUS.warning} fontFamily="var(--font-mono)" fontSize={12.5}>{r.code}</tspan>
-            </text>
-          ))}
-        </g>
-      )}
+      <text x={12} y={yCauseLbl} fontSize={13} fill="#9fb0c9" fontFamily="var(--font-sans)" letterSpacing="0.04em">主导原因值</text>
+      <text x={12} y={yCauseCn} fontSize={19} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-sans)">{chr.causeCn}</text>
+      <text x={12} y={yCauseCode} fontSize={14} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">{chr.causeCode}</text>
+      {/* 原因值分布:环形饼图 + 图例 */}
+      <text x={12} y={yDistLbl} fontSize={12} fill="#7e8aa3" fontFamily="var(--font-sans)" letterSpacing="0.06em">原因值分布</text>
+      <g>
+        {arcs.map((s, i) => (
+          <path key={i} d={donutSeg(pieCx, pieCy, pieR, pieRIn, s.a0, s.a1)} fill={s.color} opacity={0.92} stroke="rgba(4,7,15,0.9)" strokeWidth={0.8} />
+        ))}
+        <text x={pieCx} y={pieCy - 1} fontSize={15} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-mono)" textAnchor="middle">{Math.round(domShare)}%</text>
+        <text x={pieCx} y={pieCy + 12} fontSize={8.5} fill="#7e8aa3" fontFamily="var(--font-sans)" textAnchor="middle" letterSpacing="0.08em">主导占比</text>
+      </g>
+      <g>
+        {segs.map((s, i) => {
+          const ry = legendY0 + i * rowH + 4;
+          return (
+            <g key={i}>
+              <circle cx={legendX} cy={ry - 3.5} r={4} fill={s.color} />
+              <text x={legendX + 10} y={ry} fontSize={11} fill="#dff1ff" fontFamily="var(--font-sans)">
+                {s.label}
+                {s.code && <tspan dx={5} fill="#7e8aa3" fontFamily="var(--font-mono)" fontSize={9.5}>{s.code}</tspan>}
+              </text>
+              <text x={w - 12} y={ry} fontSize={11} fontWeight={700} fill={s.color} fontFamily="var(--font-mono)" textAnchor="end">{Math.round(s.share)}%</text>
+            </g>
+          );
+        })}
+      </g>
       {/* 说明 */}
       {lines.map((ln, i) => (
-        <text key={`d${i}`} x={cx + 12} y={yDetailStart + i * 19} fontSize={14} fill="#b8c8de" fontFamily="var(--font-sans)">{ln}</text>
+        <text key={`d${i}`} x={12} y={yDetailStart + i * 19} fontSize={13} fill="#b8c8de" fontFamily="var(--font-sans)">{ln}</text>
       ))}
     </g>
   );
