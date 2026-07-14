@@ -42,9 +42,9 @@ export function Gauge({ value, label, display, color, size = 92, sub }: Props) {
         </div>
       </div>
       {label && (
-        <div style={{ fontSize: 9, letterSpacing: "0.08em", color: "#7e8aa3", fontFamily: "var(--font-mono)", textAlign: "center" }}>{label}</div>
+        <div style={{ fontSize: 9, letterSpacing: "0.08em", color: "var(--text-dim)", fontFamily: "var(--font-mono)", textAlign: "center" }}>{label}</div>
       )}
-      {sub && <div style={{ fontSize: 8, color: "#5f6f87" }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 8, color: "var(--text-faint)" }}>{sub}</div>}
     </div>
   );
 }

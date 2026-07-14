@@ -6,6 +6,7 @@ import type { Scenario } from "../../data/types";
 import type { ClockApi } from "../../story/useStoryClock";
 import type { StoryState } from "../../story/types";
 import { STATUS } from "../../theme";
+import { THEMES, THEME_LABELS, useTheme } from "./ThemeContext";
 
 interface Props {
   clock: ClockApi;
@@ -23,19 +24,20 @@ const PILLARS = [
 ];
 
 export function TopBar({ clock, state, scenario, mode, onToggleMode, liveConnected }: Props) {
+  const { theme, setTheme } = useTheme();
   return (
     <div className="hud" style={{ borderRadius: 10, padding: "8px 16px", display: "flex", alignItems: "center", gap: 16 }}>
       {/* 标识 */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 230 }}>
-        <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg,#38bdf8,#a78bfa)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 16px rgba(56,189,248,0.5)" }}>
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: "linear-gradient(135deg, var(--accent), var(--accent-violet))", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 16px var(--accent-glow)" }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <path d="M12 2 L4 7 L4 17 L12 22 L20 17 L20 7 Z" stroke="#04070f" strokeWidth="2" fill="none" />
             <circle cx="12" cy="12" r="3.2" fill="#04070f" />
           </svg>
         </div>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "0.04em", color: "#eaf4ff", lineHeight: 1.1 }}>高稳智能体</div>
-          <div style={{ fontSize: 8.5, letterSpacing: "0.16em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>HIGH STABILITY AGENT · 5GC DIGITAL TWIN</div>
+          <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: "0.04em", color: "var(--text-bright)", lineHeight: 1.1 }}>高稳智能体</div>
+          <div style={{ fontSize: 8.5, letterSpacing: "0.16em", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>HIGH STABILITY AGENT · 5GC DIGITAL TWIN</div>
         </div>
       </div>
 
@@ -45,9 +47,9 @@ export function TopBar({ clock, state, scenario, mode, onToggleMode, liveConnect
           <span style={{ fontSize: 9, padding: "2px 8px", borderRadius: 4, border: `1px solid ${state.phase.color}66`, color: state.phase.glow, background: `${state.phase.color}14`, fontFamily: "var(--font-mono)", letterSpacing: "0.08em", whiteSpace: "nowrap" }}>
             PHASE {state.phaseIndex} · {state.phase.en}
           </span>
-          <span style={{ fontSize: 16, fontWeight: 800, color: "#eaf4ff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{state.headline}</span>
+          <span style={{ fontSize: 16, fontWeight: 800, color: "var(--text-bright)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{state.headline}</span>
         </div>
-        <div style={{ fontSize: 10.5, color: "#9fb0c9", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{state.subline}</div>
+        <div style={{ fontSize: 10.5, color: "var(--text-mid)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{state.subline}</div>
       </div>
 
       {/* 控件 */}
@@ -67,7 +69,7 @@ export function TopBar({ clock, state, scenario, mode, onToggleMode, liveConnect
                     borderRadius: 4,
                     fontFamily: "var(--font-mono)",
                     letterSpacing: "0.04em",
-                    color: on ? p.color : "#475569",
+                    color: on ? p.color : "var(--text-faint)",
                     border: `1px solid ${on ? p.color + "88" : "rgba(71,85,105,0.4)"}`,
                     background: on ? p.color + "1a" : "transparent",
                     boxShadow: on ? `0 0 9px ${p.color}55` : "none",
@@ -88,7 +90,7 @@ export function TopBar({ clock, state, scenario, mode, onToggleMode, liveConnect
         </button>
 
         {/* 变速 */}
-        <div style={{ display: "flex", gap: 3, padding: 3, border: "1px solid rgba(56,189,248,0.18)", borderRadius: 7 }}>
+        <div style={{ display: "flex", gap: 3, padding: 3, border: "1px solid var(--border)", borderRadius: 7 }}>
           {[0.5, 1, 2].map((sp) => (
             <button key={sp} className={clock.speed === sp ? "btn active" : "btn"} onClick={() => clock.setSpeed(sp)} style={{ padding: "4px 7px", fontSize: 9.5 }}>
               {sp}×
@@ -107,6 +109,22 @@ export function TopBar({ clock, state, scenario, mode, onToggleMode, liveConnect
             "DEMO"
           )}
         </button>
+
+        {/* 主题:深邃 / 暮光 / 明亮 */}
+        <div style={{ display: "flex", gap: 3, padding: 3, border: "1px solid var(--border)", borderRadius: 7 }}>
+          {THEMES.map((t) => (
+            <button
+              key={t}
+              className={theme === t ? "btn active" : "btn"}
+              onClick={() => setTheme(t)}
+              title={`主题 · ${THEME_LABELS[t]}`}
+              aria-label={`切换主题为 ${THEME_LABELS[t]}`}
+              style={{ padding: "4px 7px", fontSize: 9.5 }}
+            >
+              {THEME_LABELS[t]}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -31,7 +31,7 @@ export function Brain({ state, scenario }: { state: StoryState; scenario: Scenar
   return (
     <HudFrame title="高稳智能体 · 大脑架构" subtitle="HIGH STABILITY AGENT · 3-LOOP BRAIN" tall>
       {/* 神经脑动机 */}
-      <BrainMotif active={active !== 0} color={active ? AGENTS[active - 1].color : "#38bdf8"} />
+      <BrainMotif active={active !== 0} color={active ? AGENTS[active - 1].color : "var(--accent)"} />
 
       {/* 三 Agent 管线 */}
       <div style={styles.pipeWrap}>
@@ -47,24 +47,24 @@ export function Brain({ state, scenario }: { state: StoryState; scenario: Scenar
                 <div
                   style={{
                     ...styles.agent,
-                    borderColor: isActive ? a.color : "rgba(56,189,248,0.16)",
-                    background: isActive ? `${a.color}14` : "rgba(10,16,30,0.5)",
+                    borderColor: isActive ? a.color : "var(--accent-medium)",
+                    background: isActive ? `${a.color}14` : "var(--bg-panel)",
                     boxShadow: isActive ? `0 0 18px ${a.color}40, inset 0 0 16px ${a.color}10` : "none",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <div style={{ ...styles.agentIdx, color: a.color, borderColor: a.color }}>{a.id}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? "#eaf4ff" : "#9fb0c9", display: "flex", alignItems: "center", gap: 5 }}>
-                        <AgentGlyph color={isActive ? a.color : "#7e8aa3"} size={13} />
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isActive ? "var(--text-bright)" : "var(--text-mid)", display: "flex", alignItems: "center", gap: 5 }}>
+                        <AgentGlyph color={isActive ? a.color : "var(--text-dim)"} size={13} />
                         <span>{a.cn}</span>
                         {a.core && <span style={styles.coreTag}>核心</span>}
                       </div>
-                      <div style={{ fontSize: 8.5, letterSpacing: "0.08em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>{a.en}</div>
+                      <div style={{ fontSize: 8.5, letterSpacing: "0.08em", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{a.en}</div>
                     </div>
                     <StatusDot active={isActive} done={done} color={a.color} />
                   </div>
-                  <div style={{ fontSize: 9.5, color: "#7e8aa3", marginTop: 5 }}>{a.role}</div>
+                  <div style={{ fontSize: 9.5, color: "var(--text-dim)", marginTop: 5 }}>{a.role}</div>
                   {/* Agent 2 内部:展开路由 + Loop */}
                   {a.id === 2 && (
                     <Agent2Internals state={state} route={route} conf={conf} active={isActive} />
@@ -82,9 +82,9 @@ export function Brain({ state, scenario }: { state: StoryState; scenario: Scenar
 
       {/* 认知状态读数 */}
       <div style={styles.readout}>
-        <Readout label="激活智能体" value={active === 0 ? "待命" : `AGENT ${active}`} color={active ? AGENTS[active - 1].color : "#7e8aa3"} />
-        <Readout label="路由策略" value={route ? ROUTE_COLORS[route].label : "—"} color={route ? ROUTE_COLORS[route].base : "#7e8aa3"} />
-        <Readout label="置信度" value={conf ? conf.score.toFixed(2) : "—"} color={conf ? (conf.score > 0.7 ? "#22c55e" : conf.score > 0.3 ? "#38bdf8" : "#a78bfa") : "#7e8aa3"} />
+        <Readout label="激活智能体" value={active === 0 ? "待命" : `AGENT ${active}`} color={active ? AGENTS[active - 1].color : "var(--text-dim)"} />
+        <Readout label="路由策略" value={route ? ROUTE_COLORS[route].label : "—"} color={route ? ROUTE_COLORS[route].base : "var(--text-dim)"} />
+        <Readout label="置信度" value={conf ? conf.score.toFixed(2) : "—"} color={conf ? (conf.score > 0.7 ? "#22c55e" : conf.score > 0.3 ? "#38bdf8" : "#a78bfa") : "var(--text-dim)"} />
       </div>
 
       {/* 常驻技能库(能力沉淀) */}
@@ -97,7 +97,7 @@ function Agent2Internals({ state, route, conf, active }: { state: StoryState; ro
   return (
     <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px dashed rgba(167,139,250,0.2)", opacity: active ? 1 : 0.55 }}>
       {/* 置信度路由三分支 */}
-      <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", marginBottom: 4, fontFamily: "var(--font-mono)" }}>CONFIDENCE ROUTER</div>
+      <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", marginBottom: 4, fontFamily: "var(--font-mono)" }}>CONFIDENCE ROUTER</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {ROUTERS.map((r) => {
           const on = route === r.key;
@@ -105,22 +105,22 @@ function Agent2Internals({ state, route, conf, active }: { state: StoryState; ro
           return (
             <div key={r.key} style={{ ...styles.routerRow, borderColor: on ? rc.base : "rgba(56,189,248,0.1)", background: on ? `${rc.base}18` : "transparent" }}>
               <span style={{ ...styles.routerDot, background: on ? rc.base : "transparent", borderColor: rc.base, boxShadow: on ? `0 0 8px ${rc.base}` : "none" }} />
-              <span style={{ fontSize: 9.5, color: on ? "#eaf4ff" : "#8a9bb5", fontWeight: on ? 700 : 400 }}>{r.cn}</span>
-              <span style={{ marginLeft: "auto", fontSize: 8.5, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>{r.cond}</span>
-              <span style={{ fontSize: 8, color: "#475569", fontFamily: "var(--font-mono)", width: 64, textAlign: "right" }}>{r.iter}</span>
+              <span style={{ fontSize: 9.5, color: on ? "var(--text-bright)" : "var(--text-mid)", fontWeight: on ? 700 : 400 }}>{r.cn}</span>
+              <span style={{ marginLeft: "auto", fontSize: 8.5, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{r.cond}</span>
+              <span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)", width: 64, textAlign: "right" }}>{r.iter}</span>
             </div>
           );
         })}
         <div style={{ ...styles.routerRow, borderColor: route === "exploration" ? ROUTE_COLORS.exploration.base : "rgba(244,114,182,0.12)", background: route === "exploration" ? `${ROUTE_COLORS.exploration.base}18` : "transparent" }}>
           <span style={{ ...styles.routerDot, borderColor: ROUTE_COLORS.exploration.base, background: route === "exploration" ? ROUTE_COLORS.exploration.base : "transparent" }} />
-          <span style={{ fontSize: 9.5, color: route === "exploration" ? "#eaf4ff" : "#8a9bb5" }}>多算法探索(EXPLORATION)</span>
-          <span style={{ marginLeft: "auto", fontSize: 8.5, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>CHR 触发</span>
+          <span style={{ fontSize: 9.5, color: route === "exploration" ? "var(--text-bright)" : "var(--text-mid)" }}>多算法探索(EXPLORATION)</span>
+          <span style={{ marginLeft: "auto", fontSize: 8.5, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>CHR 触发</span>
         </div>
       </div>
 
       {/* Agent Loop 迭代进度 */}
       <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>AGENT LOOP</span>
+        <span style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>AGENT LOOP</span>
         <div style={{ flex: 1, display: "flex", gap: 3 }}>
           {Array.from({ length: Math.min(state.reasoningTotal, 12) }).map((_, i) => (
             <span
@@ -135,7 +135,7 @@ function Agent2Internals({ state, route, conf, active }: { state: StoryState; ro
             />
           ))}
         </div>
-        <span style={{ fontSize: 9, color: "#9fb0c9", fontFamily: "var(--font-mono)" }}>
+        <span style={{ fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>
           {state.reasoningSteps.length}/{state.reasoningTotal}
         </span>
       </div>
@@ -176,7 +176,7 @@ function BrainMotif({ active, color }: { active: boolean; color: string }) {
 }
 
 function StatusDot({ active, done, color }: { active: boolean; done: boolean; color: string }) {
-  const c = active ? color : done ? "#22c55e" : "#475569";
+  const c = active ? color : done ? "#22c55e" : "var(--text-faint)";
   return (
     <span style={{ width: 9, height: 9, borderRadius: "50%", background: c, boxShadow: active ? `0 0 10px ${c}` : "none", animation: active ? "blink 1.4s infinite" : undefined, flexShrink: 0 }} />
   );
@@ -231,10 +231,10 @@ function FeedbackBar({ on }: { on: boolean }) {
         <path d="M 20 14 L 16 11 M 20 14 L 16 17" fill="none" stroke={c} strokeWidth="1.2" />
       </svg>
       <div style={{ flex: 1 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: on ? "#5eead4" : "#7e8aa3" }}>优化反馈回环</div>
-        <div style={{ fontSize: 8, letterSpacing: "0.06em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>Agent 3 → Agent 1 + 2 · FEEDBACK</div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: on ? "#5eead4" : "var(--text-dim)" }}>优化反馈回环</div>
+        <div style={{ fontSize: 8, letterSpacing: "0.06em", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>Agent 3 → Agent 1 + 2 · FEEDBACK</div>
       </div>
-      <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, fontFamily: "var(--font-mono)", color: on ? "#5eead4" : "#475569", border: `1px solid ${on ? "#2dd4bf55" : "#334155"}` }}>
+      <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, fontFamily: "var(--font-mono)", color: on ? "#5eead4" : "var(--text-faint)", border: `1px solid ${on ? "#2dd4bf55" : "#334155"}` }}>
         {on ? "● FLOWING" : "○ IDLE"}
       </span>
     </div>
@@ -244,7 +244,7 @@ function FeedbackBar({ on }: { on: boolean }) {
 function Readout({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div style={{ flex: 1, textAlign: "center" }}>
-      <div style={{ fontSize: 8.5, letterSpacing: "0.08em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>{label}</div>
+      <div style={{ fontSize: 8.5, letterSpacing: "0.08em", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: "var(--font-mono)", marginTop: 2 }}>{value}</div>
     </div>
   );
@@ -261,6 +261,6 @@ const styles: Record<string, React.CSSProperties> = {
   coreTag: { fontSize: 8, marginLeft: 6, padding: "1px 5px", borderRadius: 3, background: "rgba(167,139,250,0.2)", color: "#c4b5fd", border: "1px solid rgba(167,139,250,0.4)", verticalAlign: "middle" },
   routerRow: { display: "flex", alignItems: "center", gap: 6, border: "1px solid", borderRadius: 5, padding: "3px 6px", transition: "all 0.3s" },
   routerDot: { width: 7, height: 7, borderRadius: "50%", border: "1px solid", flexShrink: 0 },
-  chip: { fontSize: 8.5, padding: "1px 6px", borderRadius: 3, background: "rgba(56,189,248,0.08)", border: "1px solid rgba(56,189,248,0.18)", color: "#9fc3e0", fontFamily: "var(--font-mono)" },
-  readout: { display: "flex", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(56,189,248,0.14)" },
+  chip: { fontSize: 8.5, padding: "1px 6px", borderRadius: 3, background: "var(--accent-soft)", border: "1px solid var(--border)", color: "#9fc3e0", fontFamily: "var(--font-mono)" },
+  readout: { display: "flex", gap: 6, marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--accent-a20)" },
 };

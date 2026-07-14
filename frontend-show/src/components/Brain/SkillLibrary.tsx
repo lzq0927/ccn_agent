@@ -26,14 +26,14 @@ export function SkillLibrary({ scenario, state }: Props) {
         marginTop: 8,
         padding: "7px 9px",
         borderRadius: 7,
-        border: `1px solid ${formed ? accent + "66" : "rgba(56,189,248,0.14)"}`,
+        border: `1px solid ${formed ? accent + "66" : "var(--accent-a20)"}`,
         background: formed ? `${accent}10` : "transparent",
         transition: "all 0.5s ease",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-        <span style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>技能库 · SKILL LIBRARY</span>
-        <span style={{ marginLeft: "auto", fontSize: 8, color: "#475569", fontFamily: "var(--font-mono)" }}>
+        <span style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>技能库 · SKILL LIBRARY</span>
+        <span style={{ marginLeft: "auto", fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
           {se ? (formed ? (reused > 0 ? `累计复用 ${reused} 次` : "首次沉淀") : "探索中 · 待沉淀") : "0 skills"}
         </span>
       </div>
@@ -46,7 +46,7 @@ export function SkillLibrary({ scenario, state }: Props) {
               padding: "3px 8px",
               borderRadius: 4,
               fontFamily: "var(--font-mono)",
-              color: formed ? accent : "#8a9bb5",
+              color: formed ? accent : "var(--text-mid)",
               border: `1px solid ${formed ? accent + "88" : "rgba(71,85,105,0.4)"}`,
               background: formed ? `${accent}14` : "transparent",
               boxShadow: formed ? `0 0 8px ${accent}44` : "none",
@@ -60,12 +60,12 @@ export function SkillLibrary({ scenario, state }: Props) {
               下次命中率 ↑ {(se.nextHitRate * 100).toFixed(0)}%
             </span>
           )}
-          <span style={{ fontSize: 8, color: "#475569", fontFamily: "var(--font-mono)", marginLeft: "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginLeft: "auto", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             @{se.skillId}
           </span>
         </div>
       ) : (
-        <div style={{ fontSize: 9, color: "#5f6f87", textAlign: "center", padding: "2px 0" }}>
+        <div style={{ fontSize: 9, color: "var(--text-faint)", textAlign: "center", padding: "2px 0" }}>
           确定性工作流直达根因 · 置信度足够 · 无需沉淀技能
         </div>
       )}

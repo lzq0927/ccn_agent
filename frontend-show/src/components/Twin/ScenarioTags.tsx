@@ -16,7 +16,7 @@ export function ScenarioTags({ scenarios, scenario, onSelect }: Props) {
   return (
     <div className="hud" style={{ borderRadius: 10, padding: "7px 11px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: "0.12em", color: "#cde7ff", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>场景</span>
+        <span style={{ fontSize: 12.5, fontWeight: 800, letterSpacing: "0.12em", color: "var(--text-soft)", fontFamily: "var(--font-sans)", whiteSpace: "nowrap" }}>场景</span>
         <div style={{ display: "flex", gap: 5 }}>
           {scenarios.map((s) => {
             const active = s.id === scenario.id;
@@ -37,7 +37,7 @@ export function ScenarioTags({ scenarios, scenario, onSelect }: Props) {
       </div>
 
       {/* 当前场景目标 + 简介(常驻,给观者上下文) */}
-      <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: "#eaf4ff", lineHeight: 1.4 }} title={scenario.intro}>
+      <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: "var(--text-bright)", lineHeight: 1.4 }} title={scenario.intro}>
         ▸ {scenario.objective ?? scenario.tagline}
       </div>
       {scenario.intro && (
@@ -45,7 +45,7 @@ export function ScenarioTags({ scenarios, scenario, onSelect }: Props) {
           style={{
             marginTop: 3,
             fontSize: 11.5,
-            color: "#aebfd8",
+            color: "var(--text-mid)",
             lineHeight: 1.5,
           }}
         >

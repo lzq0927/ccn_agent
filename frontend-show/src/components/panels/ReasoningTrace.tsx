@@ -26,13 +26,13 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
       title="Agent 推理链 · 根因定位"
       subtitle="HERMES AGENT LOOP"
       right={
-        <span style={{ fontSize: 8, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>
+        <span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
           {steps.length}/{state.reasoningTotal} 步
         </span>
       }
     >
       <div ref={scrollRef} style={{ display: "flex", flexDirection: "column", gap: 5, paddingRight: 2 }}>
-        {steps.length === 0 && <div style={{ fontSize: 10, color: "#5f6f87", textAlign: "center", padding: "20px 0" }}>等待 Agent Loop 启动…</div>}
+        {steps.length === 0 && <div style={{ fontSize: 10, color: "var(--text-faint)", textAlign: "center", padding: "20px 0" }}>等待 Agent Loop 启动…</div>}
         {steps.map((s, i) => {
           const m = TYPE_META[s.type] ?? TYPE_META.thinking;
           const isLast = i === steps.length - 1;
@@ -69,7 +69,7 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
                 <div
                   style={{
                     fontSize: isLast ? 12 : 10,
-                    color: isLast ? "#eaf4ff" : "#cdd9ea",
+                    color: isLast ? "var(--text-bright)" : "var(--text-detail)",
                     lineHeight: 1.4,
                     fontWeight: isLast ? 600 : 400,
                     ...(isLast ? {} : { display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }),
@@ -80,8 +80,8 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
                 {s.result && isLast && (
                   <div
                     style={{
-                      marginTop: 4, fontSize: 9, color: "#9fb0c9", fontFamily: "var(--font-mono)",
-                      background: "rgba(4,7,15,0.5)", borderLeft: `2px solid ${m.color}`, padding: "3px 7px", borderRadius: 3, lineHeight: 1.4,
+                      marginTop: 4, fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)",
+                      background: "var(--twin-readout-bg)", borderLeft: `2px solid ${m.color}`, padding: "3px 7px", borderRadius: 3, lineHeight: 1.4,
                     }}
                   >
                     {s.result}

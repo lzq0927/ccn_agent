@@ -40,7 +40,7 @@ export function Radar({ axes, color, size = 150 }: Props) {
       {axes.map((a, i) => {
         const [x, y] = point(i, r + 13);
         return (
-          <text key={i} x={x} y={y} fontSize={8} fill="#8a9bb5" textAnchor="middle" fontFamily="var(--font-mono)" style={{ letterSpacing: "0.02em" }}>
+          <text key={i} x={x} y={y} fontSize={8} fill="var(--text-mid)" textAnchor="middle" fontFamily="var(--font-mono)" style={{ letterSpacing: "0.02em" }}>
             {a.label}
           </text>
         );

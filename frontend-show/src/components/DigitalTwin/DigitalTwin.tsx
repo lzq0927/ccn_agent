@@ -97,12 +97,12 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
           </feMerge>
         </filter>
         <radialGradient id="node-healthy" cx="50%" cy="40%" r="70%">
-          <stop offset="0%" stopColor="#13203a" />
-          <stop offset="100%" stopColor="#070d1c" />
+          <stop offset="0%" stopColor="var(--twin-node-bg-1)" />
+          <stop offset="100%" stopColor="var(--twin-node-bg-2)" />
         </radialGradient>
         <radialGradient id="node-fault" cx="50%" cy="40%" r="70%">
-          <stop offset="0%" stopColor="#3a1218" />
-          <stop offset="100%" stopColor="#180608" />
+          <stop offset="0%" stopColor="var(--twin-fault-bg-1)" />
+          <stop offset="100%" stopColor="var(--twin-fault-bg-2)" />
         </radialGradient>
         {g.flowEdges.map((e) => {
           const L = edgeLine(e.a, e.b);
@@ -111,8 +111,8 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
       </defs>
 
       {/* DC 容器 */}
-      <rect x={56} y={46} width={968} height={568} rx={14} fill="rgba(56,189,248,0.025)" stroke="rgba(56,189,248,0.14)" strokeDasharray="2 6" />
-      <text x={66} y={40} fill="#7e8aa3" fontSize={11} fontFamily="var(--font-mono)" letterSpacing="0.18em">
+      <rect x={56} y={46} width={968} height={568} rx={14} fill="var(--accent-a12)" stroke="var(--twin-edge)" strokeDasharray="2 6" />
+      <text x={66} y={40} fill="var(--text-dim)" fontSize={11} fontFamily="var(--font-mono)" letterSpacing="0.18em">
         DC1 · 5GC SA CORE · DIGITAL TWIN
       </text>
 
@@ -123,7 +123,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
       <g opacity={0.9}>
         {g.registryEdges.map((e) => {
           const L = edgeLine(e.a, e.b);
-          return <line key={e.id} x1={L.x1} y1={L.y1} x2={L.x2} y2={L.y2} stroke="rgba(148,163,184,0.12)" strokeWidth={0.8} />;
+          return <line key={e.id} x1={L.x1} y1={L.y1} x2={L.x2} y2={L.y2} stroke="var(--twin-registry)" strokeWidth={0.8} />;
         })}
       </g>
 
@@ -135,7 +135,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
           const degraded = sr < threshold;
           const isReroute = rerouteSet.has(e.id);
           const isFocus = focusSet.has(e.a) || focusSet.has(e.b) || rootSet.has(e.a) || rootSet.has(e.b);
-          const baseColor = dense ? "rgba(56,189,248,0.14)" : "rgba(56,189,248,0.28)";
+          const baseColor = dense ? "var(--accent-a20)" : "var(--accent-a28)";
           const color = isReroute ? STATUS.recovered : degraded ? srColor(sr) : baseColor;
           const dashClass = isReroute ? "flow-dash-fast" : "flow-dash";
           const width = isReroute ? 3.4 : isFocus ? 2.2 : dense ? 0.8 + e.weight * 0.25 : 1.3 + e.weight * 0.5;
@@ -178,7 +178,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
           const isCurrentStep = currentStepNes.has(n.id) && state.phaseIndex === 4; // 步骤-拓扑联动
           const isFalseAlarm = falseAlarmNe === n.id; // 场景 C:误报标记
           const tc = NE_COLORS[n.type] ?? { base: "#38bdf8", glow: "#7dd3fc" };
-          const ringColor = isCordoned ? "#64748b" : isUserFaultGnb ? STATUS.warning : degraded ? STATUS.fault : isFocus ? tc.glow : tc.base;
+          const ringColor = isCordoned ? "var(--text-faint)" : isUserFaultGnb ? STATUS.warning : degraded ? STATUS.fault : isFocus ? tc.glow : tc.base;
           const fillUrl = degraded && !isUserFaultGnb ? "url(#node-fault)" : "url(#node-healthy)";
           return (
             <g key={n.id} transform={`translate(${n.x} ${n.y})`}>
@@ -218,13 +218,13 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
                 </g>
               )}
               {isCordoned && (
-                <rect x={-R - 7} y={-R - 7} width={(R + 7) * 2} height={(R + 7) * 2} rx={6} fill="none" stroke="#64748b" strokeWidth={1.2} strokeDasharray="3 3" />
+                <rect x={-R - 7} y={-R - 7} width={(R + 7) * 2} height={(R + 7) * 2} rx={6} fill="none" stroke="var(--text-faint)" strokeWidth={1.2} strokeDasharray="3 3" />
               )}
               <circle r={R} fill={fillUrl} stroke={ringColor} strokeWidth={isFocus || isRoot ? 2.6 : 1.6} filter={isFocus || isRoot || degraded ? "url(#twin-glow)" : undefined} />
-              <text y={3} textAnchor="middle" fontSize={9.5} fontWeight={700} fill={isCordoned ? "#94a3b8" : tc.glow} fontFamily="var(--font-mono)">
+              <text y={3} textAnchor="middle" fontSize={9.5} fontWeight={700} fill={isCordoned ? "var(--text-mid)" : tc.glow} fontFamily="var(--font-mono)">
                 {n.type}
               </text>
-              <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? (isUserFaultGnb ? STATUS.warning : STATUS.faultGlow) : isCordoned ? "#64748b" : "#9fb0c9"} fontFamily="var(--font-mono)">
+              <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? (isUserFaultGnb ? STATUS.warning : STATUS.faultGlow) : isCordoned ? "var(--text-faint)" : "var(--text-mid)"} fontFamily="var(--font-mono)">
                 {n.id}
               </text>
               {/* 劣化 SR% —— 用户级异常 gNB 改显示 UE 数(上方已有),网络故障 NE 显示 SR% */}
@@ -251,14 +251,14 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
 
       {/* 实时读数 */}
       <g transform={`translate(${VIEW_W - 188} 60)`}>
-        <rect x={0} y={0} width={178} height={74} rx={8} fill="rgba(4,7,15,0.7)" stroke="rgba(56,189,248,0.25)" />
-        <text x={12} y={20} fontSize={9} fill="#7e8aa3" fontFamily="var(--font-mono)" letterSpacing="0.1em">
+        <rect x={0} y={0} width={178} height={74} rx={8} fill="var(--twin-readout-bg)" stroke="var(--accent-a28)" />
+        <text x={12} y={20} fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)" letterSpacing="0.1em">
           LIVE · T={simT.toFixed(0)}s
         </text>
         <text x={12} y={42} fontSize={20} fontWeight={700} fill={srColor(overallSr)} fontFamily="var(--font-mono)">
           {(overallSr * 100).toFixed(2)}%
         </text>
-        <text x={104} y={42} fontSize={9} fill="#7e8aa3" fontFamily="var(--font-mono)">
+        <text x={104} y={42} fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)">
           overall SR
         </text>
         <text x={12} y={62} fontSize={9} fill={userFault ? STATUS.warning : degradedCount > 0 ? STATUS.fault : STATUS.healthy} fontFamily="var(--font-mono)">
@@ -333,24 +333,24 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
       {/* 引线 */}
       <line x1={node.x + 8 - cx} y1={node.y - 10 - cy} x2={14} y2={h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.55} />
-      <rect x={0} y={0} width={w} height={h} rx={10} fill="rgba(4,7,15,0.93)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
+      <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
       {/* 标题条 */}
       <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(245,158,11,0.16)" />
       <text x={12} y={yTitle} fontSize={13.5} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
         CHR · 用户级根因 @ {neId}
       </text>
       {/* 主导原因值 */}
-      <text x={12} y={yCauseLbl} fontSize={13} fill="#9fb0c9" fontFamily="var(--font-sans)" letterSpacing="0.04em">主导原因值</text>
-      <text x={12} y={yCauseCn} fontSize={19} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-sans)">{chr.causeCn}</text>
+      <text x={12} y={yCauseLbl} fontSize={13} fill="var(--text-mid)" fontFamily="var(--font-sans)" letterSpacing="0.04em">主导原因值</text>
+      <text x={12} y={yCauseCn} fontSize={19} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-sans)">{chr.causeCn}</text>
       <text x={12} y={yCauseCode} fontSize={14} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">{chr.causeCode}</text>
       {/* 原因值分布:环形饼图 + 图例 */}
-      <text x={12} y={yDistLbl} fontSize={12} fill="#7e8aa3" fontFamily="var(--font-sans)" letterSpacing="0.06em">原因值分布</text>
+      <text x={12} y={yDistLbl} fontSize={12} fill="var(--text-dim)" fontFamily="var(--font-sans)" letterSpacing="0.06em">原因值分布</text>
       <g>
         {arcs.map((s, i) => (
-          <path key={i} d={donutSeg(pieCx, pieCy, pieR, pieRIn, s.a0, s.a1)} fill={s.color} opacity={0.92} stroke="rgba(4,7,15,0.9)" strokeWidth={0.9} />
+          <path key={i} d={donutSeg(pieCx, pieCy, pieR, pieRIn, s.a0, s.a1)} fill={s.color} opacity={0.92} stroke="var(--twin-callout-bg)" strokeWidth={0.9} />
         ))}
-        <text x={pieCx} y={pieCy - 2} fontSize={20} fontWeight={800} fill="#eaf4ff" fontFamily="var(--font-mono)" textAnchor="middle">{Math.round(domShare)}%</text>
-        <text x={pieCx} y={pieCy + 14} fontSize={9} fill="#7e8aa3" fontFamily="var(--font-sans)" textAnchor="middle" letterSpacing="0.08em">主导占比</text>
+        <text x={pieCx} y={pieCy - 2} fontSize={20} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-mono)" textAnchor="middle">{Math.round(domShare)}%</text>
+        <text x={pieCx} y={pieCy + 14} fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-sans)" textAnchor="middle" letterSpacing="0.08em">主导占比</text>
       </g>
       <g>
         {segs.map((s, i) => {
@@ -358,9 +358,9 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
           return (
             <g key={i}>
               <circle cx={legendX} cy={ry - 4} r={4.5} fill={s.color} />
-              <text x={legendX + 11} y={ry} fontSize={12.5} fill="#dff1ff" fontFamily="var(--font-sans)">
+              <text x={legendX + 11} y={ry} fontSize={12.5} fill="var(--text-soft)" fontFamily="var(--font-sans)">
                 {s.label}
-                {s.code && <tspan dx={6} fill="#7e8aa3" fontFamily="var(--font-mono)" fontSize={10.5}>{s.code}</tspan>}
+                {s.code && <tspan dx={6} fill="var(--text-dim)" fontFamily="var(--font-mono)" fontSize={10.5}>{s.code}</tspan>}
               </text>
               <text x={w - 12} y={ry} fontSize={12.5} fontWeight={700} fill={s.color} fontFamily="var(--font-mono)" textAnchor="end">{Math.round(s.share)}%</text>
             </g>
@@ -369,7 +369,7 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
       </g>
       {/* 说明 */}
       {lines.map((ln, i) => (
-        <text key={`d${i}`} x={12} y={yDetailStart + i * 19} fontSize={13} fill="#b8c8de" fontFamily="var(--font-sans)">{ln}</text>
+        <text key={`d${i}`} x={12} y={yDetailStart + i * 19} fontSize={13} fill="var(--text-detail)" fontFamily="var(--font-sans)">{ln}</text>
       ))}
     </g>
   );
@@ -381,15 +381,15 @@ function UeCluster({ nodes, active, anomaly, userFaultGnbs }: { nodes: NetworkGr
   const ueYs = [300, 340, 380];
   return (
     <g>
-      <text x={4} y={252} fontSize={11.5} fontWeight={700} fill="#9fb0c9" fontFamily="var(--font-sans)" letterSpacing="0.04em">
+      <text x={4} y={252} fontSize={11.5} fontWeight={700} fill="var(--text-mid)" fontFamily="var(--font-sans)" letterSpacing="0.04em">
         在网用户
       </text>
-      <text x={4} y={273} fontSize={16} fontWeight={800} fill="#dff3ff" fontFamily="var(--font-sans)" letterSpacing="0.02em">
+      <text x={4} y={273} fontSize={16} fontWeight={800} fill="var(--text-soft)" fontFamily="var(--font-sans)" letterSpacing="0.02em">
         12.8万
       </text>
       {ueYs.map((y, i) => (
         <g key={i}>
-          <circle cx={26} cy={y} r={5} fill={anomaly ? STATUS.fault : "#38bdf8"} opacity={0.9} filter="url(#twin-glow)" />
+          <circle cx={26} cy={y} r={5} fill={anomaly ? STATUS.fault : "var(--accent)"} opacity={0.9} filter="url(#twin-glow)" />
           {gnbs.map((nd, j) => {
             const ug = userFaultGnbs.has(nd.id);
             return (
@@ -399,7 +399,7 @@ function UeCluster({ nodes, active, anomaly, userFaultGnbs }: { nodes: NetworkGr
                 y1={y}
                 x2={nd.x - R}
                 y2={nd.y}
-                stroke={ug ? "rgba(245,158,11,0.45)" : anomaly && j === 0 ? "rgba(239,68,68,0.3)" : "rgba(56,189,248,0.16)"}
+                stroke={ug ? "rgba(245,158,11,0.45)" : anomaly && j === 0 ? "rgba(239,68,68,0.3)" : "var(--accent-medium)"}
                 strokeWidth={ug ? 1.1 : 0.8}
                 className={active ? "flow-dash" : undefined}
               />

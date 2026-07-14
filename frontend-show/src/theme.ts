@@ -56,18 +56,8 @@ export const PHASES: PhaseDef[] = [
   { id: 7, key: "evaluation", cn: "评估优化", en: "AGENT 3 · EVALUATION", color: "#2dd4bf", glow: "#5eead4" },
 ];
 
-export const COLORS = {
-  bg: "#04070f",
-  bgPanel: "rgba(10, 16, 30, 0.72)",
-  bgPanelSolid: "#0a1020",
-  border: "rgba(56, 189, 248, 0.18)",
-  borderStrong: "rgba(56, 189, 248, 0.4)",
-  text: "#e2e8f0",
-  textDim: "#7e8aa3",
-  textFaint: "#475569",
-  accent: "#38bdf8",
-  accentViolet: "#a78bfa",
-};
+// 注:界面结构色已统一为 global.css 的 CSS 变量(<html data-theme> 切换)。
+// 此处仅保留与数据语义绑定的常量(健康/网元/路由/相位色等),它们跨主题不变。
 
 export const FONT = {
   mono: 'ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, monospace',

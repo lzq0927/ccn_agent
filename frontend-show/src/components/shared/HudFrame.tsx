@@ -23,7 +23,7 @@ export function HudFrame({ title, subtitle, right, bodyStyle, bodyClass, childre
           {title}
         </span>
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {subtitle && <span style={{ color: "#5f6f87" }}>{subtitle}</span>}
+          {subtitle && <span style={{ color: "var(--text-faint)" }}>{subtitle}</span>}
           {right}
         </span>
       </div>

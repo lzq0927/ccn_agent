@@ -13,8 +13,8 @@ export function GenerationPanel({ scenario, state }: { scenario: Scenario; state
   const checks = state.generationChecks;
 
   return (
-    <HudFrame title="数据采集 · 多维校验" subtitle="AGENT 1 · DATA COLLECTION" right={<span style={{ fontSize: 8, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>case_{scenario.id}</span>}>
-      <div style={{ fontSize: 10, color: "#9fb0c9", marginBottom: 8, lineHeight: 1.5 }}>
+    <HudFrame title="数据采集 · 多维校验" subtitle="AGENT 1 · DATA COLLECTION" right={<span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>case_{scenario.id}</span>}>
+      <div style={{ fontSize: 10, color: "var(--text-mid)", marginBottom: 8, lineHeight: 1.5 }}>
         现网实时采集网络遥测(KPI / 拓扑 / 业务流),LLM 校验器从 5 个维度检查数据质量;不通过则重新采集(自校验闭环)。
       </div>
 
@@ -29,7 +29,7 @@ export function GenerationPanel({ scenario, state }: { scenario: Scenario; state
       </div>
 
       {/* 校验灯 */}
-      <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", fontFamily: "var(--font-mono)", marginBottom: 6 }}>LLM VALIDATOR · 5 CHECKS</div>
+      <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>LLM VALIDATOR · 5 CHECKS</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         {checks.map((c, i) => {
           const lit = reveal > (i + 0.2) / checks.length;
@@ -42,27 +42,27 @@ export function GenerationPanel({ scenario, state }: { scenario: Scenario; state
                   boxShadow: lit ? `0 0 8px ${STATUS.healthy}` : "none", animation: lit && i === Math.floor(reveal * checks.length) - 1 ? "blink 0.8s 2" : undefined,
                 }}
               />
-              <span style={{ fontSize: 10, color: lit ? "#cde7ff" : "#7e8aa3", flex: 1 }}>{c.cn}</span>
-              <span style={{ fontSize: 8, color: lit ? STATUS.healthy : "#475569", fontFamily: "var(--font-mono)" }}>{lit ? "PASS" : "····"}</span>
+              <span style={{ fontSize: 10, color: lit ? "var(--text-soft)" : "var(--text-dim)", flex: 1 }}>{c.cn}</span>
+              <span style={{ fontSize: 8, color: lit ? STATUS.healthy : "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{lit ? "PASS" : "····"}</span>
             </div>
           );
         })}
       </div>
 
       {/* 进度 */}
-      <div style={{ marginTop: 10, height: 6, borderRadius: 3, background: "rgba(56,189,248,0.08)", overflow: "hidden" }}>
+      <div style={{ marginTop: 10, height: 6, borderRadius: 3, background: "var(--accent-soft)", overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${reveal * 100}%`, background: STATUS.notice, boxShadow: `0 0 8px ${STATUS.notice}`, transition: "width 0.4s ease" }} className="shimmer" />
       </div>
-      <div style={{ fontSize: 9, color: "#5f6f87", marginTop: 5, fontFamily: "var(--font-mono)" }}>{reveal >= 1 ? "✓ 校验通过 · 用例入库" : "校验中…"}</div>
+      <div style={{ fontSize: 9, color: "var(--text-faint)", marginTop: 5, fontFamily: "var(--font-mono)" }}>{reveal >= 1 ? "✓ 校验通过 · 用例入库" : "校验中…"}</div>
     </HudFrame>
   );
 }
 
 function Meta({ k, v }: { k: string; v: string }) {
   return (
-    <div style={{ border: "1px solid rgba(56,189,248,0.12)", borderRadius: 5, padding: "4px 7px", background: "rgba(10,16,30,0.5)" }}>
-      <div style={{ fontSize: 8, color: "#5f6f87", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>{k}</div>
-      <div style={{ fontSize: 10.5, color: "#cde7ff", fontFamily: "var(--font-mono)", marginTop: 1 }}>{v}</div>
+    <div style={{ border: "1px solid rgba(56,189,248,0.12)", borderRadius: 5, padding: "4px 7px", background: "var(--bg-panel)" }}>
+      <div style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>{k}</div>
+      <div style={{ fontSize: 10.5, color: "var(--text-soft)", fontFamily: "var(--font-mono)", marginTop: 1 }}>{v}</div>
     </div>
   );
 }

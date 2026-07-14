@@ -53,8 +53,8 @@ export function KpiPanel({
 
   return (
     <HudFrame title="网络 KPI · 实时遥测" subtitle="OVERALL SUCCESS RATE" right={<LiveTag on={state.showAnomaly} />}>
-      <div style={{ fontSize: 11, color: "#9fb0c9", marginBottom: 6 }}>
-        全网 <b style={{ color: "#eaf4ff" }}>{g.flowEdges.length}</b> 条业务链路聚合成功率 · <span style={{ color: STATUS.warning }}>动态阈值</span>
+      <div style={{ fontSize: 11, color: "var(--text-mid)", marginBottom: 6 }}>
+        全网 <b style={{ color: "var(--text-bright)" }}>{g.flowEdges.length}</b> 条业务链路聚合成功率 · <span style={{ color: STATUS.warning }}>动态阈值</span>
       </div>
       <svg viewBox={`0 0 ${CW} ${CH}`} width="100%" height={CH} style={{ display: "block" }}>
         {/* 故障窗阴影 */}
@@ -75,13 +75,13 @@ export function KpiPanel({
         <Stat label="当前" value={`${(cur * 100).toFixed(2)}%`} color={srColor(cur)} />
         <Stat label="最低" value={`${(min * 100).toFixed(2)}%`} color={STATUS.fault} />
         <Stat label="故障窗" value={`T${kpi.faultStart}-${kpi.faultEnd}`} color={STATUS.warning} />
-        <Stat label="游标" value={`T${state.simT.toFixed(0)}`} color="#38bdf8" />
+        <Stat label="游标" value={`T${state.simT.toFixed(0)}`} color="var(--accent)" />
       </div>
 
       {/* 代表链路 sparkline */}
       {degradedEdges.length > 0 && (
         <div style={{ marginTop: 10, borderTop: "1px solid rgba(56,189,248,0.12)", paddingTop: 8 }}>
-          <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", fontFamily: "var(--font-mono)", marginBottom: 6 }}>DEGRADED LINKS · SPARKLINE</div>
+          <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>DEGRADED LINKS · SPARKLINE</div>
           {degradedEdges.map((e) => {
             const es = kpi.edges[e.id];
             const ecv = sample(es, state.simT);
@@ -91,7 +91,7 @@ export function KpiPanel({
             const sPath = es.map((v, i) => `${i === 0 ? "M" : "L"} ${((i / (es.length - 1)) * SW).toFixed(1)} ${sy(v).toFixed(1)}`).join(" ");
             return (
               <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ width: 96, fontSize: 9, color: "#8a9bb5", fontFamily: "var(--font-mono)" }}>
+                <span style={{ width: 96, fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>
                   {g.nodeById[e.a]?.id}↔{g.nodeById[e.b]?.id}
                 </span>
                 <svg style={{ flex: 1 }} height={SH} viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none">
@@ -110,7 +110,7 @@ export function KpiPanel({
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div style={{ flex: 1, textAlign: "center" }}>
-      <div style={{ fontSize: 8, letterSpacing: "0.08em", color: "#5f6f87", fontFamily: "var(--font-mono)" }}>{label}</div>
+      <div style={{ fontSize: 8, letterSpacing: "0.08em", color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{label}</div>
       <div style={{ fontSize: 11, fontWeight: 700, color, fontFamily: "var(--font-mono)", marginTop: 1 }}>{value}</div>
     </div>
   );

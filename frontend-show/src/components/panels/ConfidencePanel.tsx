@@ -24,11 +24,11 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
   ];
 
   return (
-    <HudFrame title="智能研判" subtitle="INTELLIGENT JUDGMENT" right={<span style={{ fontSize: 8, color: "#5f6f87", fontFamily: "var(--font-mono)" }}>Agent 2</span>}>
+    <HudFrame title="智能研判" subtitle="INTELLIGENT JUDGMENT" right={<span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>Agent 2</span>}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <Gauge value={conf.score * rev} display={(conf.score * rev).toFixed(2)} color={rc.base} size={96} label="CONFIDENCE" />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", fontFamily: "var(--font-mono)", marginBottom: 4 }}>ROUTED TO</div>
+          <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 4 }}>ROUTED TO</div>
           <div
             style={{
               fontSize: 17, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)",
@@ -38,18 +38,18 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
           >
             {rc.label}
           </div>
-          <div style={{ fontSize: 9.5, color: "#9fb0c9", marginTop: 6, textAlign: "center" }}>{rc.cn}</div>
-          <div style={{ fontSize: 9, color: "#7e8aa3", marginTop: 4 }}>
-            模式:<span style={{ color: "#cde7ff" }}>{conf.patternName}</span>
+          <div style={{ fontSize: 9.5, color: "var(--text-mid)", marginTop: 6, textAlign: "center" }}>{rc.cn}</div>
+          <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 4 }}>
+            模式:<span style={{ color: "var(--text-soft)" }}>{conf.patternName}</span>
           </div>
-          <div style={{ fontSize: 9, color: "#7e8aa3" }}>
-            受影响 NE:<span style={{ color: STATUS.warning }}>{conf.affectedNeCount}</span> · 匹配 Skill:<span style={{ color: "#cde7ff" }}>{conf.matchedSkills.length || "—"}</span>
+          <div style={{ fontSize: 9, color: "var(--text-dim)" }}>
+            受影响 NE:<span style={{ color: STATUS.warning }}>{conf.affectedNeCount}</span> · 匹配 Skill:<span style={{ color: "var(--text-soft)" }}>{conf.matchedSkills.length || "—"}</span>
           </div>
         </div>
       </div>
 
       {/* 加权分解 */}
-      <div style={{ marginTop: 12, fontSize: 8.5, letterSpacing: "0.1em", color: "#5f6f87", fontFamily: "var(--font-mono)", marginBottom: 6 }}>WEIGHTED DECOMPOSITION</div>
+      <div style={{ marginTop: 12, fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>WEIGHTED DECOMPOSITION</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         {parts.map((p) => {
           const contrib = p.v * p.w * p.sign;
@@ -58,15 +58,15 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
           return (
             <div key={p.en}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, marginBottom: 2 }}>
-                <span style={{ color: "#9fb0c9" }}>
-                  {p.cn} <span style={{ color: "#5f6f87", fontFamily: "var(--font-mono)" }}>×{p.w}</span>
+                <span style={{ color: "var(--text-mid)" }}>
+                  {p.cn} <span style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>×{p.w}</span>
                 </span>
-                <span style={{ fontFamily: "var(--font-mono)", color: isNeg ? STATUS.fault : "#cde7ff" }}>
+                <span style={{ fontFamily: "var(--font-mono)", color: isNeg ? STATUS.fault : "var(--text-soft)" }}>
                   {contrib >= 0 ? "+" : ""}
                   {contrib.toFixed(3)}
                 </span>
               </div>
-              <div style={{ height: 6, borderRadius: 3, background: "rgba(56,189,248,0.08)", overflow: "hidden" }}>
+              <div style={{ height: 6, borderRadius: 3, background: "var(--accent-soft)", overflow: "hidden" }}>
                 <div
                   style={{
                     height: "100%",
@@ -80,13 +80,13 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
             </div>
           );
         })}
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, paddingTop: 6, borderTop: "1px dashed rgba(56,189,248,0.18)" }}>
-          <span style={{ fontSize: 10, color: "#7e8aa3" }}>Σ 最终评分</span>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, paddingTop: 6, borderTop: "1px dashed var(--border)" }}>
+          <span style={{ fontSize: 10, color: "var(--text-dim)" }}>Σ 最终评分</span>
           <span style={{ fontSize: 14, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)" }}>{(conf.score * rev).toFixed(3)}</span>
         </div>
       </div>
 
-      <div style={{ marginTop: 8, fontSize: 9, color: "#5f6f87", fontFamily: "var(--font-mono)", lineHeight: 1.5 }}>
+      <div style={{ marginTop: 8, fontSize: 9, color: "var(--text-faint)", fontFamily: "var(--font-mono)", lineHeight: 1.5 }}>
         阈值: &gt;0.7 → WORKFLOW · 0.3~0.7 → GUIDED · ≤0.3 → AUTONOMOUS;CHR 集中失败 → EXPLORATION(优先)
       </div>
     </HudFrame>

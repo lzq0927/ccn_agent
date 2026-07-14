@@ -182,16 +182,16 @@ export default function App() {
                   <span className="dot" />
                   数字孪生 · 网络本体
                 </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 10, color: "#5f6f87" }}>
+                <span style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--text-faint)" }}>
                   {isLive ? (
                     <>
                       <span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, color: "#22c55e", border: "1px solid #22c55e55", fontFamily: "var(--font-mono)" }}>真实遥测</span>
-                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "#7e8aa3" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9, color: "var(--text-dim)" }}>
                         用例
                         <select
                           value={liveCaseId ?? ""}
                           onChange={(e) => setLiveCaseId(Number(e.target.value))}
-                          style={{ background: "#0a1020", color: "#cde7ff", border: "1px solid rgba(56,189,248,0.3)", borderRadius: 4, padding: "2px 4px", fontSize: 9, fontFamily: "var(--font-mono)" }}
+                          style={{ background: "var(--bg-panel-solid)", color: "var(--text-soft)", border: "1px solid var(--border-strong)", borderRadius: 4, padding: "2px 4px", fontSize: 9, fontFamily: "var(--font-mono)" }}
                         >
                           {liveCases.map((c) => (
                             <option key={c.case_id} value={c.case_id}>
@@ -228,7 +228,7 @@ export default function App() {
                           borderRadius: 5,
                           color: state.phase.glow,
                           border: `1px solid ${state.phase.color}88`,
-                          background: "rgba(4,7,15,0.8)",
+                          background: "var(--twin-readout-bg)",
                           boxShadow: `0 0 9px ${state.phase.color}44`,
                           fontFamily: "var(--font-sans)",
                           letterSpacing: "0.02em",
@@ -266,7 +266,7 @@ export default function App() {
 
         {/* LIVE 模式说明条 */}
         {mode === "live" && (
-          <div style={{ position: "fixed", bottom: 12, right: 16, fontSize: 9, color: liveConnected ? "#22c55e" : "#ef4444", fontFamily: "var(--font-mono)", background: "rgba(4,7,15,0.8)", padding: "4px 9px", borderRadius: 6, border: `1px solid ${liveConnected ? "#22c55e44" : "#ef444444"}`, maxWidth: 360, lineHeight: 1.5 }}>
+          <div style={{ position: "fixed", bottom: 12, right: 16, fontSize: 9, color: liveConnected ? "#22c55e" : "#ef4444", fontFamily: "var(--font-mono)", background: "var(--twin-readout-bg)", padding: "4px 9px", borderRadius: 6, border: `1px solid ${liveConnected ? "#22c55e44" : "#ef444444"}`, maxWidth: 360, lineHeight: 1.5 }}>
             {liveConnected
               ? isLive
                 ? "● 真实遥测驱动孪生 · 置信度为实时估算 · 评估假定命中(真实诊断需运行 Agent 2/3 闭环)"

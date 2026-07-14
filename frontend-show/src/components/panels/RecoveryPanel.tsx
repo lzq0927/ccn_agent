@@ -19,12 +19,12 @@ export function RecoveryPanel({ state }: { state: StoryState }) {
       subtitle="HIGH STABILITY AUTO-RECOVERY"
       right={<span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, color: done ? STATUS.recovered : STATUS.faultGlow, border: `1px solid ${done ? STATUS.recovered : STATUS.fault}55`, fontFamily: "var(--font-mono)" }}>{done ? "● HEALED" : "● EXECUTING"}</span>}
     >
-      <div style={{ fontSize: 10, color: "#9fb0c9", marginBottom: 8, lineHeight: 1.5 }}>
+      <div style={{ fontSize: 10, color: "var(--text-mid)", marginBottom: 8, lineHeight: 1.5 }}>
         高稳智能体基于根因 <span style={{ color: "#fb7185" }}>{state.rootCause.nes.join(", ") || state.rootCause.links.join(", ")}</span> 下发恢复策略,数字孪生执行隔离 / 重路由 / 主备切换。
       </div>
 
       {/* 自愈进度 */}
-      <div style={{ height: 8, borderRadius: 4, background: "rgba(56,189,248,0.08)", overflow: "hidden", marginBottom: 10, border: "1px solid rgba(56,189,248,0.15)" }}>
+      <div style={{ height: 8, borderRadius: 4, background: "var(--accent-soft)", overflow: "hidden", marginBottom: 10, border: "1px solid rgba(56,189,248,0.15)" }}>
         <div
           style={{
             height: "100%",
@@ -62,16 +62,16 @@ export function RecoveryPanel({ state }: { state: StoryState }) {
                 {isLast ? "▶" : "✓"}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: "#eaf4ff", fontWeight: 600 }}>{a.cn}</div>
-                <div style={{ fontSize: 8.5, color: "#5f6f87", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>{a.en}</div>
+                <div style={{ fontSize: 11, color: "var(--text-bright)", fontWeight: 600 }}>{a.cn}</div>
+                <div style={{ fontSize: 8.5, color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>{a.en}</div>
               </div>
             </div>
           );
         })}
-        {actions.length === 0 && <div style={{ fontSize: 10, color: "#5f6f87", textAlign: "center", padding: "16px 0" }}>等待根因确认后下发恢复策略…</div>}
+        {actions.length === 0 && <div style={{ fontSize: 10, color: "var(--text-faint)", textAlign: "center", padding: "16px 0" }}>等待根因确认后下发恢复策略…</div>}
       </div>
 
-      <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px dashed rgba(56,189,248,0.18)", fontSize: 9, color: "#5f6f87", lineHeight: 1.5 }}>
+      <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px dashed var(--border)", fontSize: 9, color: "var(--text-faint)", lineHeight: 1.5 }}>
         <span style={{ color: STATUS.recovered }}>●</span> 恢复后 KPI 回升,数字孪生验证业务成功率恢复至基线,进入评估闭环。
       </div>
     </HudFrame>
