@@ -135,6 +135,7 @@
   --twin-registry: rgba(100, 116, 139, 0.2);
   --twin-readout-bg: rgba(255, 255, 255, 0.85);
   --twin-callout-bg: rgba(255, 255, 255, 0.96);
+  --ne-type-fill: var(--text-bright);
   color-scheme: light;
 }
 

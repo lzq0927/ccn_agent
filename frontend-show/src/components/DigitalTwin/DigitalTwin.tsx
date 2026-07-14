@@ -209,7 +209,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
               {isCurrentStep && (
                 <g>
                   <circle r={R + 5} fill="none" stroke={tc.glow} strokeWidth={1.1} className="alert-ring" opacity={0.7} />
-                  <text y={R + 26} textAnchor="middle" fontSize={8} fontWeight={700} fill={tc.glow} fontFamily="var(--font-mono)">▶ 当前排查</text>
+                  <text y={R + 26} textAnchor="middle" fontSize={8} fontWeight={700} fill={`var(--ne-type-fill, ${tc.glow})`} fontFamily="var(--font-mono)">▶ 当前排查</text>
                 </g>
               )}
               {isRoot && (
@@ -221,7 +221,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
                 <rect x={-R - 7} y={-R - 7} width={(R + 7) * 2} height={(R + 7) * 2} rx={6} fill="none" stroke="var(--text-faint)" strokeWidth={1.2} strokeDasharray="3 3" />
               )}
               <circle r={R} fill={fillUrl} stroke={ringColor} strokeWidth={isFocus || isRoot ? 2.6 : 1.6} filter={isFocus || isRoot || degraded ? "url(#twin-glow)" : undefined} />
-              <text y={3} textAnchor="middle" fontSize={9.5} fontWeight={700} fill={isCordoned ? "var(--text-mid)" : tc.glow} fontFamily="var(--font-mono)">
+              <text y={3} textAnchor="middle" fontSize={9.5} fontWeight={700} fill={isCordoned ? "var(--text-mid)" : `var(--ne-type-fill, ${tc.glow})`} fontFamily="var(--font-mono)">
                 {n.type}
               </text>
               <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? (isUserFaultGnb ? STATUS.warning : STATUS.faultGlow) : isCordoned ? "var(--text-faint)" : "var(--text-mid)"} fontFamily="var(--font-mono)">
