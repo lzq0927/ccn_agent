@@ -23,14 +23,14 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
     comparison: {
       naive: {
         title: "仅网络聚合 KPI",
-        verdict: "AMF↔SMF 普遍异常·易误报 SMF",
+        verdict: "AMF↔SMF 普遍异常·易误报",
         detail: "AMF↔SMF 路径普遍劣化,朴素归因误指 SMF 或 AMF 链路",
         kind: "falsealarm",
       },
       explored: {
         title: "确定性工作流(均质化比较)",
         verdict: "秒级锁定 UPF_1 根因",
-        detail: "AMF/SMF 均质化排除 + UPF 均质化 → UPF_1",
+        detail: "AMF/SMF 均质化排除 + UPF 故障聚合 → UPF_1",
       },
     },
     homogen: {

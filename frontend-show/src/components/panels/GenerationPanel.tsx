@@ -8,7 +8,6 @@ import { STATUS } from "../../theme";
 import { HudFrame } from "../shared/HudFrame";
 
 export function GenerationPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
-  const f = scenario.fault;
   const reveal = state.generationChecksReveal;
   const checks = state.generationChecks;
   const nodes = scenario.realGraph?.nodes.length ?? 0;
@@ -24,7 +23,7 @@ export function GenerationPanel({ scenario, state }: { scenario: Scenario; state
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 10 }}>
         <Collected k="KPI 时序" v="链路·会话·追踪" />
         <Collected k="网络拓扑" v={`${nodes} 网元`} />
-        <Collected k="业务流程" v={`${f.ueCount} UE`} />
+        <Collected k="业务流程" v="PDU 会话建立、注册" />
         <Collected k="CHR 记录" v="呼叫历史" />
       </div>
 
@@ -60,12 +59,12 @@ export function GenerationPanel({ scenario, state }: { scenario: Scenario; state
 
 function Collected({ k, v }: { k: string; v: string }) {
   return (
-    <div style={{ border: "1px solid rgba(34,197,94,0.25)", borderRadius: 5, padding: "4px 7px", background: "rgba(34,197,94,0.06)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <div style={{ border: "1px solid rgba(34,197,94,0.3)", borderRadius: 5, padding: "5px 8px", background: "rgba(34,197,94,0.08)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: STATUS.healthy, boxShadow: `0 0 5px ${STATUS.healthy}` }} />
-        <span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>{k}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, color: STATUS.healthy, fontFamily: "var(--font-sans)", letterSpacing: "0.02em" }}>{k}</span>
       </div>
-      <div style={{ fontSize: 10, color: "var(--text-soft)", fontFamily: "var(--font-mono)", marginTop: 2 }}>{v}</div>
+      <div style={{ fontSize: 9, color: "var(--text-dim)", fontFamily: "var(--font-mono)", paddingLeft: 11 }}>{v}</div>
     </div>
   );
 }
