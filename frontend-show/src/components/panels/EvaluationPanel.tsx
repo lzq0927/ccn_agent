@@ -34,7 +34,7 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
     { label: "逻辑连贯", value: ev.traceAxes.logicalCoherence },
     { label: "工具效率", value: ev.traceAxes.toolEfficiency },
     { label: "证据质量", value: ev.traceAxes.evidenceQuality },
-    { label: "信号完备", value: 1 - ev.traceAxes.missedSignals },
+    { label: "信号覆盖", value: 1 - ev.traceAxes.missedSignals },
   ];
 
   return (
@@ -75,10 +75,11 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>TRACE QUALITY</div>
           <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text-bright)", fontFamily: "var(--font-mono)" }}>{(ev.traceAxes.overall * 100).toFixed(0)}</div>
-          <div style={{ fontSize: 9, color: "var(--text-dim)" }}>推理链综合评分 / 100</div>
-          <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 4 }}>
-            信号漏检率:<span style={{ color: ev.traceAxes.missedSignals > 0.4 ? STATUS.fault : STATUS.warning }}>{(ev.traceAxes.missedSignals * 100).toFixed(0)}%</span>
-            <span style={{ color: "var(--text-faint)" }}>(推理链未纳入的异常信号占比)</span>
+          <div style={{ fontSize: 9, color: "var(--text-dim)" }}>推理链综合评分 / 100(4 维加权平均)</div>
+          <div style={{ fontSize: 8.5, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginTop: 5, lineHeight: 1.65 }}>
+            逻辑连贯 {(ev.traceAxes.logicalCoherence * 100).toFixed(0)} · 工具效率 {(ev.traceAxes.toolEfficiency * 100).toFixed(0)}
+            <br />
+            证据质量 {(ev.traceAxes.evidenceQuality * 100).toFixed(0)} · 信号覆盖 {((1 - ev.traceAxes.missedSignals) * 100).toFixed(0)}
           </div>
         </div>
       </div>
