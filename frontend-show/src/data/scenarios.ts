@@ -17,8 +17,8 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
     cn: "核心网 UPF 异常·确定性工作流定位",
     en: "UPF FAULT · DETERMINISTIC WORKFLOW",
     tagline: "UPF_1 微损 · 前端 AMF↔SMF 路径普遍异常 · 均质化比较秒级锁定 UPF_1",
-    intro: "核心网 UPF_1 微损,异常传导至前端 AMF↔SMF 通信路径普遍劣化。确定性工作流先均质化比较排除 AMF/SMF 共性异常,再对 UPF 通信路径均质化比较,定位唯一离群点 UPF_1,隔离后流量切换至 UPF POOL 内 UPF_2/UPF_3。",
-    objective: "UPF_1 微损 · 均质化比较排除 AMF/SMF + 定位 UPF_1",
+    intro: "核心网 UPF_1 微损,异常传导至前端 AMF↔SMF 通信路径普遍劣化。AMF-SMF 路径呈均质化异常(AMF、SMF 全实例共性劣化),据此排除 AMF/SMF;再对 UPF 路径均质化比较,定位唯一离群点 UPF_1,隔离后流量切至 UPF POOL 内 UPF_2/UPF_3。",
+    objective: "UPF_1 微损 · AMF-SMF 路径均质化异常排除 + 定位 UPF_1",
     pillars: { userLevel: false, autonomy: true },
     comparison: {
       naive: {
@@ -37,7 +37,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       anchorNe: "UPF_1",
       rounds: [
         {
-          type: "AMF / SMF",
+          type: "AMF / SMF 通信路径",
           instances: [
             { id: "AMF_1", anomalous: true },
             { id: "AMF_2", anomalous: true },
@@ -46,17 +46,27 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
             { id: "SMF_2", anomalous: true },
           ],
           verdict: "exclude",
-          note: "全实例共性异常 · 非单点根因 → 排除",
+          note: "AMF-SMF 路径均质化异常(全实例共性劣化)→ 非单点根因",
         },
         {
-          type: "UPF",
+          type: "接入 / 签约侧",
+          instances: [
+            { id: "gNB_1", anomalous: false },
+            { id: "UDM_1", anomalous: false },
+            { id: "PCF_1", anomalous: false },
+          ],
+          verdict: "normal",
+          note: "gNB 接入、UDM/PCF 通信均正常 → 印证 AMF/SMF 本体健康",
+        },
+        {
+          type: "UPF 通信路径",
           instances: [
             { id: "UPF_1", anomalous: true },
             { id: "UPF_2", anomalous: false },
             { id: "UPF_3", anomalous: false },
           ],
           verdict: "root",
-          note: "仅 UPF_1 异常 · 离群 → 根因",
+          note: "仅 UPF_1 异常、UPF_2/3 正常 → 离群根因",
         },
       ],
     },
@@ -86,22 +96,32 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       anchorNe: "UDM_1",
       rounds: [
         {
-          type: "SMF",
+          type: "SMF 通信路径",
           instances: [
             { id: "SMF_1", anomalous: true },
             { id: "SMF_2", anomalous: true },
           ],
           verdict: "exclude",
-          note: "多 SMF 共性异常 · 非单点根因 → 排除",
+          note: "多 SMF 共性异常 · 非单点根因",
         },
         {
-          type: "UDM",
+          type: "接入 / 转发侧",
+          instances: [
+            { id: "gNB_1", anomalous: false },
+            { id: "AMF_1", anomalous: false },
+            { id: "UPF_2", anomalous: false },
+          ],
+          verdict: "normal",
+          note: "gNB/AMF 接入、UPF 转发均正常 → 排除接入与转发侧",
+        },
+        {
+          type: "UDM 通信路径",
           instances: [
             { id: "UDM_1", anomalous: true },
             { id: "UDM_2", anomalous: false },
           ],
           verdict: "root",
-          note: "UDM_1 集中度最高 · 离群 → 根因",
+          note: "仅 UDM_1 异常 → 离群根因",
         },
       ],
     },

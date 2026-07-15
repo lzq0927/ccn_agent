@@ -24,7 +24,7 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
   return (
     <HudFrame
       title="Agent 推理链 · 根因定位"
-      subtitle="HERMES AGENT LOOP"
+      subtitle="AGENT LOOP"
       right={
         <span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>
           {steps.length}/{state.reasoningTotal} 步
@@ -72,7 +72,6 @@ export function ReasoningTrace({ state }: { state: StoryState }) {
                     color: isLast ? "var(--text-bright)" : "var(--text-detail)",
                     lineHeight: 1.4,
                     fontWeight: isLast ? 600 : 400,
-                    ...(isLast ? {} : { display: "-webkit-box", WebkitLineClamp: 1, WebkitBoxOrient: "vertical", overflow: "hidden" }),
                   }}
                 >
                   {s.text}

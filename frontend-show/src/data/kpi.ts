@@ -1,5 +1,5 @@
 // ============================================================================
-// KPI 时序生成器 —— 忠实复刻 simulator 的 success_rate 签名
+// KPI 时序生成器 —— 忠实复刻 simulator 的 success_rate 曲线形态
 //   基线 0.997~0.999(背景噪声);故障窗 [faultStart, faultStart+duration) 内
 //   受影响实体按 lossRate 矩形下跌至 ~0.85~0.97;窗后恢复。
 // ============================================================================
@@ -90,7 +90,7 @@ export function buildKpi(fault: FaultSpec): KpiBundle {
 }
 
 /**
- * 图感知 KPI 合成 —— 与 buildKpi 同签名逻辑,但作用在任意 NetworkGraph 上。
+ * 图感知 KPI 合成 —— 与 buildKpi 同逻辑,但作用在任意 NetworkGraph 上。
  * 用于构造式演示场景(真实拓扑 + 合成遥测)。opts.propagate>0 时,根因 NE 的
  * 邻居(共享业务链路)按比例轻度劣化,呈现「多网元异常表象」的传播感。
  */

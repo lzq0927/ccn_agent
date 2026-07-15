@@ -121,7 +121,7 @@ const CONFIDENCE_A: ConfidenceBreakdown = {
   ambiguity: 0.12,
   score: 0.76,
   route: "workflow",
-  patternName: "upf_homogenization (UPF 均质化比较签名)",
+  patternName: "upf_homogenization (UPF 均质化比较)",
   matchedSkills: ["core/homogenization_compare", "core/fault_aggregation"],
   affectedNeCount: 1,
 };
@@ -306,7 +306,7 @@ const CONFIDENCE_D: ConfidenceBreakdown = {
   ambiguity: 0.08,
   score: 0.74,
   route: "workflow",
-  patternName: "udm_homogenization (均质化对比签名)",
+  patternName: "udm_homogenization (均质化对比)",
   matchedSkills: ["core/homogenization_compare", "core/fault_aggregation"],
   affectedNeCount: 1,
 };

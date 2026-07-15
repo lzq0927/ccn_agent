@@ -144,7 +144,7 @@ export interface SkillEvolution {
 export interface HomogenRound {
   type: string; // NE 类型分组,如 "AMF / SMF" / "UPF"
   instances: { id: string; anomalous: boolean }[];
-  verdict: "exclude" | "root"; // 共性→排除 / 离群→根因
+  verdict: "exclude" | "normal" | "root"; // 共性→排除 / 正常→排除(旁证) / 离群→根因
   note: string;
 }
 /** 均质化比较结果(场景 A/D) */

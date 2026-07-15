@@ -454,14 +454,19 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
         const chipsY = base + 20;
         const noteY = base + 56;
         const isRoot = r.verdict === "root";
+        const isNormal = r.verdict === "normal";
+        const tagFill = isRoot ? "rgba(245,158,11,0.18)" : isNormal ? "rgba(34,197,94,0.16)" : "rgba(148,163,184,0.14)";
+        const tagStroke = isRoot ? STATUS.warning : isNormal ? STATUS.healthy : "rgba(148,163,184,0.7)";
+        const tagColor = isRoot ? STATUS.warning : isNormal ? STATUS.healthy : "var(--text-mid)";
+        const tagText = isRoot ? "离群 · 根因" : isNormal ? "正常 · 排除" : "共性 · 排除";
         return (
           <g key={ri}>
             <text x={12} y={typeY} fontSize={12} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">{r.type}</text>
             {/* 结论标签 */}
             <g transform={`translate(${w - 12 - 92} ${typeY - 11})`}>
-              <rect width={92} height={15} rx={4} fill={isRoot ? "rgba(245,158,11,0.18)" : "rgba(148,163,184,0.14)"} stroke={isRoot ? STATUS.warning : "rgba(148,163,184,0.7)"} strokeWidth={0.8} />
-              <text x={46} y={11} fontSize={10} fontWeight={700} fill={isRoot ? STATUS.warning : "var(--text-mid)"} textAnchor="middle" fontFamily="var(--font-mono)">
-                {isRoot ? "离群 · 根因" : "共性 · 排除"}
+              <rect width={92} height={15} rx={4} fill={tagFill} stroke={tagStroke} strokeWidth={0.8} />
+              <text x={46} y={11} fontSize={10} fontWeight={700} fill={tagColor} textAnchor="middle" fontFamily="var(--font-mono)">
+                {tagText}
               </text>
             </g>
             {/* 实例 chip 行:异常红 / 正常绿 */}

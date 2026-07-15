@@ -36,22 +36,25 @@ export function KpiPanel({
   const series = kpi.overall;
   const steps = series.length;
   const cur = sample(series, state.simT);
-  const min = Math.min(...series);
+  // 渐进绘制:仅画到当前游标 —— 异常检测前整条线保持健康基线,异常随游标推进才显现
+  const drawCount = Math.max(2, Math.min(steps, Math.floor(state.simT) + 1));
+  const visSeries = series.slice(0, drawCount);
+  const min = Math.min(...visSeries);
   const xOf = (i: number) => (i / (steps - 1)) * CW;
-  const linePath = series.map((v, i) => `${i === 0 ? "M" : "L"} ${xOf(i).toFixed(1)} ${yOf(v).toFixed(1)}`).join(" ");
-  const areaPath = `${linePath} L ${CW} ${CH} L 0 ${CH} Z`;
+  const linePath = visSeries.map((v, i) => `${i === 0 ? "M" : "L"} ${xOf(i).toFixed(1)} ${yOf(v).toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L ${xOf(drawCount - 1).toFixed(1)} ${CH} L 0 ${CH} Z`;
   const winX0 = xOf(kpi.faultStart - 1);
   const winX1 = xOf(kpi.faultEnd - 1);
   const curX = xOf(Math.max(0, Math.min(steps - 1, state.simT - 1)));
+  const showAnomaly = state.showAnomaly;
 
   // 代表性链路 sparkline —— 劣化 + 正常(均质化对照)
-  // 劣化:按窗内最低点排序取前 5,根因直连链路优先于轻度传播链路显现;
+  // 劣化:列出全部异常链路(按窗内最低点排序);根因直连链路优先于轻度传播链路显现;
   // 正常:取劣化链路的「同类孪生」——共享一端、另一端为同类型健康实例,
   // 直观呈现均质化对照(如 SMF↔UPF_1 劣化 vs SMF↔UPF_2/UPF_3 正常 → UPF_1 离群)。
   const degradedEdges = g.flowEdges
     .filter((e) => kpi.edges[e.id]?.some((v) => v < kpi.threshold))
-    .sort((a, b) => Math.min(...kpi.edges[a.id]) - Math.min(...kpi.edges[b.id]))
-    .slice(0, 5);
+    .sort((a, b) => Math.min(...kpi.edges[a.id]) - Math.min(...kpi.edges[b.id]));
   const typeOf = (id: string) => id.replace(/_\d+$/, "");
   const isDegradedEdge = (id: string) => !!kpi.edges[id]?.some((v) => v < kpi.threshold);
   const healthyEdges: typeof g.flowEdges = [];
@@ -78,10 +81,14 @@ export function KpiPanel({
         整网聚合对微损近乎无感 · 真实异常以逐链路为准
       </div>
       <svg viewBox={`0 0 ${CW} ${CH}`} width="100%" height={CH} style={{ display: "block" }}>
-        {/* 故障窗阴影 */}
-        <rect x={winX0} y={0} width={Math.max(2, winX1 - winX0)} height={CH} fill="rgba(239,68,68,0.1)" />
-        <line x1={winX0} y1={0} x2={winX0} y2={CH} stroke="rgba(239,68,68,0.3)" strokeDasharray="2 3" />
-        <line x1={winX1} y1={0} x2={winX1} y2={CH} stroke="rgba(239,68,68,0.3)" strokeDasharray="2 3" />
+        {/* 故障窗阴影(异常检测后显现) */}
+        {showAnomaly && (
+          <>
+            <rect x={winX0} y={0} width={Math.max(2, winX1 - winX0)} height={CH} fill="rgba(239,68,68,0.1)" />
+            <line x1={winX0} y1={0} x2={winX0} y2={CH} stroke="rgba(239,68,68,0.3)" strokeDasharray="2 3" />
+            <line x1={winX1} y1={0} x2={winX1} y2={CH} stroke="rgba(239,68,68,0.3)" strokeDasharray="2 3" />
+          </>
+        )}
         {/* 阈值线 */}
         <line x1={0} y1={yOf(kpi.threshold)} x2={CW} y2={yOf(kpi.threshold)} stroke="rgba(245,158,11,0.4)" strokeDasharray="3 4" />
         <text x={4} y={yOf(kpi.threshold) - 3} fontSize={8} fill="rgba(245,158,11,0.75)" fontFamily="var(--font-mono)">动态阈值</text>
@@ -99,12 +106,13 @@ export function KpiPanel({
         <Stat label="游标" value={`T${state.simT.toFixed(0)}`} color="var(--accent)" />
       </div>
 
-      {/* 代表链路 sparkline:劣化 + 正常(均质化对照) */}
-      {(degradedEdges.length > 0 || healthyEdges.length > 0) && (
+      {/* 代表链路 sparkline:劣化 + 正常(均质化对照)—— 仅异常检测后展示 */}
+      {showAnomaly && (degradedEdges.length > 0 || healthyEdges.length > 0) && (
         <div style={{ marginTop: 10, borderTop: "1px solid rgba(56,189,248,0.12)", paddingTop: 8 }}>
           <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>
             LINK SPARKLINE · 劣化 / 正常对照
           </div>
+          <div style={{ maxHeight: 220, overflowY: "auto" }}>
           {degradedEdges.map((e) => (
             <LinkSpark key={e.id} a={g.nodeById[e.a]?.id} b={g.nodeById[e.b]?.id} es={kpi.edges[e.id]} simT={state.simT} />
           ))}
@@ -118,6 +126,7 @@ export function KpiPanel({
               ))}
             </>
           )}
+          </div>
         </div>
       )}
     </HudFrame>
@@ -133,8 +142,8 @@ function LinkSpark({ a, b, es, simT }: { a?: string; b?: string; es: number[]; s
   const col = srColor(ecv);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-      <span style={{ width: 96, fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>
-        {a}↔{b}
+      <span style={{ width: 122, fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
+        {a} ↔ {b}
       </span>
       <svg style={{ flex: 1 }} height={SH} viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none">
         <path d={sPath} fill="none" stroke={col} strokeWidth={1.4} />
