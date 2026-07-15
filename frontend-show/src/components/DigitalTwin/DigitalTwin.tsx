@@ -79,6 +79,11 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
   // 边线密度自适应:边多的场景(A,168 条)整体调浅调细,避免扎眼;边少的(B/C/D,27 条)保持原样
   const dense = g.flowEdges.length > 60;
 
+  // 异常初筛:逐链路检出跌破阈值的链路(phase 2 弹窗用)——任意链路异常即触发
+  const degradedP2 = g.flowEdges
+    .filter((e) => kpi.edges[e.id]?.some((v) => v < threshold))
+    .sort((a, b) => Math.min(...kpi.edges[a.id]) - Math.min(...kpi.edges[b.id]));
+
   return (
     <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
       <defs>
@@ -246,6 +251,9 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
         })}
       </g>
 
+      {/* 异常初筛弹窗(phase 2):逐链路检出多条路径异常 */}
+      {state.phaseIndex === 2 && degradedP2.length > 0 && <AnomalyCallout edges={degradedP2} kpi={kpi} simT={simT} />}
+
       {/* CHR 用户级原因值弹窗(场景 B) */}
       {state.chrPopup && <ChrCallout neId={state.chrPopup.nes[0]} node={g.nodeById[state.chrPopup.nes[0]]} chr={state.chrPopup} />}
 
@@ -265,7 +273,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
           {(overallSr * 100).toFixed(2)}%
         </text>
         <text x={104} y={42} fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)">
-          overall SR
+          整网聚合
         </text>
         <text x={12} y={62} fontSize={9} fill={userFault ? STATUS.warning : degradedCount > 0 ? STATUS.fault : STATUS.healthy} fontFamily="var(--font-mono)">
           {userFault ? `▲ 用户级异常 · ${userFault.affectedUe} UE` : degradedCount > 0 ? `▲ ${degradedCount} NE degraded` : "● all NE nominal"}
@@ -377,6 +385,46 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
       {lines.map((ln, i) => (
         <text key={`d${i}`} x={12} y={yDetailStart + i * 19} fontSize={13} fill="var(--text-detail)" fontFamily="var(--font-sans)">{ln}</text>
       ))}
+    </g>
+  );
+}
+
+/** 异常初筛弹窗(phase 2):逐链路检出多条路径异常,任意链路异常即触发检测 */
+function AnomalyCallout({ edges, kpi, simT }: { edges: NetworkGraph["flowEdges"]; kpi: KpiBundle; simT: number }) {
+  const w = 286;
+  const show = edges.slice(0, 5);
+  const rowH = 17;
+  const listY0 = 58;
+  const noteY = listY0 + show.length * rowH + 14;
+  const h = noteY + 16;
+  const cx = 68;
+  const cy = 52;
+  return (
+    <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
+      <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.fault} strokeWidth={1} filter="url(#twin-glow-strong)" />
+      <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(239,68,68,0.16)" />
+      <rect x={12} y={9} width={8} height={8} rx={2} fill={STATUS.fault} />
+      <text x={26} y={18} fontSize={12.5} fontWeight={700} fill={STATUS.faultGlow} fontFamily="var(--font-mono)" letterSpacing="0.05em">
+        异常初筛 · 多条路径异常
+      </text>
+      <text x={12} y={42} fontSize={11.5} fill="var(--text-mid)" fontFamily="var(--font-sans)">
+        检出 <tspan fontWeight={800} fill={STATUS.fault}>{edges.length}</tspan> 条链路异常 · 任意链路异常即触发
+      </text>
+      {show.map((e, i) => {
+        const sr = sample(kpi.edges[e.id], simT);
+        const col = srColor(sr);
+        const y = listY0 + i * rowH;
+        return (
+          <g key={e.id}>
+            <circle cx={17} cy={y - 4} r={3.5} fill={col} />
+            <text x={28} y={y} fontSize={11} fill="var(--text-soft)" fontFamily="var(--font-mono)">{e.a} ↔ {e.b}</text>
+            <text x={w - 12} y={y} fontSize={11} fontWeight={700} fill={col} textAnchor="end" fontFamily="var(--font-mono)">{(sr * 100).toFixed(1)}%</text>
+          </g>
+        );
+      })}
+      <text x={12} y={noteY} fontSize={10} fill="var(--text-faint)" fontFamily="var(--font-sans)">
+        整网聚合对微损近乎无感 · 逐链路全面初筛方见异常
+      </text>
     </g>
   );
 }

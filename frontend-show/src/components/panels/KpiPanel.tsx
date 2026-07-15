@@ -70,9 +70,12 @@ export function KpiPanel({
   }
 
   return (
-    <HudFrame title="网络 KPI · 实时遥测" subtitle="OVERALL SUCCESS RATE" right={<LiveTag on={state.showAnomaly} />}>
-      <div style={{ fontSize: 11, color: "var(--text-mid)", marginBottom: 6 }}>
-        全网 <b style={{ color: "var(--text-bright)" }}>{g.flowEdges.length}</b> 条业务链路聚合成功率 · <span style={{ color: STATUS.warning }}>动态阈值</span>
+    <HudFrame title="链路 KPI · 逐链路监测" subtitle="LINK-LEVEL MONITOR" right={<LiveTag on={state.showAnomaly} />}>
+      <div style={{ fontSize: 11, color: "var(--text-mid)", marginBottom: 4 }}>
+        <b style={{ color: "var(--text-bright)" }}>{g.flowEdges.length}</b> 条业务链路 · <span style={{ color: STATUS.warning }}>逐链路监测</span> · 任意链路异常即触发检测
+      </div>
+      <div style={{ fontSize: 9.5, color: "var(--text-faint)", marginBottom: 6, fontFamily: "var(--font-mono)", letterSpacing: "0.02em" }}>
+        整网聚合对微损近乎无感 · 真实异常以逐链路为准
       </div>
       <svg viewBox={`0 0 ${CW} ${CH}`} width="100%" height={CH} style={{ display: "block" }}>
         {/* 故障窗阴影 */}
