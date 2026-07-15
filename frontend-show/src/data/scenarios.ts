@@ -38,6 +38,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       rounds: [
         {
           type: "AMF / SMF 通信路径",
+          principle: "均质化比较原则",
           instances: [
             { id: "AMF_1", anomalous: true },
             { id: "AMF_2", anomalous: true },
@@ -49,27 +50,29 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
           note: "AMF-SMF 路径均质化异常(全实例共性劣化)→ 非单点根因",
         },
         {
-          type: "接入 / 签约侧",
+          type: "AMF-UDM 正常",
+          principle: "故障排除原则",
           instances: [
             { id: "gNB_1", anomalous: false },
             { id: "UDM_1", anomalous: false },
             { id: "PCF_1", anomalous: false },
           ],
           verdict: "normal",
-          note: "gNB 接入、AMF↔UDM、UDM/PCF 通信均正常 → 印证 AMF 本体健康、排除 AMF",
+          note: "AMF↔UDM 等通信正常 → 排除 AMF",
         },
         {
           type: "UPF 通信路径",
+          principle: "故障聚合原则",
           instances: [
             { id: "UPF_1", anomalous: true },
             { id: "UPF_2", anomalous: false },
             { id: "UPF_3", anomalous: false },
           ],
           verdict: "root",
-          note: "仅 UPF_1 异常、UPF_2/3 正常 → 离群根因",
+          note: "聚合受影响路径,UPF_1 离群 → 根因",
         },
       ],
-      principles: ["故障传播原则", "独立性验证原则", "故障聚合原则", "均质化比较"],
+      principles: ["均质化比较原则", "故障排除原则", "故障聚合原则", "故障传播原则"],
     },
     isolation: { isolateNe: "UPF_1", failoverTo: ["UPF_2", "UPF_3"], summary: "隔离 UPF_1 · 流量切至 UPF POOL 健康实例" },
   },
@@ -98,6 +101,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       rounds: [
         {
           type: "SMF 通信路径",
+          principle: "均质化比较原则",
           instances: [
             { id: "SMF_1", anomalous: true },
             { id: "SMF_2", anomalous: true },
@@ -106,26 +110,28 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
           note: "多 SMF 共性异常 · 非单点根因",
         },
         {
-          type: "接入 / 转发侧",
+          type: "AMF-UDM 正常",
+          principle: "故障排除原则",
           instances: [
             { id: "gNB_1", anomalous: false },
             { id: "AMF_1", anomalous: false },
             { id: "UPF_2", anomalous: false },
           ],
           verdict: "normal",
-          note: "gNB/AMF 接入、AMF↔UDM、UPF 转发均正常 → 排除接入与转发侧",
+          note: "AMF↔UDM 等通信正常 → 排除 AMF 及接入转发侧",
         },
         {
           type: "UDM 通信路径",
+          principle: "故障聚合原则",
           instances: [
             { id: "UDM_1", anomalous: true },
             { id: "UDM_2", anomalous: false },
           ],
           verdict: "root",
-          note: "仅 UDM_1 异常 → 离群根因",
+          note: "聚合受影响流程,UDM_1 离群 → 根因",
         },
       ],
-      principles: ["故障传播原则", "独立性验证原则", "故障聚合原则", "均质化比较"],
+      principles: ["均质化比较原则", "故障排除原则", "故障聚合原则", "故障传播原则"],
     },
     isolation: { isolateNe: "UDM_1", failoverTo: ["UDM_2"], summary: "隔离 UDM_1(主) · UDM_2(备)升主切流量" },
   },

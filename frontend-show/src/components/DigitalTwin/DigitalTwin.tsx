@@ -434,29 +434,33 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
   if (!node) return null;
   const w = 300;
   const top = 30; // 内容起始 y
-  const roundH = 66; // 每轮:类型行 + chips + note + 间距
+  const roundH = 76; // 每轮:类型行 + 原则 + chips + note + 间距
   const principlesY0 = top + result.rounds.length * roundH + (result.principles.length ? 8 : 0);
   const pRows = Math.ceil(result.principles.length / 2);
   const principlesH = result.principles.length ? 22 + pRows * 19 + 6 : 0;
   const h = principlesY0 + principlesH + 4;
-  const cx = Math.max(8, Math.min(node.x - w / 2, VIEW_W - w - 8));
-  const cy = Math.max(8, node.y - h - 24);
+  // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧,避开右上「整网聚合」读数框
+  const placeLeft = node.x > VIEW_W * 0.6;
+  const cx = placeLeft ? Math.max(8, node.x - w - 32) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
+  const cy = placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node.y - h / 2)) : Math.max(8, node.y - h - 24);
+  const lx = placeLeft ? w : Math.max(20, Math.min(w - 20, node.x - cx));
+  const ly = placeLeft ? Math.max(20, Math.min(h - 20, node.y - cy)) : h;
   const chipW = 46, chipH = 17, chipGap = 5;
   const pChipW = 134, pChipH = 15;
 
   return (
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      <line x1={node.x - cx} y1={node.y - cy} x2={w / 2} y2={h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
+      <line x1={node.x - cx} y1={node.y - cy} x2={lx} y2={ly} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
       <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
       <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(245,158,11,0.16)" />
       <text x={12} y={19} fontSize={13} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.05em">
-        均质化比较 · HOMOGENIZATION
+        故障推理 · FAULT REASONING
       </text>
       {result.rounds.map((r, ri) => {
         const base = top + ri * roundH;
         const typeY = base + 12;
-        const chipsY = base + 20;
-        const noteY = base + 56;
+        const chipsY = base + 34;
+        const noteY = base + 68;
         const isRoot = r.verdict === "root";
         const isNormal = r.verdict === "normal";
         const tagFill = isRoot ? "rgba(245,158,11,0.18)" : isNormal ? "rgba(34,197,94,0.16)" : "rgba(148,163,184,0.14)";
@@ -473,6 +477,13 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
                 {tagText}
               </text>
             </g>
+            {/* 本轮应用的推理原则 */}
+            {r.principle && (
+              <g>
+                <rect x={12} y={base + 17} width={96} height={13} rx={3} fill="rgba(167,139,250,0.14)" stroke="rgba(167,139,250,0.5)" strokeWidth={0.7} />
+                <text x={16} y={base + 27} fontSize={8.5} fontWeight={700} fill="#c4b5fd" fontFamily="var(--font-sans)">{r.principle}</text>
+              </g>
+            )}
             {/* 实例 chip 行:异常红 / 正常绿 */}
             {r.instances.map((ins, j) => {
               const ix = 12 + j * (chipW + chipGap);
@@ -516,11 +527,15 @@ function IsolationCallout({ note, node }: { note: NonNullable<StoryState["isolat
   if (!node) return null;
   const w = 252;
   const h = 96;
-  const cx = Math.max(8, Math.min(node.x - w / 2, VIEW_W - w - 8));
-  const cy = Math.max(8, node.y - h - 24);
+  // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧,避开右上「整网聚合」读数框
+  const placeLeft = node.x > VIEW_W * 0.6;
+  const cx = placeLeft ? Math.max(8, node.x - w - 32) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
+  const cy = placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node.y - h / 2)) : Math.max(8, node.y - h - 24);
+  const lx = placeLeft ? w : Math.max(20, Math.min(w - 20, node.x - cx));
+  const ly = placeLeft ? Math.max(20, Math.min(h - 20, node.y - cy)) : h;
   return (
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      <line x1={node.x - cx} y1={node.y - cy} x2={w / 2} y2={h} stroke={STATUS.fault} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
+      <line x1={node.x - cx} y1={node.y - cy} x2={lx} y2={ly} stroke={STATUS.fault} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
       <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.fault} strokeWidth={1} filter="url(#twin-glow-strong)" />
       <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(239,68,68,0.16)" />
       <rect x={12} y={9} width={8} height={8} rx={2} fill={STATUS.fault} />

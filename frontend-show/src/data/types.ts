@@ -142,7 +142,8 @@ export interface SkillEvolution {
 
 /** 均质化比较一轮(场景 A/D,phase 4 弹窗) */
 export interface HomogenRound {
-  type: string; // NE 类型分组,如 "AMF / SMF" / "UPF"
+  type: string; // 比较对象,如 "AMF / SMF 通信路径" / "AMF-UDM 正常"
+  principle?: string; // 本轮应用的推理原则
   instances: { id: string; anomalous: boolean }[];
   verdict: "exclude" | "normal" | "root"; // 共性→排除 / 正常→排除(旁证) / 离群→根因
   note: string;
