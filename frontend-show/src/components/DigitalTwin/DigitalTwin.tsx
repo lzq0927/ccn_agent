@@ -469,6 +469,8 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
         const tagText = isRoot ? "离群 · 根因" : isNormal ? "正常 · 排除" : "共性 · 排除";
         return (
           <g key={ri}>
+            {/* 轮间分隔线 */}
+            {ri > 0 && <line x1={12} y1={base - 4} x2={w - 12} y2={base - 4} stroke="rgba(56,189,248,0.18)" strokeWidth={1} />}
             <text x={12} y={typeY} fontSize={12} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">{r.type}</text>
             {/* 结论标签 */}
             <g transform={`translate(${w - 12 - 92} ${typeY - 11})`}>
@@ -477,11 +479,11 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
                 {tagText}
               </text>
             </g>
-            {/* 本轮应用的推理原则 */}
+            {/* 本轮应用的推理原则(醒目) */}
             {r.principle && (
               <g>
-                <rect x={12} y={base + 17} width={96} height={13} rx={3} fill="rgba(167,139,250,0.14)" stroke="rgba(167,139,250,0.5)" strokeWidth={0.7} />
-                <text x={16} y={base + 27} fontSize={8.5} fontWeight={700} fill="#c4b5fd" fontFamily="var(--font-sans)">{r.principle}</text>
+                <rect x={12} y={base + 16} width={112} height={15} rx={4} fill="rgba(167,139,250,0.22)" stroke="rgba(167,139,250,0.7)" strokeWidth={0.8} />
+                <text x={17} y={base + 27} fontSize={9.5} fontWeight={700} fill="#ddd6fe" fontFamily="var(--font-sans)">▸ {r.principle}</text>
               </g>
             )}
             {/* 实例 chip 行:异常红 / 正常绿 */}

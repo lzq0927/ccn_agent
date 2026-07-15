@@ -190,7 +190,8 @@ const ALGO_REASON: Record<string, { cn: string; en: string }[]> = {
   A: [
     { cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" },
     { cn: "AMF/SMF 均质化比较", en: "AMF/SMF HOMOGENIZE" },
-    { cn: "UPF 均质化比较", en: "UPF HOMOGENIZE" },
+    { cn: "故障排除", en: "FAULT EXCLUSION" },
+    { cn: "UPF 故障聚合", en: "UPF AGGREGATION" },
     { cn: "根因定位", en: "ROOT-CAUSE" },
   ],
   B: [
@@ -223,8 +224,8 @@ function algorithmsFor(s: Scenario, phaseIndex: number): { cn: string; en: strin
 const SCENARIO_SUB: Record<string, Record<number, string>> = {
   A: {
     2: "iFFusion 逐链路检出:前端 AMF↔SMF 通信路径普遍异常 · 异常全面初筛",
-    3: "置信度 0.76 > 0.7 · 命中 UPF 均质化比较 · 直达确定性工作流(不走 LLM)",
-    4: "AMF/SMF 均质化排除共性异常 · UPF 均质化定位离群点 UPF_1 · 防漏报",
+    3: "置信度 0.76 > 0.7 · 命中 UPF 故障聚合 · 直达确定性工作流(不走 LLM)",
+    4: "均质化比较+故障排除收敛范围 · 故障聚合定位 UPF_1 · 防漏报",
     5: "隔离 UPF_1 · 流量切换至 UPF POOL 内 UPF_2/UPF_3 接管",
   },
   B: {

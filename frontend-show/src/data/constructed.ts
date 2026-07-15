@@ -109,8 +109,9 @@ const FAULT_A: FaultSpec = {
 const REASONING_A: ReasonStep[] = [
   { n: 1, type: "tool_call", text: "iFFusion 异常检测:前端 AMF↔SMF 通信路径普遍出现异常。", result: "AMF↔SMF 路径劣化", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
   { n: 2, type: "tool_call", text: "均质化比较:AMF、SMF 全实例同现异常(共性),排除 AMF/SMF 为单点根因。", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
-  { n: 3, type: "tool_call", text: "UPF 通信路径均质化比较:UPF_1 异常,UPF_2/UPF_3 健康,UPF_1 为唯一离群点。", highlight: { nes: ["UPF_1"] } },
-  { n: 4, type: "conclusion", text: "根因为 UPF_1,确定性工作流秒级定位。", result: "WORKFLOW · 命中", highlight: { nes: ["UPF_1"] } },
+  { n: 3, type: "tool_call", text: "故障排除:AMF↔UDM 等通信正常,印证 AMF 本体健康,排除 AMF。", highlight: { nes: ["UDM_1"] } },
+  { n: 4, type: "tool_call", text: "故障聚合:聚合 UPF 受影响路径,UPF_1 异常、UPF_2/UPF_3 健康,UPF_1 唯一离群。", highlight: { nes: ["UPF_1"] } },
+  { n: 5, type: "conclusion", text: "根因为 UPF_1,确定性工作流秒级定位。", result: "WORKFLOW · 命中", highlight: { nes: ["UPF_1"] } },
 ];
 
 const CONFIDENCE_A: ConfidenceBreakdown = {
@@ -121,7 +122,7 @@ const CONFIDENCE_A: ConfidenceBreakdown = {
   ambiguity: 0.12,
   score: 0.76,
   route: "workflow",
-  patternName: "upf_homogenization (UPF 均质化比较)",
+  patternName: "upf_aggregation (UPF 故障聚合)",
   matchedSkills: ["core/homogenization_compare", "core/fault_aggregation"],
   affectedNeCount: 1,
 };
