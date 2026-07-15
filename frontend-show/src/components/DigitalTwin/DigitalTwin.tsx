@@ -469,8 +469,8 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
         const tagText = isRoot ? "离群 · 根因" : isNormal ? "正常 · 排除" : "共性 · 排除";
         return (
           <g key={ri}>
-            {/* 轮间分隔线(更醒目) */}
-            {ri > 0 && <line x1={12} y1={base - 7} x2={w - 12} y2={base - 7} stroke="rgba(148,163,184,0.45)" strokeWidth={1} strokeDasharray="4 3" />}
+            {/* 轮间分隔线(实线、更醒目) */}
+            {ri > 0 && <line x1={12} y1={base - 8} x2={w - 12} y2={base - 8} stroke="rgba(148,163,184,0.75)" strokeWidth={1.4} />}
             <text x={12} y={typeY} fontSize={12} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">{r.type}</text>
             {/* 结论标签 */}
             <g transform={`translate(${w - 12 - 92} ${typeY - 11})`}>

@@ -1,14 +1,13 @@
 // ============================================================================
-// 演示场景 —— 四场景编排(路由分落三档:工作流 / 技能引导 / 自主探索)
+// 演示场景 —— 三场景编排(路由分落三档:工作流 / 技能引导 / 自主探索)
 //   A 核心网 UPF 异常 · 确定性工作流(均质化比较排除 AMF/SMF + 定位 UPF_1)
 //   B 核心网 SMF 异常 · 技能引导(多维校验排除终端 → 识别网络根因)
 //   C 无线接入 gNB · 自主探索(CHR 聚类 + 用户分群追踪 → 物联终端群体异常)
-//   D 核心网 UDM 异常 · 确定性工作流(均质化对比排除 SMF + 故障聚合)
-// 四场景共用真实 case_101 拓扑(21 NE)+ 合成遥测 + 手写推理链。
+// 三场景共用真实 case_101 拓扑(21 NE)+ 合成遥测 + 手写推理链。
 // ============================================================================
 
 import { type ScenarioNarrative } from "./real";
-import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C, SPEC_D } from "./constructed";
+import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C } from "./constructed";
 import type { Scenario } from "./types";
 
 // 每个场景的叙事层(数据全真或合成,文案据诊断结果定稿)
@@ -50,15 +49,14 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
           note: "AMF-SMF 路径均质化异常(全实例共性劣化)→ 非单点根因",
         },
         {
-          type: "AMF-UDM 正常",
+          type: "SMF-UDM 正常",
           principle: "故障排除原则",
           instances: [
-            { id: "AMF_1", anomalous: false },
-            { id: "AMF_2", anomalous: false },
-            { id: "AMF_3", anomalous: false },
+            { id: "SMF_1", anomalous: false },
+            { id: "SMF_2", anomalous: false },
           ],
           verdict: "normal",
-          note: "AMF↔UDM 通信正常 → 排除 3 个 AMF",
+          note: "SMF↔UDM 通信正常 → 排除 2 个 SMF",
         },
         {
           type: "UPF 通信路径",
@@ -75,65 +73,6 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       principles: ["均质化比较原则", "故障排除原则", "故障聚合原则", "故障传播原则"],
     },
     isolation: { isolateNe: "UPF_1", failoverTo: ["UPF_2", "UPF_3"], summary: "隔离 UPF_1 · 流量切至 UPF POOL 健康实例" },
-  },
-  D: {
-    cn: "核心网 UDM 异常·确定性工作流定位",
-    en: "UDM FAULT · DETERMINISTIC WORKFLOW",
-    tagline: "签约管理 UDM_1 故障 · 多网元(含多 SMF)异常表象 · 均质化对比+聚合秒级收敛",
-    intro: "核心网 UDM_1 故障,多网元(含多个 SMF)现异常表象。均质化对比排除 SMF 共性异常,故障聚合定位 UDM_1 根因。",
-    objective: "UDM_1 异常 · 均质化对比排除 SMF + 故障聚合定位",
-    pillars: { userLevel: false, autonomy: true },
-    comparison: {
-      naive: {
-        title: "仅网络聚合 KPI",
-        verdict: "易误报 SMF 为根因",
-        detail: "多 SMF 共性异常,朴素归因误指 SMF",
-        kind: "falsealarm",
-      },
-      explored: {
-        title: "确定性工作流(均质化+聚合)",
-        verdict: "秒级锁定 UDM_1 根因",
-        detail: "均质化对比排除 SMF + 聚合 → UDM_1",
-      },
-    },
-    homogen: {
-      anchorNe: "UDM_1",
-      rounds: [
-        {
-          type: "SMF 通信路径",
-          principle: "均质化比较原则",
-          instances: [
-            { id: "SMF_1", anomalous: true },
-            { id: "SMF_2", anomalous: true },
-          ],
-          verdict: "exclude",
-          note: "多 SMF 共性异常 · 非单点根因",
-        },
-        {
-          type: "AMF-UDM 正常",
-          principle: "故障排除原则",
-          instances: [
-            { id: "AMF_1", anomalous: false },
-            { id: "AMF_2", anomalous: false },
-            { id: "AMF_3", anomalous: false },
-          ],
-          verdict: "normal",
-          note: "AMF↔UDM 通信正常 → 排除 3 个 AMF",
-        },
-        {
-          type: "UDM 通信路径",
-          principle: "故障聚合原则",
-          instances: [
-            { id: "UDM_1", anomalous: true },
-            { id: "UDM_2", anomalous: false },
-          ],
-          verdict: "root",
-          note: "聚合受影响流程,UDM_1 离群 → 根因",
-        },
-      ],
-      principles: ["均质化比较原则", "故障排除原则", "故障聚合原则", "故障传播原则"],
-    },
-    isolation: { isolateNe: "UDM_1", failoverTo: ["UDM_2"], summary: "隔离 UDM_1(主) · UDM_2(备)升主切流量" },
   },
   B: {
     cn: "核心网 SMF 异常·多维校验识别网络根因",
@@ -226,12 +165,11 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
   },
 };
 
-// 四场景:A(构造 UPF · 工作流)、B(构造 SMF · 技能引导)、C(构造 gNB 物联终端群体 · 自主探索)、D(构造 UDM · 工作流)
+// 三场景:A(构造 UPF · 工作流)、B(构造 SMF · 技能引导)、C(构造 gNB 物联终端群体 · 自主探索)
 export const SCENARIOS: Scenario[] = [
   buildConstructedScenario("A", NARRATIVES.A, SPEC_A),
   buildConstructedScenario("B", NARRATIVES.B, SPEC_B),
   buildConstructedScenario("C", NARRATIVES.C, SPEC_C),
-  buildConstructedScenario("D", NARRATIVES.D, SPEC_D),
 ];
 
 export const DEFAULT_SCENARIO_ID = "A";

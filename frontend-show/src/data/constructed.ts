@@ -3,9 +3,8 @@
 //   场景 A:UPF_1 微损 · 确定性工作流(均质化比较排除 AMF/SMF + 定位 UPF_1)
 //   场景 B:SMF_1 异常 · 技能引导(网络微损+终端噪声 → 多维校验排除终端)
 //   场景 C:gNB 用户侧异常 · 自主探索(CHR 聚类 + 用户分群追踪发现物联终端群体异常)
-//   场景 D:UDM_1 异常 · 确定性工作流(均质化对比排除 SMF + 故障聚合定位)
-//   四场景共用真实 case_101 拓扑(21 NE);遥测与推理为合成。路由分落三档:
-//   A/D=WORKFLOW(>0.7)、B=GUIDED(0.3~0.7)、C=AUTONOMOUS(≤0.3)。
+//   三场景共用真实 case_101 拓扑(21 NE);遥测与推理为合成。路由分落三档:
+//   A=WORKFLOW(>0.7)、B=GUIDED(0.3~0.7)、C=AUTONOMOUS(≤0.3)。
 // ============================================================================
 
 import { buildGraphFromTopoText, type NetworkGraph } from "./network";
@@ -275,62 +274,3 @@ export const SPEC_C: ConstructedSpec = {
   llmModel: "MiniMax-M3",
 };
 
-// ---------------------------------------------------------------------------
-// 场景 D —— UDM_1 异常 · 确定性工作流(均质化对比排除 SMF + 故障聚合定位)
-//   (原场景 A 的 UDM 内容平移至此)
-// ---------------------------------------------------------------------------
-
-const FAULT_D: FaultSpec = {
-  faultType: "single_ne",
-  faultMode: "link",
-  elements: ["UDM_1"],
-  links: [],
-  lossRate: 0.062,
-  faultStart: 32,
-  faultDuration: 8,
-  ueCount: 90,
-  difficulty: "medium",
-};
-
-const REASONING_D: ReasonStep[] = [
-  { n: 1, type: "tool_call", text: "iFFusion 异常检测:多个网元出现异常,含多个 SMF 与 UDM 方向。", result: "SMF_1/2、UDM_1 方向劣化", highlight: { nes: ["UDM_1"] } },
-  { n: 2, type: "tool_call", text: "均质化对比:多个 SMF 同现异常(共性),排除 SMF 为单点根因。", highlight: { nes: ["UDM_1"] } },
-  { n: 3, type: "tool_call", text: "故障聚合:聚合受影响流程,UDM_1 集中度最高。", highlight: { nes: ["UDM_1"] } },
-  { n: 4, type: "conclusion", text: "根因为 UDM_1,确定性工作流秒级定位。", result: "WORKFLOW · 命中", highlight: { nes: ["UDM_1"] } },
-];
-
-const CONFIDENCE_D: ConfidenceBreakdown = {
-  pattern: 0.92,
-  severity: 0.6,
-  temporal: 0.9,
-  spatial: 0.82,
-  ambiguity: 0.08,
-  score: 0.74,
-  route: "workflow",
-  patternName: "udm_homogenization (均质化对比)",
-  matchedSkills: ["core/homogenization_compare", "core/fault_aggregation"],
-  affectedNeCount: 1,
-};
-
-const EVAL_D: EvalMetrics = {
-  precision: 1,
-  recall: 1,
-  f1: 1,
-  exactMatch: true,
-  faultTypeMatch: true,
-  category: "SUCCESS",
-  traceAxes: { logicalCoherence: 0.95, toolEfficiency: 0.93, evidenceQuality: 0.94, missedSignals: 0.08, overall: 0.94 },
-  suggestions: [],
-};
-
-export const SPEC_D: ConstructedSpec = {
-  topo: COMMON_TOPO,
-  fault: FAULT_D,
-  kpi: (graph) => buildKpiFor(graph, FAULT_D, { propagate: 0.35 }),
-  reasoning: REASONING_D,
-  confidence: CONFIDENCE_D,
-  evaluation: EVAL_D,
-  predicted: { elements: ["UDM_1"], links: [] },
-  routeIterations: 5,
-  llmModel: "确定性工作流 (WorkflowEngine)",
-};

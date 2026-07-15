@@ -206,12 +206,6 @@ const ALGO_REASON: Record<string, { cn: string; en: string }[]> = {
     { cn: "用户分群追踪", en: "USER-SEGMENT TRACK" },
     { cn: "群体异常定位", en: "GROUP ANOMALY" },
   ],
-  D: [
-    { cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" },
-    { cn: "均质化对比", en: "HOMOGENIZATION CMP" },
-    { cn: "故障聚合", en: "FAULT AGGREGATION" },
-    { cn: "根因定位", en: "ROOT-CAUSE" },
-  ],
 };
 
 /** 当前相位激活的算法标签 */
@@ -239,12 +233,6 @@ const SCENARIO_SUB: Record<string, Record<number, string>> = {
     3: "置信度 0.28·信号模糊·自主探索·拦截 AMF 误报",
     4: "CHR 聚类 + 用户分群追踪:物联终端群体 52% 失败·网络健康·防误报",
     5: "网络侧无法隔离 gNB·通知物联终端群体换路·用户侧恢复",
-  },
-  D: {
-    2: "iFFusion 逐链路检出多网元方向异常 · 含多个 SMF 与 UDM · 异常全面初筛",
-    3: "置信度 0.74 > 0.7 · 命中均质化对比 · 直达确定性工作流(不走 LLM)",
-    4: "均质化对比排除 SMF 共性异常 · 故障聚合定位 UDM_1 · 防漏报",
-    5: "容量核查 UDM_2(备) · 隔离 UDM_1(主) · UDM_2 升主并切流量",
   },
 };
 
