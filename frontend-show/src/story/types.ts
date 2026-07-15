@@ -2,7 +2,7 @@
 // 故事板类型 —— director 在每个时钟帧产出的派生状态,驱动所有视图
 // ============================================================================
 
-import type { ChrInsight, ConfidenceBreakdown, EvalMetrics, ReasonStep, RouteKey, UserFault } from "../data/types";
+import type { ChrInsight, ConfidenceBreakdown, EvalMetrics, HomogenResult, IsolationNote, ReasonStep, RouteKey, UserFault } from "../data/types";
 import type { PhaseDef } from "../theme";
 
 export interface RecoveryAction {
@@ -60,6 +60,8 @@ export interface StoryState {
   currentStep: ReasonStep | null; // 当前执行中的推理步(最后揭示的一步)
   comparisonReveal: number; // 拓扑下对比区揭示度 0..1
   chrPopup: ChrInsight | null; // 用户级 CHR 原因值弹窗(场景 B)
+  homogenPopup: HomogenResult | null; // 均质化比较结果弹窗(场景 A/D,phase 4)
+  isolationPopup: IsolationNote | null; // 隔离标注弹窗(场景 A/B/D,phase 5)
   falseAlarmActive: boolean; // 朴素误报标记可见(场景 C,phase 2-4)
   falseAlarmIntercepted: boolean; // 误报已被置信度拦截/划掉(phase≥3)
   userLevel: UserFault | null; // 用户侧群体异常(场景 C)

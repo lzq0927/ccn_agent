@@ -15,6 +15,8 @@ import type {
   EvalMetrics,
   FalseAlarm,
   GraphEdge,
+  HomogenResult,
+  IsolationNote,
   NEType,
   ReasonStep,
   RouteKey,
@@ -94,6 +96,10 @@ export interface ScenarioNarrative {
   userFault?: UserFault;
   /** 能力沉淀 / 技能进化(场景 B/C) */
   skillEvolution?: SkillEvolution;
+  /** 均质化比较结果(场景 A/D) */
+  homogen?: HomogenResult;
+  /** 隔离标注(场景 A/B/D) */
+  isolation?: IsolationNote;
 }
 
 /** 简洁中文推理链(替换真实英文 trace,展会可读;根因/后验来自真实诊断) */
@@ -207,6 +213,8 @@ export function buildRealScenario(rc: RealCase, n: ScenarioNarrative): Scenario 
     falseAlarm: n.falseAlarm,
     userFault: n.userFault,
     skillEvolution: n.skillEvolution,
+    homogen: n.homogen,
+    isolation: n.isolation,
     fault,
     truth,
     predicted,

@@ -33,6 +33,34 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
         detail: "AMF/SMF 均质化排除 + UPF 均质化 → UPF_1",
       },
     },
+    homogen: {
+      anchorNe: "UPF_1",
+      rounds: [
+        {
+          type: "AMF / SMF",
+          instances: [
+            { id: "AMF_1", anomalous: true },
+            { id: "AMF_2", anomalous: true },
+            { id: "AMF_3", anomalous: true },
+            { id: "SMF_1", anomalous: true },
+            { id: "SMF_2", anomalous: true },
+          ],
+          verdict: "exclude",
+          note: "全实例共性异常 · 非单点根因 → 排除",
+        },
+        {
+          type: "UPF",
+          instances: [
+            { id: "UPF_1", anomalous: true },
+            { id: "UPF_2", anomalous: false },
+            { id: "UPF_3", anomalous: false },
+          ],
+          verdict: "root",
+          note: "仅 UPF_1 异常 · 离群 → 根因",
+        },
+      ],
+    },
+    isolation: { isolateNe: "UPF_1", failoverTo: ["UPF_2", "UPF_3"], summary: "隔离 UPF_1 · 流量切至 UPF POOL 健康实例" },
   },
   D: {
     cn: "核心网 UDM 异常·确定性工作流定位",
@@ -54,6 +82,30 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
         detail: "均质化对比排除 SMF + 聚合 → UDM_1",
       },
     },
+    homogen: {
+      anchorNe: "UDM_1",
+      rounds: [
+        {
+          type: "SMF",
+          instances: [
+            { id: "SMF_1", anomalous: true },
+            { id: "SMF_2", anomalous: true },
+          ],
+          verdict: "exclude",
+          note: "多 SMF 共性异常 · 非单点根因 → 排除",
+        },
+        {
+          type: "UDM",
+          instances: [
+            { id: "UDM_1", anomalous: true },
+            { id: "UDM_2", anomalous: false },
+          ],
+          verdict: "root",
+          note: "UDM_1 集中度最高 · 离群 → 根因",
+        },
+      ],
+    },
+    isolation: { isolateNe: "UDM_1", failoverTo: ["UDM_2"], summary: "隔离 UDM_1(主) · UDM_2(备)升主切流量" },
   },
   B: {
     cn: "核心网 SMF 异常·多维校验识别网络根因",
@@ -95,6 +147,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       after: "新增终端排除步骤,网络/终端区分命中率达 0.93",
       nextHitRate: 0.93,
     },
+    isolation: { isolateNe: "SMF_1", failoverTo: ["SMF_2"], summary: "隔离 SMF_1 · 会话切至健康 SMF_2 接管" },
   },
   C: {
     cn: "无线接入 gNB·物联终端群体异常自主定位",

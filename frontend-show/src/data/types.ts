@@ -140,6 +140,25 @@ export interface SkillEvolution {
   nextHitRate: number;
 }
 
+/** 均质化比较一轮(场景 A/D,phase 4 弹窗) */
+export interface HomogenRound {
+  type: string; // NE 类型分组,如 "AMF / SMF" / "UPF"
+  instances: { id: string; anomalous: boolean }[];
+  verdict: "exclude" | "root"; // 共性→排除 / 离群→根因
+  note: string;
+}
+/** 均质化比较结果(场景 A/D) */
+export interface HomogenResult {
+  anchorNe: string; // 弹窗锚定 NE(根因)
+  rounds: HomogenRound[];
+}
+/** 隔离标注(场景 A/B/D,phase 5 弹窗) */
+export interface IsolationNote {
+  isolateNe: string; // 被隔离 NE
+  failoverTo: string[]; // 流量切换目标
+  summary: string;
+}
+
 /** 一个演示场景 */
 export interface Scenario {
   id: string;
@@ -162,6 +181,10 @@ export interface Scenario {
   userFault?: UserFault;
   /** 能力沉淀 / 技能进化(场景 B/C) */
   skillEvolution?: SkillEvolution;
+  /** 均质化比较结果(场景 A/D,phase 4 弹窗) */
+  homogen?: HomogenResult;
+  /** 隔离标注(场景 A/B/D,phase 5 弹窗) */
+  isolation?: IsolationNote;
   fault: FaultSpec;
   truth: { elements: string[]; links: string[] };
   predicted: { elements: string[]; links: string[] };

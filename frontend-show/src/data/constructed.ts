@@ -73,6 +73,8 @@ export function buildConstructedScenario(id: string, n: ScenarioNarrative, spec:
     falseAlarm: n.falseAlarm,
     userFault: n.userFault,
     skillEvolution: n.skillEvolution,
+    homogen: n.homogen,
+    isolation: n.isolation,
     fault: spec.fault,
     truth: { elements: spec.fault.elements, links: spec.fault.links },
     predicted: spec.predicted,

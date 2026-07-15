@@ -330,6 +330,12 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // 用户级 CHR 原因值弹窗(场景 B):推理起至恢复前
   const chrPopup: ChrInsight | null = s.chrInsight && phaseIndex >= 4 && phaseIndex <= 6 ? s.chrInsight : null;
 
+  // 均质化比较结果弹窗(场景 A/D):根因推理期间(phase 4)
+  const homogenPopup = s.homogen && phaseIndex === 4 ? s.homogen : null;
+
+  // 隔离标注弹窗(场景 A/B/D):执行恢复期间(phase 5,与隔离围栏同步)
+  const isolationPopup = s.isolation && phaseIndex === 5 ? s.isolation : null;
+
   // 误报拦截(场景 C):phase 2-4 可见,phase≥3 被置信度拦截/划掉
   const falseAlarmActive = !!s.falseAlarm && phaseIndex >= 2 && phaseIndex <= 4;
   const falseAlarmIntercepted = !!s.falseAlarm && phaseIndex >= 3;
@@ -374,6 +380,8 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     currentStep,
     comparisonReveal,
     chrPopup,
+    homogenPopup,
+    isolationPopup,
     falseAlarmActive,
     falseAlarmIntercepted,
     userLevel,

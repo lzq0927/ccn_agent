@@ -249,6 +249,12 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
       {/* CHR 用户级原因值弹窗(场景 B) */}
       {state.chrPopup && <ChrCallout neId={state.chrPopup.nes[0]} node={g.nodeById[state.chrPopup.nes[0]]} chr={state.chrPopup} />}
 
+      {/* 均质化比较结果弹窗(场景 A/D,phase 4) */}
+      {state.homogenPopup && <HomogenCallout result={state.homogenPopup} node={g.nodeById[state.homogenPopup.anchorNe]} />}
+
+      {/* 隔离标注弹窗(场景 A/B/D,phase 5) */}
+      {state.isolationPopup && <IsolationCallout note={state.isolationPopup} node={g.nodeById[state.isolationPopup.isolateNe]} />}
+
       {/* 实时读数 */}
       <g transform={`translate(${VIEW_W - 188} 60)`}>
         <rect x={0} y={0} width={178} height={74} rx={8} fill="var(--twin-readout-bg)" stroke="var(--accent-a28)" />
@@ -371,6 +377,85 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
       {lines.map((ln, i) => (
         <text key={`d${i}`} x={12} y={yDetailStart + i * 19} fontSize={13} fill="var(--text-detail)" fontFamily="var(--font-sans)">{ln}</text>
       ))}
+    </g>
+  );
+}
+
+/** 均质化比较结果弹窗(场景 A/D,phase 4):按轮次展示实例异常分布 + 排除/根因结论 */
+function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homogenPopup"]>; node: { x: number; y: number } | undefined }) {
+  if (!node) return null;
+  const w = 300;
+  const top = 30; // 内容起始 y
+  const roundH = 66; // 每轮:类型行 + chips + note + 间距
+  const h = top + result.rounds.length * roundH + 6;
+  const cx = Math.max(8, Math.min(node.x - w / 2, VIEW_W - w - 8));
+  const cy = Math.max(8, node.y - h - 24);
+  const chipW = 46, chipH = 17, chipGap = 5;
+
+  return (
+    <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
+      <line x1={node.x - cx} y1={node.y - cy} x2={w / 2} y2={h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
+      <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
+      <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(245,158,11,0.16)" />
+      <text x={12} y={19} fontSize={13} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.05em">
+        均质化比较 · HOMOGENIZATION
+      </text>
+      {result.rounds.map((r, ri) => {
+        const base = top + ri * roundH;
+        const typeY = base + 12;
+        const chipsY = base + 20;
+        const noteY = base + 56;
+        const isRoot = r.verdict === "root";
+        return (
+          <g key={ri}>
+            <text x={12} y={typeY} fontSize={12} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">{r.type}</text>
+            {/* 结论标签 */}
+            <g transform={`translate(${w - 12 - 92} ${typeY - 11})`}>
+              <rect width={92} height={15} rx={4} fill={isRoot ? "rgba(245,158,11,0.18)" : "rgba(148,163,184,0.14)"} stroke={isRoot ? STATUS.warning : "rgba(148,163,184,0.7)"} strokeWidth={0.8} />
+              <text x={46} y={11} fontSize={10} fontWeight={700} fill={isRoot ? STATUS.warning : "var(--text-mid)"} textAnchor="middle" fontFamily="var(--font-mono)">
+                {isRoot ? "离群 · 根因" : "共性 · 排除"}
+              </text>
+            </g>
+            {/* 实例 chip 行:异常红 / 正常绿 */}
+            {r.instances.map((ins, j) => {
+              const ix = 12 + j * (chipW + chipGap);
+              const col = ins.anomalous ? STATUS.fault : STATUS.healthy;
+              return (
+                <g key={ins.id}>
+                  <rect x={ix} y={chipsY} width={chipW} height={chipH} rx={4} fill={col} fillOpacity={ins.anomalous ? 0.85 : 0.3} stroke={col} strokeOpacity={ins.anomalous ? 1 : 0.6} />
+                  <text x={ix + chipW / 2} y={chipsY + 12} fontSize={8.5} fontWeight={700} fill={ins.anomalous ? "#fff" : "var(--text-soft)"} textAnchor="middle" fontFamily="var(--font-mono)">{ins.id}</text>
+                </g>
+              );
+            })}
+            <text x={12} y={noteY} fontSize={10.5} fill="var(--text-mid)" fontFamily="var(--font-sans)">{r.note}</text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** 隔离标注弹窗(场景 A/B/D,phase 5):标注被隔离 NE + 流量切换目标 */
+function IsolationCallout({ note, node }: { note: NonNullable<StoryState["isolationPopup"]>; node: { x: number; y: number } | undefined }) {
+  if (!node) return null;
+  const w = 252;
+  const h = 96;
+  const cx = Math.max(8, Math.min(node.x - w / 2, VIEW_W - w - 8));
+  const cy = Math.max(8, node.y - h - 24);
+  return (
+    <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
+      <line x1={node.x - cx} y1={node.y - cy} x2={w / 2} y2={h} stroke={STATUS.fault} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
+      <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.fault} strokeWidth={1} filter="url(#twin-glow-strong)" />
+      <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(239,68,68,0.16)" />
+      <rect x={12} y={9} width={8} height={8} rx={2} fill={STATUS.fault} />
+      <text x={26} y={18} fontSize={12.5} fontWeight={700} fill={STATUS.faultGlow} fontFamily="var(--font-mono)" letterSpacing="0.06em">
+        隔离 ISOLATION
+      </text>
+      <text x={12} y={48} fontSize={22} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-sans)">{note.isolateNe}</text>
+      <text x={12} y={71} fontSize={12.5} fontWeight={700} fill={STATUS.healthy} fontFamily="var(--font-sans)">
+        → 流量切至 {note.failoverTo.join(" / ")}
+      </text>
+      <text x={12} y={89} fontSize={10.5} fill="var(--text-mid)" fontFamily="var(--font-sans)">{note.summary}</text>
     </g>
   );
 }
