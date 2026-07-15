@@ -35,18 +35,22 @@ export function KpiPanel({
   const kpi = kpiProp ?? getKpi(scenario);
   const series = kpi.overall;
   const steps = series.length;
-  const cur = sample(series, state.simT);
-  // 渐进绘制:仅画到当前游标 —— 异常检测前整条线保持健康基线,异常随游标推进才显现
-  const drawCount = Math.max(2, Math.min(steps, Math.floor(state.simT) + 1));
-  const visSeries = series.slice(0, drawCount);
-  const min = Math.min(...visSeries);
+  // 检测前(phase<2):不显示异常 —— 全时段曲线,但故障窗内拉平为健康基线(完整时间段、无异常);
+  // 检测后(phase≥2,含网络恢复):显示真实曲线(含异常与恢复)
+  const showDetails = state.phaseIndex >= 2;
+  const inWin = (i: number) => {
+    const t = i + 1;
+    return t >= kpi.faultStart && t < kpi.faultEnd;
+  };
+  const displaySeries = showDetails ? series : series.map((v, i) => (inWin(i) ? 0.998 : v));
+  const cur = sample(displaySeries, state.simT);
+  const min = Math.min(...displaySeries);
   const xOf = (i: number) => (i / (steps - 1)) * CW;
-  const linePath = visSeries.map((v, i) => `${i === 0 ? "M" : "L"} ${xOf(i).toFixed(1)} ${yOf(v).toFixed(1)}`).join(" ");
-  const areaPath = `${linePath} L ${xOf(drawCount - 1).toFixed(1)} ${CH} L 0 ${CH} Z`;
+  const linePath = displaySeries.map((v, i) => `${i === 0 ? "M" : "L"} ${xOf(i).toFixed(1)} ${yOf(v).toFixed(1)}`).join(" ");
+  const areaPath = `${linePath} L ${CW} ${CH} L 0 ${CH} Z`;
   const winX0 = xOf(kpi.faultStart - 1);
   const winX1 = xOf(kpi.faultEnd - 1);
   const curX = xOf(Math.max(0, Math.min(steps - 1, state.simT - 1)));
-  const showAnomaly = state.showAnomaly;
 
   // 代表性链路 sparkline —— 劣化 + 正常(均质化对照)
   // 劣化:列出全部异常链路(按窗内最低点排序);根因直连链路优先于轻度传播链路显现;
@@ -81,8 +85,8 @@ export function KpiPanel({
         整网聚合对微损近乎无感 · 真实异常以逐链路为准
       </div>
       <svg viewBox={`0 0 ${CW} ${CH}`} width="100%" height={CH} style={{ display: "block" }}>
-        {/* 故障窗阴影(异常检测后显现) */}
-        {showAnomaly && (
+        {/* 故障窗阴影(检测后显现) */}
+        {showDetails && (
           <>
             <rect x={winX0} y={0} width={Math.max(2, winX1 - winX0)} height={CH} fill="rgba(239,68,68,0.1)" />
             <line x1={winX0} y1={0} x2={winX0} y2={CH} stroke="rgba(239,68,68,0.3)" strokeDasharray="2 3" />
@@ -102,17 +106,16 @@ export function KpiPanel({
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, gap: 6 }}>
         <Stat label="当前" value={`${(cur * 100).toFixed(2)}%`} color={srColor(cur)} />
         <Stat label="最低" value={`${(min * 100).toFixed(2)}%`} color={STATUS.fault} />
-        <Stat label="故障窗" value={`T${kpi.faultStart}-${kpi.faultEnd}`} color={STATUS.warning} />
+        <Stat label={showDetails ? "故障窗" : "状态"} value={showDetails ? `T${kpi.faultStart}-${kpi.faultEnd}` : "正常"} color={showDetails ? STATUS.warning : STATUS.healthy} />
         <Stat label="游标" value={`T${state.simT.toFixed(0)}`} color="var(--accent)" />
       </div>
 
-      {/* 代表链路 sparkline:劣化 + 正常(均质化对照)—— 仅异常检测后展示 */}
-      {showAnomaly && (degradedEdges.length > 0 || healthyEdges.length > 0) && (
+      {/* 代表链路 sparkline:劣化 + 正常(均质化对照)—— 检测后展示(含网络恢复) */}
+      {showDetails && (degradedEdges.length > 0 || healthyEdges.length > 0) && (
         <div style={{ marginTop: 10, borderTop: "1px solid rgba(56,189,248,0.12)", paddingTop: 8 }}>
           <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>
             LINK SPARKLINE · 劣化 / 正常对照
           </div>
-          <div style={{ maxHeight: 220, overflowY: "auto" }}>
           {degradedEdges.map((e) => (
             <LinkSpark key={e.id} a={g.nodeById[e.a]?.id} b={g.nodeById[e.b]?.id} es={kpi.edges[e.id]} simT={state.simT} />
           ))}
@@ -126,7 +129,6 @@ export function KpiPanel({
               ))}
             </>
           )}
-          </div>
         </div>
       )}
     </HudFrame>

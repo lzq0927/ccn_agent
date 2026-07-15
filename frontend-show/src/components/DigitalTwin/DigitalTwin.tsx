@@ -435,10 +435,14 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
   const w = 300;
   const top = 30; // 内容起始 y
   const roundH = 66; // 每轮:类型行 + chips + note + 间距
-  const h = top + result.rounds.length * roundH + 6;
+  const principlesY0 = top + result.rounds.length * roundH + (result.principles.length ? 8 : 0);
+  const pRows = Math.ceil(result.principles.length / 2);
+  const principlesH = result.principles.length ? 22 + pRows * 19 + 6 : 0;
+  const h = principlesY0 + principlesH + 4;
   const cx = Math.max(8, Math.min(node.x - w / 2, VIEW_W - w - 8));
   const cy = Math.max(8, node.y - h - 24);
   const chipW = 46, chipH = 17, chipGap = 5;
+  const pChipW = 134, pChipH = 15;
 
   return (
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
@@ -484,6 +488,25 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
           </g>
         );
       })}
+      {/* 推理原则/算法 */}
+      {result.principles.length > 0 && (
+        <g>
+          <line x1={12} y1={principlesY0} x2={w - 12} y2={principlesY0} stroke="rgba(56,189,248,0.18)" strokeWidth={1} />
+          <text x={12} y={principlesY0 + 13} fontSize={9} fontWeight={700} fill="var(--text-faint)" fontFamily="var(--font-mono)" letterSpacing="0.1em">推理原则 · REASONING RULES</text>
+          {result.principles.map((p, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            const px = 12 + col * (pChipW + 6);
+            const py = principlesY0 + 22 + row * (pChipH + 4);
+            return (
+              <g key={p}>
+                <rect x={px} y={py} width={pChipW} height={pChipH} rx={4} fill="rgba(167,139,250,0.12)" stroke="rgba(167,139,250,0.55)" strokeWidth={0.7} />
+                <text x={px + 7} y={py + 11} fontSize={9} fontWeight={700} fill="#c4b5fd" fontFamily="var(--font-sans)">{p}</text>
+              </g>
+            );
+          })}
+        </g>
+      )}
     </g>
   );
 }

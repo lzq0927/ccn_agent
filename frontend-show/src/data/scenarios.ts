@@ -56,7 +56,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
             { id: "PCF_1", anomalous: false },
           ],
           verdict: "normal",
-          note: "gNB 接入、UDM/PCF 通信均正常 → 印证 AMF/SMF 本体健康",
+          note: "gNB 接入、AMF↔UDM、UDM/PCF 通信均正常 → 印证 AMF 本体健康、排除 AMF",
         },
         {
           type: "UPF 通信路径",
@@ -69,6 +69,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
           note: "仅 UPF_1 异常、UPF_2/3 正常 → 离群根因",
         },
       ],
+      principles: ["故障传播原则", "独立性验证原则", "故障聚合原则", "均质化比较"],
     },
     isolation: { isolateNe: "UPF_1", failoverTo: ["UPF_2", "UPF_3"], summary: "隔离 UPF_1 · 流量切至 UPF POOL 健康实例" },
   },
@@ -112,7 +113,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
             { id: "UPF_2", anomalous: false },
           ],
           verdict: "normal",
-          note: "gNB/AMF 接入、UPF 转发均正常 → 排除接入与转发侧",
+          note: "gNB/AMF 接入、AMF↔UDM、UPF 转发均正常 → 排除接入与转发侧",
         },
         {
           type: "UDM 通信路径",
@@ -124,6 +125,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
           note: "仅 UDM_1 异常 → 离群根因",
         },
       ],
+      principles: ["故障传播原则", "独立性验证原则", "故障聚合原则", "均质化比较"],
     },
     isolation: { isolateNe: "UDM_1", failoverTo: ["UDM_2"], summary: "隔离 UDM_1(主) · UDM_2(备)升主切流量" },
   },

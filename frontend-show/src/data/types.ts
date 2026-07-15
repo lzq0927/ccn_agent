@@ -151,6 +151,7 @@ export interface HomogenRound {
 export interface HomogenResult {
   anchorNe: string; // 弹窗锚定 NE(根因)
   rounds: HomogenRound[];
+  principles: string[]; // 应用的推理原则/算法(故障传播/独立性验证/故障聚合…)
 }
 /** 隔离标注(场景 A/B/D,phase 5 弹窗) */
 export interface IsolationNote {
