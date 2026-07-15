@@ -1,7 +1,7 @@
 // ============================================================================
 // ConfidencePanel —— 置信度评分仪表 + 加权子分分解 + 路由决策
-//   忠实于 confidence.py: pattern×0.40 + severity×0.20 + temporal×0.15
-//                        + spatial×0.15 − ambiguity×0.10
+//   权重和为 1: pattern×0.45 + severity×0.25 + temporal×0.15 + spatial×0.15
+//   评分 = Σ(项 × 权重)
 // ============================================================================
 
 import type { StoryState } from "../../story/types";
@@ -16,17 +16,18 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
   const rc = ROUTE_COLORS[conf.route];
 
   const parts = [
-    { cn: "模式强度", en: "pattern", w: 0.4, v: conf.pattern, sign: 1 },
-    { cn: "异常严重度", en: "severity", w: 0.2, v: conf.severity, sign: 1 },
-    { cn: "时间清晰度", en: "temporal", w: 0.15, v: conf.temporal, sign: 1 },
-    { cn: "空间清晰度", en: "spatial", w: 0.15, v: conf.spatial, sign: 1 },
-    { cn: "模糊度(罚) ", en: "ambiguity", w: 0.1, v: conf.ambiguity, sign: -1 },
+    { cn: "模式强度", en: "pattern", w: 0.45, v: conf.pattern, sign: 1, expl: "故障模式与已知故障的匹配强度" },
+    { cn: "异常严重度", en: "severity", w: 0.25, v: conf.severity, sign: 1, expl: "最劣链路跌幅深度" },
+    { cn: "时间清晰度", en: "temporal", w: 0.15, v: conf.temporal, sign: 1, expl: "异常起落程度(5% 阶跃即饱和)" },
+    { cn: "空间清晰度", en: "spatial", w: 0.15, v: conf.spatial, sign: 1, expl: "受影响 NE 的空间聚集程度" },
   ];
+  // 权重和为 1,评分 = Σ(项 × 权重);置信度随相位揭示(rev)渐进显现
+  const scoreSum = parts.reduce((acc, p) => acc + p.v * p.w, 0);
 
   return (
     <HudFrame title="策略匹配" subtitle="POLICY MATCHING" right={<span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>Agent 2</span>}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <Gauge value={conf.score * rev} display={(conf.score * rev).toFixed(2)} color={rc.base} size={96} label="CONFIDENCE" />
+        <Gauge value={scoreSum * rev} display={(scoreSum * rev).toFixed(2)} color={rc.base} size={96} label="CONFIDENCE" />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 4 }}>ROUTED TO</div>
           <div
@@ -49,7 +50,8 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
       </div>
 
       {/* 加权分解 */}
-      <div style={{ marginTop: 12, fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>WEIGHTED DECOMPOSITION</div>
+      <div style={{ marginTop: 12, fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 2 }}>WEIGHTED DECOMPOSITION</div>
+      <div style={{ fontSize: 8.5, color: "var(--text-dim)", marginBottom: 6 }}>评分 = Σ(各项 × 权重) · 权重和 = 1</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
         {parts.map((p) => {
           const contrib = p.v * p.w * p.sign;
@@ -57,7 +59,7 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
           const w = Math.abs(p.v * p.w) * rev;
           return (
             <div key={p.en}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, marginBottom: 2 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, marginBottom: 1 }}>
                 <span style={{ color: "var(--text-mid)" }}>
                   {p.cn} <span style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>×{p.w}</span>
                 </span>
@@ -66,6 +68,7 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
                   {contrib.toFixed(3)}
                 </span>
               </div>
+              <div style={{ fontSize: 8, color: "var(--text-faint)", marginBottom: 3, lineHeight: 1.25 }}>{p.expl}</div>
               <div style={{ height: 6, borderRadius: 3, background: "var(--accent-soft)", overflow: "hidden" }}>
                 <div
                   style={{
@@ -82,7 +85,7 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
         })}
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, paddingTop: 6, borderTop: "1px dashed var(--border)" }}>
           <span style={{ fontSize: 10, color: "var(--text-dim)" }}>Σ 最终评分</span>
-          <span style={{ fontSize: 14, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)" }}>{(conf.score * rev).toFixed(3)}</span>
+          <span style={{ fontSize: 14, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)" }}>{(scoreSum * rev).toFixed(3)}</span>
         </div>
       </div>
 

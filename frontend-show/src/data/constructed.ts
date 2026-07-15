@@ -232,11 +232,11 @@ const REASONING_C: ReasonStep[] = [
 ];
 
 const CONFIDENCE_C: ConfidenceBreakdown = {
-  pattern: 0.3,
-  severity: 0.3,
-  temporal: 0.45,
-  spatial: 0.3,
-  ambiguity: 0.5,
+  pattern: 0.28,
+  severity: 0.28,
+  temporal: 0.3,
+  spatial: 0.28,
+  ambiguity: 0,
   score: 0.28,
   route: "autonomous",
   patternName: "fuzzy_signal (信号模糊·自主探索)",
