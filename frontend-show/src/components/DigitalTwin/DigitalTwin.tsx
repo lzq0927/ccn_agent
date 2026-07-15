@@ -434,7 +434,7 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
   if (!node) return null;
   const w = 300;
   const top = 30; // 内容起始 y
-  const roundH = 84; // 每轮:类型行 + 原则 + chips + note + 间距
+  const roundH = 90; // 每轮:类型行 + 原则 + chips + note(轮内紧凑、轮间留白)
   const principlesY0 = top + result.rounds.length * roundH + (result.principles.length ? 8 : 0);
   const pRows = Math.ceil(result.principles.length / 2);
   const principlesH = result.principles.length ? 22 + pRows * 19 + 6 : 0;
@@ -460,7 +460,7 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
         const base = top + ri * roundH;
         const typeY = base + 12;
         const chipsY = base + 36;
-        const noteY = base + 74;
+        const noteY = base + 58;
         const isRoot = r.verdict === "root";
         const isNormal = r.verdict === "normal";
         const tagFill = isRoot ? "rgba(245,158,11,0.18)" : isNormal ? "rgba(34,197,94,0.16)" : "rgba(148,163,184,0.14)";
@@ -470,7 +470,7 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
         return (
           <g key={ri}>
             {/* 轮间分隔线(实线、更醒目) */}
-            {ri > 0 && <line x1={12} y1={base - 8} x2={w - 12} y2={base - 8} stroke="rgba(148,163,184,0.75)" strokeWidth={1.4} />}
+            {ri > 0 && <line x1={12} y1={base - 14} x2={w - 12} y2={base - 14} stroke="rgba(148,163,184,0.75)" strokeWidth={1.4} />}
             <text x={12} y={typeY} fontSize={12} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">{r.type}</text>
             {/* 结论标签 */}
             <g transform={`translate(${w - 12 - 92} ${typeY - 11})`}>
