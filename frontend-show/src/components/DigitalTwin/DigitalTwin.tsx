@@ -434,7 +434,7 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
   if (!node) return null;
   const w = 300;
   const top = 30; // 内容起始 y
-  const roundH = 76; // 每轮:类型行 + 原则 + chips + note + 间距
+  const roundH = 84; // 每轮:类型行 + 原则 + chips + note + 间距
   const principlesY0 = top + result.rounds.length * roundH + (result.principles.length ? 8 : 0);
   const pRows = Math.ceil(result.principles.length / 2);
   const principlesH = result.principles.length ? 22 + pRows * 19 + 6 : 0;
@@ -459,8 +459,8 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
       {result.rounds.map((r, ri) => {
         const base = top + ri * roundH;
         const typeY = base + 12;
-        const chipsY = base + 34;
-        const noteY = base + 68;
+        const chipsY = base + 36;
+        const noteY = base + 74;
         const isRoot = r.verdict === "root";
         const isNormal = r.verdict === "normal";
         const tagFill = isRoot ? "rgba(245,158,11,0.18)" : isNormal ? "rgba(34,197,94,0.16)" : "rgba(148,163,184,0.14)";
@@ -469,8 +469,8 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
         const tagText = isRoot ? "离群 · 根因" : isNormal ? "正常 · 排除" : "共性 · 排除";
         return (
           <g key={ri}>
-            {/* 轮间分隔线 */}
-            {ri > 0 && <line x1={12} y1={base - 4} x2={w - 12} y2={base - 4} stroke="rgba(56,189,248,0.18)" strokeWidth={1} />}
+            {/* 轮间分隔线(更醒目) */}
+            {ri > 0 && <line x1={12} y1={base - 7} x2={w - 12} y2={base - 7} stroke="rgba(148,163,184,0.45)" strokeWidth={1} strokeDasharray="4 3" />}
             <text x={12} y={typeY} fontSize={12} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">{r.type}</text>
             {/* 结论标签 */}
             <g transform={`translate(${w - 12 - 92} ${typeY - 11})`}>
@@ -479,11 +479,11 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
                 {tagText}
               </text>
             </g>
-            {/* 本轮应用的推理原则(醒目) */}
+            {/* 本轮应用的推理原则(醒目明亮) */}
             {r.principle && (
               <g>
-                <rect x={12} y={base + 16} width={112} height={15} rx={4} fill="rgba(167,139,250,0.22)" stroke="rgba(167,139,250,0.7)" strokeWidth={0.8} />
-                <text x={17} y={base + 27} fontSize={9.5} fontWeight={700} fill="#ddd6fe" fontFamily="var(--font-sans)">▸ {r.principle}</text>
+                <rect x={12} y={base + 16} width={116} height={16} rx={4} fill="rgba(167,139,250,0.28)" stroke="rgba(196,181,253,0.85)" strokeWidth={0.9} />
+                <text x={18} y={base + 28} fontSize={10} fontWeight={700} fill="#f5f3ff" fontFamily="var(--font-sans)">▸ {r.principle}</text>
               </g>
             )}
             {/* 实例 chip 行:异常红 / 正常绿 */}
@@ -505,7 +505,7 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
       {result.principles.length > 0 && (
         <g>
           <line x1={12} y1={principlesY0} x2={w - 12} y2={principlesY0} stroke="rgba(56,189,248,0.18)" strokeWidth={1} />
-          <text x={12} y={principlesY0 + 13} fontSize={9} fontWeight={700} fill="var(--text-faint)" fontFamily="var(--font-mono)" letterSpacing="0.1em">推理原则 · REASONING RULES</text>
+          <text x={12} y={principlesY0 + 13} fontSize={9.5} fontWeight={700} fill="#c4b5fd" fontFamily="var(--font-mono)" letterSpacing="0.1em">推理原则 · REASONING RULES</text>
           {result.principles.map((p, i) => {
             const col = i % 2;
             const row = Math.floor(i / 2);

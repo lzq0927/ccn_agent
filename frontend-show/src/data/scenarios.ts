@@ -53,12 +53,12 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
           type: "AMF-UDM 正常",
           principle: "故障排除原则",
           instances: [
-            { id: "gNB_1", anomalous: false },
-            { id: "UDM_1", anomalous: false },
-            { id: "PCF_1", anomalous: false },
+            { id: "AMF_1", anomalous: false },
+            { id: "AMF_2", anomalous: false },
+            { id: "AMF_3", anomalous: false },
           ],
           verdict: "normal",
-          note: "AMF↔UDM 等通信正常 → 排除 AMF",
+          note: "AMF↔UDM 通信正常 → 排除 3 个 AMF",
         },
         {
           type: "UPF 通信路径",
@@ -113,12 +113,12 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
           type: "AMF-UDM 正常",
           principle: "故障排除原则",
           instances: [
-            { id: "gNB_1", anomalous: false },
             { id: "AMF_1", anomalous: false },
-            { id: "UPF_2", anomalous: false },
+            { id: "AMF_2", anomalous: false },
+            { id: "AMF_3", anomalous: false },
           ],
           verdict: "normal",
-          note: "AMF↔UDM 等通信正常 → 排除 AMF 及接入转发侧",
+          note: "AMF↔UDM 通信正常 → 排除 3 个 AMF",
         },
         {
           type: "UDM 通信路径",
