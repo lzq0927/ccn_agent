@@ -385,7 +385,7 @@ function UeCluster({ nodes, active, anomaly, userFaultGnbs }: { nodes: NetworkGr
         在网用户
       </text>
       <text x={4} y={273} fontSize={16} fontWeight={800} fill="var(--text-soft)" fontFamily="var(--font-sans)" letterSpacing="0.02em">
-        12.8万
+        128万
       </text>
       {ueYs.map((y, i) => (
         <g key={i}>

@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { EDGES, NODES, affectedEntities, type NetworkGraph } from "./network";
-import type { FaultSpec } from "./types";
+import type { FaultSpec, NEType } from "./types";
 
 export const TIMESTEPS = 60;
 const ANOMALY_THRESHOLD = 0.995;
@@ -189,6 +189,65 @@ export function buildMildOverallKpi(
     if (t >= faultStart && t < faultEnd) v = clamp(v - dip + (rng() - 0.5) * 0.002, 0.8, 0.999);
     overall.push(v);
   }
+  return { steps: TIMESTEPS, overall, edges, nodes, faultStart, faultEnd, threshold: ANOMALY_THRESHOLD };
+}
+
+/**
+ * UPF 微损型故障的传播 KPI(构造式 UPF 场景):
+ *   根因 UPF_1 微损,异常向前端传导 —— AMF↔SMF 通信路径(及其 AMF/SMF 网元)
+ *   普遍出现轻度劣化(均质化);UPF_1 为唯一离群点,UPF_2/UPF_3 保持健康。
+ *   呈现「前端 AMF/SMF 均质化异常 + UPF_1 离群」的症状,供均质化比较定位。
+ */
+export function buildUpfFaultKpi(graph: NetworkGraph, fault: FaultSpec): KpiBundle {
+  const root = fault.elements[0] ?? "UPF_1";
+  const lossRate = fault.lossRate;
+  const rng = mulberry32(((fault.faultStart * 97 + lossRate * 1000) | 0) + 23);
+  const faultStart = fault.faultStart;
+  const faultEnd = fault.faultStart + fault.faultDuration;
+  const inWindow = (t: number) => t >= faultStart && t < faultEnd;
+
+  type Tier = "root" | "ctrl" | "none";
+  // 根因(UPF_1)微损最重;前端 AMF/SMF 为轻度传导表象(均质化)。
+  const dropFor = (tier: Tier): number => {
+    if (tier === "root") return clamp(lossRate + (rng() - 0.5) * 0.012, 0.02, 0.1);
+    if (tier === "ctrl") return clamp(lossRate * 0.68 + (rng() - 0.5) * 0.01, 0.012, 0.06);
+    return 0;
+  };
+  const series = (tier: Tier): number[] => {
+    const s = healthySeries(rng);
+    if (tier === "none") return s;
+    for (let t = 1; t <= TIMESTEPS; t++) {
+      if (!inWindow(t)) continue;
+      s[t - 1] = clamp(1 - dropFor(tier), 0.8, 0.999);
+    }
+    return s;
+  };
+
+  const nodeTier = (id: string, type: NEType): Tier => {
+    if (id === root) return "root";
+    if (type === "AMF" || type === "SMF") return "ctrl";
+    return "none";
+  };
+  const edgeTier = (a: NEType, b: NEType, aId: string, bId: string): Tier => {
+    if (aId === root || bId === root) return "root"; // SMF↔UPF_1
+    const types = new Set<NEType>([a, b]);
+    if (types.has("AMF") && types.has("SMF")) return "ctrl"; // AMF↔SMF 前端路径
+    return "none";
+  };
+
+  const edges: Record<string, number[]> = {};
+  const nodes: Record<string, number[]> = {};
+  const overallAcc = new Array(TIMESTEPS).fill(0);
+  let flowCount = 0;
+  for (const e of graph.flowEdges) {
+    flowCount++;
+    const s = series(edgeTier(e.types[0], e.types[1], e.a, e.b));
+    edges[e.id] = s;
+    for (let t = 0; t < TIMESTEPS; t++) overallAcc[t] += s[t];
+  }
+  for (const n of graph.nodes) nodes[n.id] = series(nodeTier(n.id, n.type));
+
+  const overall = overallAcc.map((v) => (flowCount ? v / flowCount : 0.999));
   return { steps: TIMESTEPS, overall, edges, nodes, faultStart, faultEnd, threshold: ANOMALY_THRESHOLD };
 }
 

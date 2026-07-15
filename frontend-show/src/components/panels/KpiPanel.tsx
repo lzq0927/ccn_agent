@@ -44,12 +44,30 @@ export function KpiPanel({
   const winX1 = xOf(kpi.faultEnd - 1);
   const curX = xOf(Math.max(0, Math.min(steps - 1, state.simT - 1)));
 
-  // 代表性劣化链路 sparkline
-  // 按劣化严重度(窗内最低点)排序后取前 5 —— 让根因直连链路(如 SMF↔UDM)优先于轻度传播链路(AMF↔SMF)显现
+  // 代表性链路 sparkline —— 劣化 + 正常(均质化对照)
+  // 劣化:按窗内最低点排序取前 5,根因直连链路优先于轻度传播链路显现;
+  // 正常:取劣化链路的「同类孪生」——共享一端、另一端为同类型健康实例,
+  // 直观呈现均质化对照(如 SMF↔UPF_1 劣化 vs SMF↔UPF_2/UPF_3 正常 → UPF_1 离群)。
   const degradedEdges = g.flowEdges
     .filter((e) => kpi.edges[e.id]?.some((v) => v < kpi.threshold))
     .sort((a, b) => Math.min(...kpi.edges[a.id]) - Math.min(...kpi.edges[b.id]))
     .slice(0, 5);
+  const typeOf = (id: string) => id.replace(/_\d+$/, "");
+  const isDegradedEdge = (id: string) => !!kpi.edges[id]?.some((v) => v < kpi.threshold);
+  const healthyEdges: typeof g.flowEdges = [];
+  for (const d of degradedEdges) {
+    for (const e of g.flowEdges) {
+      if (isDegradedEdge(e.id) || healthyEdges.includes(e)) continue;
+      const shareA = e.a === d.a || e.a === d.b;
+      const shareB = e.b === d.a || e.b === d.b;
+      if (shareA === shareB) continue; // 恰好共享一端
+      const shared = shareA ? e.a : e.b;
+      const otherD = d.a === shared ? d.b : d.a;
+      const otherE = e.a === shared ? e.b : e.a;
+      if (typeOf(otherD) === typeOf(otherE)) healthyEdges.push(e); // 同类型不同实例 = 孪生
+    }
+    if (healthyEdges.length >= 3) break;
+  }
 
   return (
     <HudFrame title="网络 KPI · 实时遥测" subtitle="OVERALL SUCCESS RATE" right={<LiveTag on={state.showAnomaly} />}>
@@ -78,32 +96,48 @@ export function KpiPanel({
         <Stat label="游标" value={`T${state.simT.toFixed(0)}`} color="var(--accent)" />
       </div>
 
-      {/* 代表链路 sparkline */}
-      {degradedEdges.length > 0 && (
+      {/* 代表链路 sparkline:劣化 + 正常(均质化对照) */}
+      {(degradedEdges.length > 0 || healthyEdges.length > 0) && (
         <div style={{ marginTop: 10, borderTop: "1px solid rgba(56,189,248,0.12)", paddingTop: 8 }}>
-          <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>DEGRADED LINKS · SPARKLINE</div>
-          {degradedEdges.map((e) => {
-            const es = kpi.edges[e.id];
-            const ecv = sample(es, state.simT);
-            const SW = 200;
-            const SH = 20;
-            const sy = (v: number) => SH - ((Math.max(SR_LO, Math.min(SR_HI, v)) - SR_LO) / (SR_HI - SR_LO)) * SH;
-            const sPath = es.map((v, i) => `${i === 0 ? "M" : "L"} ${((i / (es.length - 1)) * SW).toFixed(1)} ${sy(v).toFixed(1)}`).join(" ");
-            return (
-              <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ width: 96, fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>
-                  {g.nodeById[e.a]?.id}↔{g.nodeById[e.b]?.id}
-                </span>
-                <svg style={{ flex: 1 }} height={SH} viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none">
-                  <path d={sPath} fill="none" stroke={srColor(ecv)} strokeWidth={1.4} />
-                </svg>
-                <span style={{ fontSize: 9, color: srColor(ecv), fontFamily: "var(--font-mono)", width: 44, textAlign: "right" }}>{(ecv * 100).toFixed(1)}%</span>
+          <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>
+            LINK SPARKLINE · 劣化 / 正常对照
+          </div>
+          {degradedEdges.map((e) => (
+            <LinkSpark key={e.id} a={g.nodeById[e.a]?.id} b={g.nodeById[e.b]?.id} es={kpi.edges[e.id]} simT={state.simT} />
+          ))}
+          {healthyEdges.length > 0 && (
+            <>
+              <div style={{ fontSize: 8, color: STATUS.healthy, margin: "5px 0 3px", fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}>
+                正常链路 · 均质化对照
               </div>
-            );
-          })}
+              {healthyEdges.map((e) => (
+                <LinkSpark key={e.id} a={g.nodeById[e.a]?.id} b={g.nodeById[e.b]?.id} es={kpi.edges[e.id]} simT={state.simT} />
+              ))}
+            </>
+          )}
         </div>
       )}
     </HudFrame>
+  );
+}
+
+function LinkSpark({ a, b, es, simT }: { a?: string; b?: string; es: number[]; simT: number }) {
+  const ecv = sample(es, simT);
+  const SW = 200;
+  const SH = 20;
+  const sy = (v: number) => SH - ((Math.max(SR_LO, Math.min(SR_HI, v)) - SR_LO) / (SR_HI - SR_LO)) * SH;
+  const sPath = es.map((v, i) => `${i === 0 ? "M" : "L"} ${((i / (es.length - 1)) * SW).toFixed(1)} ${sy(v).toFixed(1)}`).join(" ");
+  const col = srColor(ecv);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+      <span style={{ width: 96, fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>
+        {a}↔{b}
+      </span>
+      <svg style={{ flex: 1 }} height={SH} viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none">
+        <path d={sPath} fill="none" stroke={col} strokeWidth={1.4} />
+      </svg>
+      <span style={{ fontSize: 9, color: col, fontFamily: "var(--font-mono)", width: 44, textAlign: "right" }}>{(ecv * 100).toFixed(1)}%</span>
+    </div>
   );
 }
 

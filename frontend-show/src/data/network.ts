@@ -214,6 +214,11 @@ export function recoveryRerouteIn(graph: NetworkGraph, fault: FaultSpec): string
   if (fault.faultType === "path_link") {
     for (const u of instances("UPF")) reroute.push(edgeId("SMF_1", u), edgeId("SMF_2", u));
   }
+  // UPF 隔离(single_ne):SMF 将用户面流量切换至 UPF POOL 内其它健康 UPF
+  if (fault.faultType === "single_ne" && fault.elements.some((e) => e.replace(/_\d+$/, "") === "UPF")) {
+    const healthyUpfs = instances("UPF").filter((u) => !fault.elements.includes(u));
+    for (const s of instances("SMF")) for (const u of healthyUpfs) reroute.push(edgeId(s, u));
+  }
   return reroute.filter((id, i, arr) => graph.edgeById[id] && arr.indexOf(id) === i);
 }
 

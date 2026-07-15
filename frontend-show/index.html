@@ -5,16 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <meta name="theme-color" content="#04070f" />
     <script>
-      // 首屏前确定主题,避免 FOUC;默认深邃(与裸 :root 一致)
-      (function () {
-        try {
-          var t = localStorage.getItem("ccn.theme");
-          if (t !== "dark" && t !== "dim" && t !== "light") t = "dark";
-        } catch (e) {
-          t = "dark";
-        }
-        document.documentElement.dataset.theme = t;
-      })();
+      // 首屏固定深邃,避免 FOUC;展会 demo 每次启动默认深邃(不沿用上次选择)
+      document.documentElement.dataset.theme = "dark";
     </script>
     <title>高稳智能体 · 5GC 数字孪生平台</title>
   </head>

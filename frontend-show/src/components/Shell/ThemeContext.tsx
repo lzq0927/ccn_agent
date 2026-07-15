@@ -44,12 +44,8 @@ interface ThemeCtxValue {
 const ThemeCtx = createContext<ThemeCtxValue | null>(null);
 
 function readInitialTheme(): ThemeId {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === "dark" || stored === "dim" || stored === "light") return stored;
-  } catch {
-    /* localStorage 不可用时回落默认 */
-  }
+  // 展会 demo:每次启动固定默认深邃(dark),不沿用上次选择 —— 确保每场演示一致开场。
+  // (主题切换仍可在会话内即时生效,刷新后回到深邃。)
   return DEFAULT_THEME;
 }
 

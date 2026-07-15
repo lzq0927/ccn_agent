@@ -1,18 +1,40 @@
 // ============================================================================
-// 演示场景 —— 三场景编排(路由分落三档:工作流 / 技能引导 / 自主探索)
-//   A 核心网 UDM 异常 · 确定性工作流(均质化对比排除 SMF + 故障聚合)
+// 演示场景 —— 四场景编排(路由分落三档:工作流 / 技能引导 / 自主探索)
+//   A 核心网 UPF 异常 · 确定性工作流(均质化比较排除 AMF/SMF + 定位 UPF_1)
 //   B 核心网 SMF 异常 · 技能引导(多维校验排除终端 → 识别网络根因)
 //   C 无线接入 gNB · 自主探索(CHR 聚类 + 用户分群追踪 → 物联终端群体异常)
-// 三场景共用真实 case_101 拓扑(21 NE)+ 合成遥测 + 手写推理链。
+//   D 核心网 UDM 异常 · 确定性工作流(均质化对比排除 SMF + 故障聚合)
+// 四场景共用真实 case_101 拓扑(21 NE)+ 合成遥测 + 手写推理链。
 // ============================================================================
 
 import { type ScenarioNarrative } from "./real";
-import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C } from "./constructed";
+import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C, SPEC_D } from "./constructed";
 import type { Scenario } from "./types";
 
 // 每个场景的叙事层(数据全真或合成,文案据诊断结果定稿)
 const NARRATIVES: Record<string, ScenarioNarrative> = {
   A: {
+    cn: "核心网 UPF 异常·确定性工作流定位",
+    en: "UPF FAULT · DETERMINISTIC WORKFLOW",
+    tagline: "UPF_1 微损 · 前端 AMF↔SMF 路径普遍异常 · 均质化比较秒级锁定 UPF_1",
+    intro: "核心网 UPF_1 微损,异常传导至前端 AMF↔SMF 通信路径普遍劣化。确定性工作流先均质化比较排除 AMF/SMF 共性异常,再对 UPF 通信路径均质化比较,定位唯一离群点 UPF_1,隔离后流量切换至 UPF POOL 内 UPF_2/UPF_3。",
+    objective: "UPF_1 微损 · 均质化比较排除 AMF/SMF + 定位 UPF_1",
+    pillars: { userLevel: false, autonomy: true },
+    comparison: {
+      naive: {
+        title: "仅网络聚合 KPI",
+        verdict: "AMF↔SMF 普遍异常·易误报 SMF",
+        detail: "AMF↔SMF 路径普遍劣化,朴素归因误指 SMF 或 AMF 链路",
+        kind: "falsealarm",
+      },
+      explored: {
+        title: "确定性工作流(均质化比较)",
+        verdict: "秒级锁定 UPF_1 根因",
+        detail: "AMF/SMF 均质化排除 + UPF 均质化 → UPF_1",
+      },
+    },
+  },
+  D: {
     cn: "核心网 UDM 异常·确定性工作流定位",
     en: "UDM FAULT · DETERMINISTIC WORKFLOW",
     tagline: "签约管理 UDM_1 故障 · 多网元(含多 SMF)异常表象 · 均质化对比+聚合秒级收敛",
@@ -123,11 +145,12 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
   },
 };
 
-// 三场景:A(构造 UDM · 工作流)、B(构造 SMF · 技能引导)、C(构造 gNB 物联终端群体 · 自主探索)
+// 四场景:A(构造 UPF · 工作流)、B(构造 SMF · 技能引导)、C(构造 gNB 物联终端群体 · 自主探索)、D(构造 UDM · 工作流)
 export const SCENARIOS: Scenario[] = [
   buildConstructedScenario("A", NARRATIVES.A, SPEC_A),
   buildConstructedScenario("B", NARRATIVES.B, SPEC_B),
   buildConstructedScenario("C", NARRATIVES.C, SPEC_C),
+  buildConstructedScenario("D", NARRATIVES.D, SPEC_D),
 ];
 
 export const DEFAULT_SCENARIO_ID = "A";

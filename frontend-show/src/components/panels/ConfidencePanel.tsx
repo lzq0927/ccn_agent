@@ -24,7 +24,7 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
   ];
 
   return (
-    <HudFrame title="智能研判" subtitle="INTELLIGENT JUDGMENT" right={<span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>Agent 2</span>}>
+    <HudFrame title="策略匹配" subtitle="POLICY MATCHING" right={<span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>Agent 2</span>}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <Gauge value={conf.score * rev} display={(conf.score * rev).toFixed(2)} color={rc.base} size={96} label="CONFIDENCE" />
         <div style={{ flex: 1 }}>
