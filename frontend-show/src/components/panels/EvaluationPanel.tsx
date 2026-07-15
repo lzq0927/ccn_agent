@@ -27,6 +27,9 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
   const ev = state.evalMetrics;
   if (!ev) return null;
   const cat = CAT_META[ev.category];
+  // P/R/F1 为单用例级指标:本例预测根因集 vs 真值集
+  const predictedEls = scenario.predicted.elements.join("、") || "—";
+  const truthEls = scenario.truth.elements.join("、") || "无网络根因";
   const axes = [
     { label: "逻辑连贯", value: ev.traceAxes.logicalCoherence },
     { label: "工具效率", value: ev.traceAxes.toolEfficiency },
@@ -37,10 +40,17 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
   return (
     <HudFrame title="评估优化 · 闭环反馈" subtitle="AGENT 3 · EVALUATION" right={<span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>vs 真值</span>}>
       {/* 指标仪表 */}
-      <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", alignItems: "center", marginBottom: 4 }}>
         <Gauge value={ev.precision} display={ev.precision.toFixed(2)} color="var(--accent)" size={70} label="PRECISION" />
         <Gauge value={ev.recall} display={ev.recall.toFixed(2)} color="#a78bfa" size={70} label="RECALL" />
         <Gauge value={ev.f1} display={ev.f1.toFixed(2)} color={STATUS.healthy} size={70} label="F1" />
+      </div>
+      {/* 指标口径:单用例级,预测根因集 vs 真值集 */}
+      <div style={{ fontSize: 9, color: "var(--text-dim)", textAlign: "center", marginBottom: 10, lineHeight: 1.5 }}>
+        <div>单用例级指标 · 预测根因集 vs 真值集</div>
+        <div style={{ fontFamily: "var(--font-mono)", marginTop: 2 }}>
+          预测 <span style={{ color: "var(--text-soft)" }}>{predictedEls}</span> ↔ 真值 <span style={{ color: "var(--text-soft)" }}>{truthEls}</span>
+        </div>
       </div>
 
       {/* 类别 + exact match */}
@@ -66,7 +76,10 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
           <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>TRACE QUALITY</div>
           <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text-bright)", fontFamily: "var(--font-mono)" }}>{(ev.traceAxes.overall * 100).toFixed(0)}</div>
           <div style={{ fontSize: 9, color: "var(--text-dim)" }}>推理链综合评分 / 100</div>
-          <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 4 }}>漏检信号:<span style={{ color: ev.traceAxes.missedSignals > 0.4 ? STATUS.fault : STATUS.warning }}>{(ev.traceAxes.missedSignals * 100).toFixed(0)}%</span></div>
+          <div style={{ fontSize: 9, color: "var(--text-dim)", marginTop: 4 }}>
+            信号漏检率:<span style={{ color: ev.traceAxes.missedSignals > 0.4 ? STATUS.fault : STATUS.warning }}>{(ev.traceAxes.missedSignals * 100).toFixed(0)}%</span>
+            <span style={{ color: "var(--text-faint)" }}>(推理链未纳入的异常信号占比)</span>
+          </div>
         </div>
       </div>
 

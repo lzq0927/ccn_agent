@@ -15,7 +15,7 @@ interface Props {
 export function Radar({ axes, color, size = 150 }: Props) {
   const cx = size / 2;
   const cy = size / 2;
-  const r = size / 2 - 22;
+  const r = size / 2 - 30; // 留足边距,避免 4 轴标签被裁
   const n = axes.length;
   const angle = (i: number) => -Math.PI / 2 + (i * 2 * Math.PI) / n;
   const point = (i: number, rad: number) => [cx + Math.cos(angle(i)) * rad, cy + Math.sin(angle(i)) * rad] as const;
