@@ -219,7 +219,7 @@ const SCENARIO_SUB: Record<string, Record<number, string>> = {
   A: {
     2: "iFFusion 逐链路检出:前端 AMF↔SMF 通信路径普遍异常 · 异常全面初筛",
     3: "置信度 0.76 > 0.7 · 命中 UPF 故障聚合 · 直达确定性工作流(不走 LLM)",
-    4: "均质化比较+故障排除收敛范围 · 故障聚合定位 UPF_1 · 防漏报",
+    4: "均质化比较+故障排除收敛范围 · 故障聚合定位 UPF_1 · 防误报",
     5: "隔离 UPF_1 · 流量切换至 UPF POOL 内 UPF_2/UPF_3 接管",
   },
   B: {

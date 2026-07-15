@@ -441,7 +441,7 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
   const h = principlesY0 + principlesH + 4;
   // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧,避开右上「整网聚合」读数框
   const placeLeft = node.x > VIEW_W * 0.6;
-  const cx = placeLeft ? Math.max(8, node.x - w - 32) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
+  const cx = placeLeft ? Math.max(8, node.x - w - 48) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
   const cy = placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node.y - h / 2)) : Math.max(8, node.y - h - 24);
   const lx = placeLeft ? w : Math.max(20, Math.min(w - 20, node.x - cx));
   const ly = placeLeft ? Math.max(20, Math.min(h - 20, node.y - cy)) : h;
@@ -528,10 +528,10 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
 function IsolationCallout({ note, node }: { note: NonNullable<StoryState["isolationPopup"]>; node: { x: number; y: number } | undefined }) {
   if (!node) return null;
   const w = 252;
-  const h = 96;
+  const h = 92;
   // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧,避开右上「整网聚合」读数框
   const placeLeft = node.x > VIEW_W * 0.6;
-  const cx = placeLeft ? Math.max(8, node.x - w - 32) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
+  const cx = placeLeft ? Math.max(8, node.x - w - 48) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
   const cy = placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node.y - h / 2)) : Math.max(8, node.y - h - 24);
   const lx = placeLeft ? w : Math.max(20, Math.min(w - 20, node.x - cx));
   const ly = placeLeft ? Math.max(20, Math.min(h - 20, node.y - cy)) : h;
@@ -544,11 +544,11 @@ function IsolationCallout({ note, node }: { note: NonNullable<StoryState["isolat
       <text x={26} y={18} fontSize={12.5} fontWeight={700} fill={STATUS.faultGlow} fontFamily="var(--font-mono)" letterSpacing="0.06em">
         隔离 ISOLATION
       </text>
-      <text x={12} y={48} fontSize={22} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-sans)">{note.isolateNe}</text>
-      <text x={12} y={71} fontSize={12.5} fontWeight={700} fill={STATUS.healthy} fontFamily="var(--font-sans)">
+      <text x={12} y={44} fontSize={16} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-sans)">{note.isolateNe}</text>
+      <text x={12} y={66} fontSize={12.5} fontWeight={700} fill={STATUS.healthy} fontFamily="var(--font-sans)">
         → 流量切至 {note.failoverTo.join(" / ")}
       </text>
-      <text x={12} y={89} fontSize={10.5} fill="var(--text-mid)" fontFamily="var(--font-sans)">{note.summary}</text>
+      <text x={12} y={84} fontSize={10.5} fill="var(--text-mid)" fontFamily="var(--font-sans)">{note.summary}</text>
     </g>
   );
 }
