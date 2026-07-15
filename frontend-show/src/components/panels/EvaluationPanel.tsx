@@ -30,12 +30,14 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
   // P/R/F1 为单用例级指标:本例预测根因集 vs 真值集
   const predictedEls = scenario.predicted.elements.join("、") || "—";
   const truthEls = scenario.truth.elements.join("、") || "无网络根因";
-  const axes = [
-    { label: "逻辑连贯", value: ev.traceAxes.logicalCoherence },
-    { label: "工具效率", value: ev.traceAxes.toolEfficiency },
-    { label: "证据质量", value: ev.traceAxes.evidenceQuality },
-    { label: "信号覆盖", value: 1 - ev.traceAxes.missedSignals },
+  // 4 维评估(LLM TraceAnalyzer 评判):分值 + 评判标准
+  const dims = [
+    { label: "逻辑连贯", value: ev.traceAxes.logicalCoherence, crit: "步骤合逻辑、前后自洽" },
+    { label: "工具效率", value: ev.traceAxes.toolEfficiency, crit: "用对工具、无冗余调用" },
+    { label: "证据质量", value: ev.traceAxes.evidenceQuality, crit: "结论有强证据支撑" },
+    { label: "信号覆盖", value: 1 - ev.traceAxes.missedSignals, crit: "未遗漏重要异常信号" },
   ];
+  const axes = dims.map((d) => ({ label: d.label, value: d.value }));
 
   return (
     <HudFrame title="评估优化 · 闭环反馈" subtitle="AGENT 3 · EVALUATION" right={<span style={{ fontSize: 8, color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>vs 真值</span>}>
@@ -75,12 +77,14 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>TRACE QUALITY</div>
           <div style={{ fontSize: 26, fontWeight: 800, color: "var(--text-bright)", fontFamily: "var(--font-mono)" }}>{(ev.traceAxes.overall * 100).toFixed(0)}</div>
-          <div style={{ fontSize: 9, color: "var(--text-dim)" }}>推理链综合评分 / 100(4 维加权平均)</div>
-          <div style={{ fontSize: 8.5, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginTop: 5, lineHeight: 1.65 }}>
-            逻辑连贯 {(ev.traceAxes.logicalCoherence * 100).toFixed(0)} · 工具效率 {(ev.traceAxes.toolEfficiency * 100).toFixed(0)}
-            <br />
-            证据质量 {(ev.traceAxes.evidenceQuality * 100).toFixed(0)} · 信号覆盖 {((1 - ev.traceAxes.missedSignals) * 100).toFixed(0)}
-          </div>
+          <div style={{ fontSize: 9, color: "var(--text-dim)", marginBottom: 4 }}>推理链综合评分 / 100(4 维加权平均)</div>
+          {dims.map((d) => (
+            <div key={d.label} style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 3 }}>
+              <span style={{ width: 52, fontSize: 9, fontWeight: 700, color: "#a78bfa" }}>{d.label}</span>
+              <span style={{ width: 20, fontSize: 10, fontWeight: 700, color: "var(--text-bright)", fontFamily: "var(--font-mono)" }}>{(d.value * 100).toFixed(0)}</span>
+              <span style={{ flex: 1, fontSize: 8.5, color: "var(--text-faint)" }}>{d.crit}</span>
+            </div>
+          ))}
         </div>
       </div>
 
