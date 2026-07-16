@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { EDGES, NODES, affectedEntities, type NetworkGraph } from "./network";
-import type { FaultSpec, NEType } from "./types";
+import type { FaultSpec, NEType, Scenario } from "./types";
 
 export const TIMESTEPS = 60;
 const ANOMALY_THRESHOLD = 0.995;
@@ -90,9 +90,9 @@ export function buildKpi(fault: FaultSpec): KpiBundle {
 }
 
 /**
- * 图感知 KPI 合成 —— 与 buildKpi 同逻辑,但作用在任意 NetworkGraph 上。
- * 用于构造式演示场景(真实拓扑 + 合成遥测)。opts.propagate>0 时,根因 NE 的
- * 邻居(共享业务链路)按比例轻度劣化,呈现「多网元异常表象」的传播感。
+ * 图感知 KPI 合成 —— 与 buildKpi 同逻辑，但作用在任意 NetworkGraph 上。
+ * 用于构造式演示场景(真实拓扑 + 合成遥测)。opts.propagate>0 时，根因 NE 的
+ * 邻居(共享业务链路)按比例轻度劣化，呈现「多网元异常表象」的传播感。
  */
 export function buildKpiFor(
   graph: NetworkGraph,
@@ -166,7 +166,7 @@ export function buildKpiFor(
 
 /**
  * 构造「仅总体微跌、网元全绿」的 KPI(用户侧异常场景 D):
- * overall 在故障窗内温和下跌 dip,nodes/edges 保持基线 —— 网络本体健康,信号却模糊。
+ * overall 在故障窗内温和下跌 dip,nodes/edges 保持基线 —— 网络本体健康，信号却模糊。
  */
 export function buildMildOverallKpi(
   graph: NetworkGraph,
@@ -194,9 +194,9 @@ export function buildMildOverallKpi(
 
 /**
  * UPF 微损型故障的传播 KPI(构造式 UPF 场景):
- *   根因 UPF_1 微损,异常向前端传导 —— AMF↔SMF 通信路径(及其 AMF/SMF 网元)
- *   普遍出现轻度劣化(均质化);UPF_1 为唯一离群点,UPF_2/UPF_3 保持健康。
- *   呈现「前端 AMF/SMF 均质化异常 + UPF_1 离群」的症状,供均质化比较定位。
+ *   根因 UPF_1 微损，异常向前端传导 —— AMF↔SMF 通信路径(及其 AMF/SMF 网元)
+ *   普遍出现轻度劣化(均质化);UPF_1 为唯一离群点，UPF_2/UPF_3 保持健康。
+ *   呈现「前端 AMF/SMF 均质化异常 + UPF_1 离群」的症状，供均质化比较定位。
  */
 export function buildUpfFaultKpi(graph: NetworkGraph, fault: FaultSpec): KpiBundle {
   const root = fault.elements[0] ?? "UPF_1";
@@ -264,4 +264,50 @@ export function sample(series: number[], t: number): number {
 export function anomalyRatio(series: number[], threshold = ANOMALY_THRESHOLD): number {
   if (!series.length) return 0;
   return series.filter((v) => v < threshold).length / series.length;
+}
+
+// ---------------------------------------------------------------------------
+// CHR 原因值多维时序 —— 异常检测阶段的「CHR 线」(降噪→聚类)
+//   主导原因:既有低基线 + 故障窗内突变尖峰(verdict=sudden → 本次异常);
+//   伴随原因:全程周期性偏高、窗内无明显变化(verdict=chronic → 既有噪声,降噪排除)。
+//   即:历史一直偏高 = 噪声(排除),突然变多 = 异常(网络/非网络待根因分析判定)。
+// ---------------------------------------------------------------------------
+
+export interface ChrSeries {
+  key: string; // 原因值,如 "5GSM:37"
+  cn: string; // 中文名
+  verdict: "sudden" | "chronic"; // 突变(本次异常) / 既有噪声
+  data: number[]; // 失败占比时序(0..1)
+}
+
+/** 由场景 chrInsight 合成 CHR 原因值多维时序(无 chrInsight 则返回空) */
+export function buildChrSeries(scenario: Scenario): ChrSeries[] {
+  const ci = scenario.chrInsight;
+  if (!ci) return [];
+  const rng = mulberry32(((scenario.fault.faultStart * 31 + scenario.fault.lossRate * 1000) | 0) + 41);
+  const fs = scenario.fault.faultStart;
+  const fe = scenario.fault.faultStart + scenario.fault.faultDuration;
+  const inWin = (t: number) => t >= fs && t < fe;
+  const out: ChrSeries[] = [];
+
+  // 主导原因:慢性低基线 + 故障窗突变尖峰
+  const peak = clamp((ci.share ?? 50) / 100, 0.2, 0.95);
+  const main: number[] = [];
+  for (let t = 1; t <= TIMESTEPS; t++) {
+    let v = 0.015 + rng() * 0.015; // 既有低基线
+    if (inWin(t)) v = clamp(peak + (rng() - 0.5) * 0.05, 0.1, 0.97); // 本次突变尖峰
+    main.push(clamp(v, 0, 1));
+  }
+  out.push({ key: ci.causeCode, cn: ci.causeCn, verdict: "sudden", data: main });
+
+  // 伴随原因:既有噪声 —— 全程周期性偏高,故障窗内无明显变化
+  for (const r of ci.related ?? []) {
+    const base = clamp((r.share ?? 8) / 100, 0.02, 0.35);
+    const term: number[] = [];
+    for (let t = 1; t <= TIMESTEPS; t++) {
+      term.push(clamp(base + Math.sin(t / 6) * 0.008 + (rng() - 0.5) * 0.006, 0, 0.6));
+    }
+    out.push({ key: r.code, cn: r.cn, verdict: "chronic", data: term });
+  }
+  return out;
 }

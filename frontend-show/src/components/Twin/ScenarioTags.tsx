@@ -36,7 +36,7 @@ export function ScenarioTags({ scenarios, scenario, onSelect }: Props) {
         </div>
       </div>
 
-      {/* 当前场景目标 + 简介(常驻,给观者上下文) */}
+      {/* 当前场景目标 + 简介(常驻，给观者上下文) */}
       <div style={{ marginTop: 6, fontSize: 13.5, fontWeight: 700, color: "var(--text-bright)", lineHeight: 1.4 }} title={scenario.intro}>
         ▸ {scenario.objective ?? scenario.tagline}
       </div>

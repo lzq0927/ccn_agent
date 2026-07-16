@@ -2,7 +2,7 @@
 // ComparisonPanel —— 拓扑下方对比区(建议2)
 //   左:仅网络聚合 KPI 的朴素视角(漏判 / 误报)
 //   右:多维探索后的准确识别
-//   左侧在 phase≥2 出现,右侧随 comparisonReveal(phase4+)揭示。
+//   左侧在 phase≥2 出现，右侧随 comparisonReveal(phase4+)揭示。
 // ============================================================================
 
 import type { Scenario } from "../../data/types";

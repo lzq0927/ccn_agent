@@ -1,7 +1,7 @@
 // ============================================================================
-// RecoveryPanel —— 高稳智能体恢复动作日志(合成执行器,确定性脚本)
-//   说明:真实系统闭环为 诊断→评估→建议,无执行器;此处按确定性脚本
-//   演绎「下发恢复策略 → 网络自愈」,对应数字孪生的隔离/重路由/主备切换。
+// RecoveryPanel —— 高稳智能体恢复动作日志(合成执行器，确定性脚本)
+//   说明:真实系统闭环为 诊断→评估→建议，无执行器;此处按确定性脚本
+//   演绎「下发恢复策略 → 网络自愈」，对应数字孪生的隔离/重路由/主备切换。
 // ============================================================================
 
 import type { StoryState } from "../../story/types";
@@ -20,7 +20,7 @@ export function RecoveryPanel({ state }: { state: StoryState }) {
       right={<span style={{ fontSize: 8, padding: "1px 6px", borderRadius: 3, color: done ? STATUS.recovered : STATUS.faultGlow, border: `1px solid ${done ? STATUS.recovered : STATUS.fault}55`, fontFamily: "var(--font-mono)" }}>{done ? "● HEALED" : "● EXECUTING"}</span>}
     >
       <div style={{ fontSize: 10, color: "var(--text-mid)", marginBottom: 8, lineHeight: 1.5 }}>
-        高稳智能体基于根因 <span style={{ color: "#fb7185" }}>{state.rootCause.nes.join(", ") || state.rootCause.links.join(", ")}</span> 下发恢复策略,数字孪生执行隔离 / 重路由 / 主备切换。
+        高稳智能体基于根因 <span style={{ color: "#fb7185" }}>{state.rootCause.nes.join(", ") || state.rootCause.links.join(", ")}</span> 下发恢复策略，数字孪生执行隔离 / 重路由 / 主备切换。
       </div>
 
       {/* 自愈进度 */}
@@ -72,7 +72,7 @@ export function RecoveryPanel({ state }: { state: StoryState }) {
       </div>
 
       <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px dashed var(--border)", fontSize: 9, color: "var(--text-faint)", lineHeight: 1.5 }}>
-        <span style={{ color: STATUS.recovered }}>●</span> 恢复后 KPI 回升,数字孪生验证业务成功率恢复至基线,进入评估闭环。
+        <span style={{ color: STATUS.recovered }}>●</span> 恢复后 KPI 回升，数字孪生验证业务成功率恢复至基线，进入评估闭环。
       </div>
     </HudFrame>
   );

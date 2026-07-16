@@ -215,7 +215,7 @@ export default function App() {
                   </div>
                 )}
                 <DigitalTwin scenario={scenario} state={state} graph={liveGraph} kpi={liveKpi} />
-                {/* 过程中算法标注(随相位高亮)—— 放在拓扑框底部,避免遮挡上方 */}
+                {/* 过程中算法标注(随相位高亮)—— 放在拓扑框底部，避免遮挡上方 */}
                 {state.algorithms.length > 0 && (
                   <div style={{ position: "absolute", bottom: 6, left: 0, right: 0, zIndex: 3, display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center", pointerEvents: "none" }}>
                     {state.algorithms.map((a) => (

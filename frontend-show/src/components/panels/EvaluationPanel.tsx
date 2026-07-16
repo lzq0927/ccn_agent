@@ -47,7 +47,7 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
         <Gauge value={ev.recall} display={ev.recall.toFixed(2)} color="#a78bfa" size={70} label="RECALL" />
         <Gauge value={ev.f1} display={ev.f1.toFixed(2)} color={STATUS.healthy} size={70} label="F1" />
       </div>
-      {/* 指标口径:单用例级,预测根因集 vs 真值集 */}
+      {/* 指标口径:单用例级，预测根因集 vs 真值集 */}
       <div style={{ fontSize: 9, color: "var(--text-dim)", textAlign: "center", marginBottom: 10, lineHeight: 1.5 }}>
         <div>单用例级指标 · 预测根因集 vs 真值集</div>
         <div style={{ fontFamily: "var(--font-mono)", marginTop: 2 }}>

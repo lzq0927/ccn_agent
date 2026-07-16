@@ -1,5 +1,5 @@
 // ============================================================================
-// 故事板类型 —— director 在每个时钟帧产出的派生状态,驱动所有视图
+// 故事板类型 —— director 在每个时钟帧产出的派生状态，驱动所有视图
 // ============================================================================
 
 import type { ChrInsight, ConfidenceBreakdown, EvalMetrics, HomogenResult, IsolationNote, ReasonStep, RouteKey, UserFault } from "../data/types";
@@ -56,7 +56,7 @@ export interface StoryState {
   /** 当前相位激活的算法标签(过程中标注:异常检测/CHR聚类/故障聚合/根因定位…) */
   algorithms: { cn: string; en: string }[];
 
-  // —— 用户级韧性 × 网络自治 · 扩展派生态(确定性,随相位揭示)——
+  // —— 用户级韧性 × 网络自治 · 扩展派生态(确定性，随相位揭示)——
   currentStep: ReasonStep | null; // 当前执行中的推理步(最后揭示的一步)
   comparisonReveal: number; // 拓扑下对比区揭示度 0..1
   chrPopup: ChrInsight | null; // 用户级 CHR 原因值弹窗(场景 B)

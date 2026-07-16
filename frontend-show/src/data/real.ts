@@ -1,7 +1,7 @@
 // ============================================================================
 // 真实数据适配器 —— 把 scripts/export_demo_scenarios.py 产出的 real-cases.json
 //   转成演示 Scenario。遥测(KPI/拓扑/真值)、推理链、评估、置信度全部来自
-//   真实诊断/评估产出,不再前端合成。
+//   真实诊断/评估产出，不再前端合成。
 // ============================================================================
 
 import { buildGraphFromTopoText, edgeId } from "./network";
@@ -79,7 +79,7 @@ export interface RealCase {
   confidence: ConfidenceBreakdown;
 }
 
-/** 每个场景的叙事层(标题/故事/主题 + 用户级/自治派生态)—— 数据层全真,文案据实定稿 */
+/** 每个场景的叙事层(标题/故事/主题 + 用户级/自治派生态)—— 数据层全真，文案据实定稿 */
 export interface ScenarioNarrative {
   cn: string;
   en: string;
@@ -102,29 +102,29 @@ export interface ScenarioNarrative {
   isolation?: IsolationNote;
 }
 
-/** 简洁中文推理链(替换真实英文 trace,展会可读;根因/后验来自真实诊断) */
+/** 简洁中文推理链(替换真实英文 trace，展会可读;根因/后验来自真实诊断) */
 function cleanRealReasoning(rc: RealCase, rootNes: string[]): ReasonStep[] {
   const id = rc.scenario_id;
   const root = rootNes.join(",");
   const post = (rc.diagnosis.confidence * 100).toFixed(0);
   if (id === "B") {
     return [
-      { n: 1, type: "tool_call", text: "KPI 扫描:接入成功率微跌,信号模糊。", result: `触及 ${root} 方向`, highlight: { nes: rootNes } },
-      { n: 2, type: "tool_call", text: `CHR 下钻:失败集中于 ${root},主因无线资源不足。`, highlight: { nes: rootNes } },
+      { n: 1, type: "tool_call", text: "KPI 扫描:接入成功率微跌，信号模糊。", result: `触及 ${root} 方向`, highlight: { nes: rootNes } },
+      { n: 2, type: "tool_call", text: `CHR 下钻:失败集中于 ${root}，主因无线资源不足。`, highlight: { nes: rootNes } },
       { n: 3, type: "thinking", text: "剥离终端侧鉴权 / 兼容性干扰原因。" },
-      { n: 4, type: "conclusion", text: `根因为 ${root},排除核心网与终端干扰。`, result: `后验 ${post}% · 命中`, highlight: { nes: rootNes } },
+      { n: 4, type: "conclusion", text: `根因为 ${root}，排除核心网与终端干扰。`, result: `后验 ${post}% · 命中`, highlight: { nes: rootNes } },
     ];
   }
   if (id === "C") {
     return [
-      { n: 1, type: "tool_call", text: "KPI 扫描:接入失败略升,易误判核心网。", highlight: {} },
-      { n: 2, type: "tool_call", text: `CHR 聚类:失败集中于同一批终端,多原因值共现。`, highlight: { nes: rootNes } },
-      { n: 3, type: "thinking", text: `贝叶斯融合锁定 ${root},排除 AMF 误报。`, highlight: { nes: rootNes } },
-      { n: 4, type: "conclusion", text: `根因为 ${root},终端群体共因定位。`, result: `后验 ${post}% · 命中`, highlight: { nes: rootNes } },
+      { n: 1, type: "tool_call", text: "KPI 扫描:接入失败略升，易误判核心网。", highlight: {} },
+      { n: 2, type: "tool_call", text: `CHR 聚类:失败集中于同一批终端，多原因值共现。`, highlight: { nes: rootNes } },
+      { n: 3, type: "thinking", text: `贝叶斯融合锁定 ${root}，排除 AMF 误报。`, highlight: { nes: rootNes } },
+      { n: 4, type: "conclusion", text: `根因为 ${root}，终端群体共因定位。`, result: `后验 ${post}% · 命中`, highlight: { nes: rootNes } },
     ];
   }
   return [
-    { n: 1, type: "tool_call", text: `KPI 扫描:检出异常,触及 ${root} 方向。`, highlight: { nes: rootNes } },
+    { n: 1, type: "tool_call", text: `KPI 扫描:检出异常，触及 ${root} 方向。`, highlight: { nes: rootNes } },
     { n: 2, type: "conclusion", text: `根因为 ${root}。`, result: `后验 ${post}%`, highlight: { nes: rootNes } },
   ];
 }
@@ -188,7 +188,7 @@ export function buildRealScenario(rc: RealCase, n: ScenarioNarrative): Scenario 
       toolEfficiency: ta.tool_efficiency,
       evidenceQuality: ta.evidence_quality,
       // trace_analyzer 的 missed_signals 实为"信号完备度"(越高 overall 越高),
-      // 前端语义为"漏检"(越高越差),此处反转为漏检比例以对齐前端展示。
+      // 前端语义为"漏检"(越高越差)，此处反转为漏检比例以对齐前端展示。
       missedSignals: 1 - ta.missed_signals,
       overall: ta.overall_score,
     },

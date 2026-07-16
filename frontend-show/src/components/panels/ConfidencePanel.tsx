@@ -21,7 +21,7 @@ export function ConfidencePanel({ state }: { state: StoryState }) {
     { cn: "时间清晰度", en: "temporal", w: 0.15, v: conf.temporal, sign: 1, expl: "异常起落程度(5% 阶跃即饱和)" },
     { cn: "空间清晰度", en: "spatial", w: 0.15, v: conf.spatial, sign: 1, expl: "受影响 NE 的空间聚集程度" },
   ];
-  // 权重和为 1,评分 = Σ(项 × 权重);置信度随相位揭示(rev)渐进显现
+  // 权重和为 1，评分 = Σ(项 × 权重);置信度随相位揭示(rev)渐进显现
   const scoreSum = parts.reduce((acc, p) => acc + p.v * p.w, 0);
 
   return (

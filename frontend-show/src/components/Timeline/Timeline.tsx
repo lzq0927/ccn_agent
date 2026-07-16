@@ -7,9 +7,8 @@ import { PHASE_DURATIONS, LOOP_DURATION } from "../../story/director";
 import type { ClockApi } from "../../story/useStoryClock";
 
 export function Timeline({ clock }: { clock: ClockApi }) {
-  const { state, seekPhase, time } = clock;
+  const { state, seekPhase, time, playheadRef } = clock;
   const total = LOOP_DURATION;
-  const playPct = (time / total) * 100;
 
   return (
     <div className="hud" style={{ borderRadius: 10, padding: "8px 12px" }}>
@@ -51,8 +50,8 @@ export function Timeline({ clock }: { clock: ClockApi }) {
               </button>
             );
           })}
-          {/* 全局播放头 */}
-          <div style={{ position: "absolute", left: `${playPct}%`, top: -4, bottom: -4, width: 2, background: "var(--text-bright)", boxShadow: "0 0 8px var(--text-bright)", pointerEvents: "none", transition: "left 0.1s linear" }}>
+          {/* 全局播放头 —— 由 useStoryClock 的 rAF 直接驱动 DOM，不随 React 渲染节流 */}
+          <div ref={playheadRef} style={{ position: "absolute", top: -4, bottom: -4, width: 2, background: "var(--text-bright)", boxShadow: "0 0 8px var(--text-bright)", pointerEvents: "none" }}>
             <div style={{ position: "absolute", top: -3, left: -4, width: 10, height: 10, borderRadius: "50%", background: "var(--text-bright)", boxShadow: "0 0 10px var(--text-bright)" }} />
           </div>
         </div>

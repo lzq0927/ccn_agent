@@ -107,10 +107,10 @@ const FAULT_A: FaultSpec = {
 
 const REASONING_A: ReasonStep[] = [
   { n: 1, type: "tool_call", text: "iFFusion 异常检测:前端 AMF↔SMF 通信路径普遍出现异常。", result: "AMF↔SMF 路径劣化", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
-  { n: 2, type: "tool_call", text: "均质化比较:AMF、SMF 全实例同现异常(共性),排除 AMF/SMF 为单点根因。", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
+  { n: 2, type: "tool_call", text: "均质化比较:AMF、SMF 全实例同现异常(共性)，排除 AMF/SMF 为单点根因。", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
   { n: 3, type: "tool_call", text: "故障排除:SMF↔UDM 通信正常 → 排除 SMF_1/SMF_2。", highlight: { nes: ["SMF_1", "SMF_2"] } },
-  { n: 4, type: "tool_call", text: "故障聚合:聚合 UPF 受影响路径,UPF_1 异常、UPF_2/UPF_3 健康,UPF_1 唯一离群。", highlight: { nes: ["UPF_1"] } },
-  { n: 5, type: "conclusion", text: "根因为 UPF_1,确定性工作流秒级定位。", result: "WORKFLOW · 命中", highlight: { nes: ["UPF_1"] } },
+  { n: 4, type: "tool_call", text: "故障聚合:聚合 UPF 受影响路径，UPF_1 异常、UPF_2/UPF_3 健康，UPF_1 唯一离群。", highlight: { nes: ["UPF_1"] } },
+  { n: 5, type: "conclusion", text: "根因为 UPF_1，确定性工作流秒级定位。", result: "WORKFLOW · 命中", highlight: { nes: ["UPF_1"] } },
 ];
 
 const CONFIDENCE_A: ConfidenceBreakdown = {
@@ -166,10 +166,10 @@ const FAULT_B: FaultSpec = {
 };
 
 const REASONING_B: ReasonStep[] = [
-  { n: 1, type: "tool_call", text: "iFFusion 异常检测:网络 KPI 微损,叠加少量终端异常。", result: "SMF 方向劣化 + 终端噪声", highlight: { nes: ["SMF_1"] } },
-  { n: 2, type: "tool_call", text: "多维数据校验:CHR 用户级失败集中于会话建立。", highlight: { nes: ["SMF_1"] } },
-  { n: 3, type: "thinking", text: "排除终端原因(鉴权 / 兼容性干扰),锁定网络侧。", highlight: { nes: ["SMF_1"] } },
-  { n: 4, type: "conclusion", text: "根因为 SMF_1,实施恢复。", result: "GUIDED · 命中", highlight: { nes: ["SMF_1"] } },
+  { n: 1, type: "tool_call", text: "iFFusion 融合异常检测:KPI + CHR 多维时序统计，网络侧 SMF 方向成功率突降(本次突变)，终端原因值(鉴权/兼容性)呈周期性偏高。", result: "网络突变 + 终端周期性噪声 · 信号模糊", highlight: { nes: ["SMF_1"] } },
+  { n: 2, type: "tool_call", text: "网络/终端难分 → Agent Loop 迭代②:拉取终端原因值的持续周期性 CHR 历史，做多维时序对比。", highlight: { nes: ["SMF_1"] } },
+  { n: 3, type: "thinking", text: "CHR 降噪:终端侧原因值长期基线即偏高(非本次突增) → 判为既有噪声并排除，网络侧 5GSM#37 与突降同步突增 → 锁定 SMF_1。", highlight: { nes: ["SMF_1"] } },
+  { n: 4, type: "conclusion", text: "排除终端噪声后，根因为 SMF_1，实施恢复。", result: "GUIDED · 命中", highlight: { nes: ["SMF_1"] } },
 ];
 
 const CONFIDENCE_B: ConfidenceBreakdown = {
@@ -225,10 +225,10 @@ const FAULT_C: FaultSpec = {
 };
 
 const REASONING_C: ReasonStep[] = [
-  { n: 1, type: "tool_call", text: "iFFusion 异常检测:总体微跌,无网元异常。", result: "无 NE 跌破阈值" },
-  { n: 2, type: "tool_call", text: "CHR 聚类:失败原因分散,无网络根因。", highlight: { nes: ["gNB_2"] } },
+  { n: 1, type: "tool_call", text: "iFFusion 异常检测:总体微跌，无网元异常。", result: "无 NE 跌破阈值" },
+  { n: 2, type: "tool_call", text: "CHR 聚类:失败原因分散，无网络根因。", highlight: { nes: ["gNB_2"] } },
   { n: 3, type: "thinking", text: "用户分群追踪:物联终端群体失败率 52%。", highlight: { nes: ["gNB_2"] } },
-  { n: 4, type: "conclusion", text: "物联终端群体异常,网络健康。", result: "AUTONOMOUS · 用户侧恢复" },
+  { n: 4, type: "conclusion", text: "物联终端群体异常，网络健康。", result: "AUTONOMOUS · 用户侧恢复" },
 ];
 
 const CONFIDENCE_C: ConfidenceBreakdown = {

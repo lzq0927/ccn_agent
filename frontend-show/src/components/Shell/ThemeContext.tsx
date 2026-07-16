@@ -1,8 +1,8 @@
 // ============================================================================
 // ThemeContext —— 三主题(深邃 / 暮光 / 明亮)切换
-//   真源为 global.css 的 CSS 变量,由 <html data-theme="..."> 选择;
+//   真源为 global.css 的 CSS 变量，由 <html data-theme="..."> 选择;
 //   本 provider 负责读写该属性 + localStorage 持久化 + 同步 meta theme-color。
-//   首屏前的 data-theme 由 index.html 内联脚本设置,避免 FOUC。
+//   首屏前的 data-theme 由 index.html 内联脚本设置，避免 FOUC。
 // ============================================================================
 
 import {
@@ -26,7 +26,7 @@ export const THEME_LABELS: Record<ThemeId, string> = {
   light: "明亮",
 };
 
-/** 各主题对应的页面背景色,用于同步 <meta name="theme-color"> */
+/** 各主题对应的页面背景色，用于同步 <meta name="theme-color"> */
 export const THEME_BG: Record<ThemeId, string> = {
   dark: "#04070f",
   dim: "#0b1322",
@@ -44,8 +44,8 @@ interface ThemeCtxValue {
 const ThemeCtx = createContext<ThemeCtxValue | null>(null);
 
 function readInitialTheme(): ThemeId {
-  // 展会 demo:每次启动固定默认深邃(dark),不沿用上次选择 —— 确保每场演示一致开场。
-  // (主题切换仍可在会话内即时生效,刷新后回到深邃。)
+  // 展会 demo:每次启动固定默认深邃(dark)，不沿用上次选择 —— 确保每场演示一致开场。
+  // (主题切换仍可在会话内即时生效，刷新后回到深邃。)
   return DEFAULT_THEME;
 }
 

@@ -1,9 +1,9 @@
 // ============================================================================
 // DigitalTwin —— 中央 SVG 网络数字孪生(用户级韧性 × 网络自治增强版)
-//   节点(9 类 NE,按数据流分层) + 业务流/注册链路 + 流动数据粒子
+//   节点(9 类 NE，按数据流分层) + 业务流/注册链路 + 流动数据粒子
 //   健康着色由 KPI(simT) 驱动;异常脉冲 / 推理聚焦 / 根因标定 / 恢复叠加
 //   ★ 用户级:UE 接入簇按 gNB 分组、CHR 原因值弹窗(场景B)
-//   ★ 网络自治:误报拦截标记(场景C)、用户群体异常标记(场景C,网络保持绿)
+//   ★ 网络自治:误报拦截标记(场景C)、用户群体异常标记(场景C，网络保持绿)
 //   ★ 步骤-拓扑联动:当前执行步的高亮 NE 加「当前排查」脉冲标记
 //   graph / kpi 可由 LIVE 模式注入真实数据;缺省用内置 DEMO 网络。
 // ============================================================================
@@ -76,7 +76,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
 
   const overallSr = sample(kpi.overall, simT);
   const degradedCount = g.nodes.filter((n) => sample(kpi.nodes[n.id] ?? [0.999], simT) < threshold).length;
-  // 边线密度自适应:边多的场景(A,168 条)整体调浅调细,避免扎眼;边少的(B/C/D,27 条)保持原样
+  // 边线密度自适应:边多的场景(A,168 条)整体调浅调细，避免扎眼;边少的(B/C/D,27 条)保持原样
   const dense = g.flowEdges.length > 60;
 
   // 异常初筛:逐链路检出跌破阈值的链路(phase 2 弹窗用)——任意链路异常即触发
@@ -176,7 +176,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
         {g.nodes.map((n) => {
           const sr = sample(kpi.nodes[n.id] ?? [0.999], simT);
           const degraded = sr < threshold && state.showAnomaly;
-          const isUserFaultGnb = userFaultGnbs.has(n.id); // 场景 C:用户级异常(琥珀,非红)
+          const isUserFaultGnb = userFaultGnbs.has(n.id); // 场景 C:用户级异常(琥珀，非红)
           const isFocus = focusSet.has(n.id);
           const isRoot = rootSet.has(n.id);
           const isCordoned = cordonedSet.has(n.id);
@@ -189,7 +189,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
             <g key={n.id} transform={`translate(${n.x} ${n.y})`}>
               {/* 网络故障告警脉冲(用户级异常的 gNB 不走红色告警) */}
               {degraded && !isUserFaultGnb && <circle r={R} fill="none" stroke={STATUS.fault} strokeWidth={1.5} className="alert-ring" opacity={0.8} />}
-              {/* 用户群体异常标记(场景 C):琥珀脉冲环 + UE 数,网络本体保持健康 */}
+              {/* 用户群体异常标记(场景 C):琥珀脉冲环 + UE 数，网络本体保持健康 */}
               {isUserFaultGnb && (
                 <g filter="url(#twin-glow)">
                   <circle r={R + 6} fill="none" stroke={STATUS.warning} strokeWidth={1.6} strokeDasharray="5 4" className="alert-ring" opacity={0.9} />
@@ -232,7 +232,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
               <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? (isUserFaultGnb ? STATUS.warning : STATUS.faultGlow) : isCordoned ? "var(--text-faint)" : "var(--text-mid)"} fontFamily="var(--font-mono)">
                 {n.id}
               </text>
-              {/* 劣化 SR% —— 用户级异常 gNB 改显示 UE 数(上方已有),网络故障 NE 显示 SR% */}
+              {/* 劣化 SR% —— 用户级异常 gNB 改显示 UE 数(上方已有)，网络故障 NE 显示 SR% */}
               {degraded && !isUserFaultGnb && (
                 <text y={-R - 8} textAnchor="middle" fontSize={8} fill={STATUS.faultGlow} fontFamily="var(--font-mono)">
                   {(sr * 100).toFixed(1)}%
@@ -283,7 +283,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
   );
 }
 
-/** 环形饼图单段路径(角度从正上方顺时针,弧度制) */
+/** 环形饼图单段路径(角度从正上方顺时针，弧度制) */
 function donutSeg(cx: number, cy: number, rOut: number, rIn: number, a0: number, a1: number) {
   const large = a1 - a0 > Math.PI ? 1 : 0;
   const pt = (r: number, a: number): [number, number] => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
@@ -294,7 +294,7 @@ function donutSeg(cx: number, cy: number, rOut: number, rIn: number, a0: number,
   return `M ${sx0} ${sy0} A ${rOut} ${rOut} 0 ${large} 1 ${ex0} ${ey0} L ${sx1} ${sy1} A ${rIn} ${rIn} 0 ${large} 0 ${ex1} ${ey1} Z`;
 }
 
-/** CHR 用户级根因弹窗(场景 B/C/D):放大版,含主导原因值、原因值分布饼图与说明 */
+/** CHR 用户级根因弹窗(场景 B/C/D):放大版，含主导原因值、原因值分布饼图与说明 */
 function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: number } | undefined; chr: NonNullable<StoryState["chrPopup"]> }) {
   if (!node) return null;
   const w = 344;
@@ -389,7 +389,7 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
   );
 }
 
-/** 异常初筛弹窗(phase 2):逐链路检出多条路径异常,任意链路异常即触发检测 */
+/** 异常初筛弹窗(phase 2):逐链路检出多条路径异常，任意链路异常即触发检测 */
 function AnomalyCallout({ edges, kpi, simT }: { edges: NetworkGraph["flowEdges"]; kpi: KpiBundle; simT: number }) {
   const w = 286;
   const show = edges.slice(0, 5);
@@ -439,7 +439,7 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
   const pRows = Math.ceil(result.principles.length / 2);
   const principlesH = result.principles.length ? 22 + pRows * 19 + 6 : 0;
   const h = principlesY0 + principlesH + 4;
-  // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧,避开右上「整网聚合」读数框
+  // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧，避开右上「整网聚合」读数框
   const placeLeft = node.x > VIEW_W * 0.6;
   const cx = placeLeft ? Math.max(8, node.x - w - 48) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
   const cy = placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node.y - h / 2)) : Math.max(8, node.y - h - 24);
@@ -529,7 +529,7 @@ function IsolationCallout({ note, node }: { note: NonNullable<StoryState["isolat
   if (!node) return null;
   const w = 252;
   const h = 92;
-  // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧,避开右上「整网聚合」读数框
+  // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧，避开右上「整网聚合」读数框
   const placeLeft = node.x > VIEW_W * 0.6;
   const cx = placeLeft ? Math.max(8, node.x - w - 48) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
   const cy = placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node.y - h / 2)) : Math.max(8, node.y - h - 24);

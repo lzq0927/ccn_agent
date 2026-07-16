@@ -17,7 +17,7 @@ interface Props {
   liveConnected: boolean;
 }
 
-/** 双主题徽标(始终展示,按当前场景 pillars 点亮) */
+/** 双主题徽标(始终展示，按当前场景 pillars 点亮) */
 const PILLARS = [
   { key: "userLevel" as const, cn: "用户级韧性", color: "#34d399" },
   { key: "autonomy" as const, cn: "网络自治", color: "#a78bfa" },

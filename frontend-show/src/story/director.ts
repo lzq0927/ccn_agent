@@ -32,21 +32,21 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
       return [
         { id: "isolate", cn: "隔离故障 gNB 集", en: "ISOLATE FAULTY gNB" },
         { id: "reselect", cn: "触发 UE 重选 / 邻区切换", en: "UE RESELECTION" },
-        { id: "reroute", cn: "AMF 侧锚定,无线流量重路由", en: "RAN TRAFFIC REROUTE" },
+        { id: "reroute", cn: "AMF 侧锚定，无线流量重路由", en: "RAN TRAFFIC REROUTE" },
       ];
     case "single_ne": {
       // 按实际故障 NE 动态生成(UDM_1 / SMF_1 / …)
       const ne = s.fault.elements[0] ?? "AMF_3";
       const type = ne.replace(/_\d+$/, "");
-      // UDM 主备:先核查备机容量,再隔离主机,流量切备
+      // UDM 主备:先核查备机容量，再隔离主机，流量切备
       if (type === "UDM") {
         return [
           { id: "capacity", cn: "容量核查:UDM_2(备)可接管控量", en: "CHECK STANDBY CAPACITY" },
           { id: "isolate", cn: `隔离 ${ne}(主)`, en: `ISOLATE ${ne} (PRIMARY)` },
-          { id: "promote", cn: "UDM_2(备)升主,流量切换过去", en: "PROMOTE STANDBY UDM" },
+          { id: "promote", cn: "UDM_2(备)升主，流量切换过去", en: "PROMOTE STANDBY UDM" },
         ];
       }
-      // SMF:隔离故障实例,切换至健康 SMF_2 接管
+      // SMF:隔离故障实例，切换至健康 SMF_2 接管
       if (type === "SMF") {
         return [
           { id: "isolate", cn: `隔离 ${ne}`, en: `ISOLATE ${ne}` },
@@ -54,7 +54,7 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
           { id: "reattach", cn: "受影响 UE 重建会话", en: "UE REBUILD SESSION" },
         ];
       }
-      // UPF:隔离故障实例,流量切换至 UPF POOL 内其它健康 UPF
+      // UPF:隔离故障实例，流量切换至 UPF POOL 内其它健康 UPF
       if (type === "UPF") {
         return [
           { id: "isolate", cn: `隔离 ${ne}`, en: `ISOLATE ${ne}` },
@@ -145,7 +145,7 @@ function simTFor(s: Scenario, phaseIndex: number, p: number): number {
     case 4:
       return fs + 2; // 异常在推理期间持续
     case 5:
-      return lerp(fs + 2, fe + 2, p); // 恢复动作推进,越过故障窗
+      return lerp(fs + 2, fe + 2, p); // 恢复动作推进，越过故障窗
     case 6:
       return lerp(fe + 2, 58, p);
     default:
@@ -156,7 +156,7 @@ function simTFor(s: Scenario, phaseIndex: number, p: number): number {
 const HEADLINES: Record<number, { h: string; s: string }> = {
   0: { h: "网络稳态运行", s: "逐链路监测待命 · 5GC 全网健康 · 成功率 99.8%" },
   1: { h: "数字孪生 · 数据采集", s: "Agent 1 现网采集遥测 · LLM 多维校验闭环" },
-  2: { h: "异常检测", s: "逐链路监测 · 任意链路异常即触发 · 异常全面初筛" },
+  2: { h: "异常检测", s: "KPI/CHR 双线并行 · 任一检出异常即触发根因分析 · 异常全面初筛" },
   3: { h: "策略匹配", s: "异常全面初筛 · 多维特征加权评分 · 三路径分流" },
   4: { h: "Agent 推理 · 根因定位", s: "多维数据综合判断 · 推理链收敛 · 防误报与漏报" },
   5: { h: "执行恢复动作", s: "高稳智能体下发恢复策略 · 网络自愈中" },
@@ -164,19 +164,22 @@ const HEADLINES: Record<number, { h: string; s: string }> = {
   7: { h: "评估优化 · 闭环反馈", s: "Agent 3 比对真值 · 推理链质析 · 优化建议回流" },
 };
 
-/** 过程中标注的算法(除相位4外,各相位通用) */
+/** 过程中标注的算法(除相位4外，各相位通用) */
 const ALGO_BY_PHASE: Record<number, { cn: string; en: string }[]> = {
   0: [],
   1: [
     { cn: "现网遥测采集", en: "LIVE TELEMETRY" },
     { cn: "LLM 多维校验", en: "LLM VALIDATION" },
   ],
-  2: [{ cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" }],
+  2: [
+    { cn: "CHR 降噪→聚类", en: "CHR DENOISE→CLUSTER" },
+    { cn: "KPI 异常检测→时空求解", en: "KPI→SPATIO-TEMPORAL" },
+  ],
   3: [
     { cn: "特征加权评分", en: "WEIGHTED SCORING" },
     { cn: "路由分流", en: "ROUTE DISPATCH" },
   ],
-  4: [], // 场景相关,见 ALGO_REASON
+  4: [], // 场景相关，见 ALGO_REASON
   5: [{ cn: "恢复策略编排", en: "POLICY ORCHESTRATION" }],
   6: [{ cn: "闭环验证", en: "CLOSED-LOOP VERIFY" }],
   7: [
@@ -195,9 +198,9 @@ const ALGO_REASON: Record<string, { cn: string; en: string }[]> = {
     { cn: "根因定位", en: "ROOT-CAUSE" },
   ],
   B: [
-    { cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" },
-    { cn: "CHR 多维校验", en: "CHR VALIDATION" },
-    { cn: "终端干扰排除", en: "TERMINAL EXCLUSION" },
+    { cn: "iFFusion 融合(KPI+CHR)", en: "iFFUSION FUSION" },
+    { cn: "CHR 多维时序统计", en: "CHR TIME-SERIES" },
+    { cn: "CHR 降噪排除终端", en: "CHR DENOISE" },
     { cn: "根因定位", en: "ROOT-CAUSE" },
   ],
   C: [
@@ -214,7 +217,7 @@ function algorithmsFor(s: Scenario, phaseIndex: number): { cn: string; en: strin
   return ALGO_BY_PHASE[phaseIndex] ?? [];
 }
 
-/** 场景化动作解说(覆盖关键相位,讲清「此刻在干什么」;LIVE 无条目则回落) */
+/** 场景化动作解说(覆盖关键相位，讲清「此刻在干什么」;LIVE 无条目则回落) */
 const SCENARIO_SUB: Record<string, Record<number, string>> = {
   A: {
     2: "iFFusion 逐链路检出:前端 AMF↔SMF 通信路径普遍异常 · 异常全面初筛",
@@ -223,9 +226,9 @@ const SCENARIO_SUB: Record<string, Record<number, string>> = {
     5: "隔离 UPF_1 · 流量切换至 UPF POOL 内 UPF_2/UPF_3 接管",
   },
   B: {
-    2: "逐链路检出 SMF_1 方向微损 · 叠加少量终端异常 · 信号模糊",
-    3: "置信度 0.55·技能引导 Loop·多维数据校验",
-    4: "CHR 校验:5GSM 集中 + 排除终端原因 → 锁定 SMF_1 · 防误报",
+    2: "KPI+CHR 双线并行 · KPI 检出 SMF 方向微损 / CHR 检出终端噪声周期性偏高 · 任一即触发根因",
+    3: "置信度 0.55·技能引导 Loop·CHR 多维校验降噪",
+    4: "CHR 降噪:终端噪声长期基线(非突增)排除 · 5GSM#37 与突降同步 → 锁定 SMF_1",
     5: "隔离 SMF_1·切换至健康 SMF 接管·UE 恢复",
   },
   C: {
@@ -313,7 +316,7 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   const currentStep: ReasonStep | null = reasoningSteps.length ? reasoningSteps[reasoningSteps.length - 1] : null;
 
   // 对比区「多维探索后」揭示度:phase<4 → 0;phase4 easeOut;phase≥5 → 1
-  // (「仅网络KPI」朴素侧在 phase≥2 即出现,由 ComparisonPanel 按 phaseIndex 处理)
+  // (「仅网络KPI」朴素侧在 phase≥2 即出现，由 ComparisonPanel 按 phaseIndex 处理)
   const comparisonReveal = phaseIndex < 4 ? 0 : phaseIndex === 4 ? easeOut(progress) : 1;
 
   // 用户级 CHR 原因值弹窗(场景 B):推理起至恢复前
@@ -322,14 +325,14 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // 均质化比较结果弹窗(场景 A/D):根因推理期间(phase 4)
   const homogenPopup = s.homogen && phaseIndex === 4 ? s.homogen : null;
 
-  // 隔离标注弹窗(场景 A/B/D):执行恢复期间(phase 5,与隔离围栏同步)
+  // 隔离标注弹窗(场景 A/B/D):执行恢复期间(phase 5，与隔离围栏同步)
   const isolationPopup = s.isolation && phaseIndex === 5 ? s.isolation : null;
 
-  // 误报拦截(场景 C):phase 2-4 可见,phase≥3 被置信度拦截/划掉
+  // 误报拦截(场景 C):phase 2-4 可见，phase≥3 被置信度拦截/划掉
   const falseAlarmActive = !!s.falseAlarm && phaseIndex >= 2 && phaseIndex <= 4;
   const falseAlarmIntercepted = !!s.falseAlarm && phaseIndex >= 3;
 
-  // 用户侧群体异常(场景 C):检测至恢复期间渲染,恢复后清除
+  // 用户侧群体异常(场景 C):检测至恢复期间渲染，恢复后清除
   const userLevel = s.userFault ? { gnbs: s.userFault.gnbs, affectedUe: s.userFault.affectedUe, kind: s.userFault.kind } : null;
   const userLevelActive = !!s.userFault && phaseIndex >= 2 && phaseIndex <= 5;
 

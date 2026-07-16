@@ -1,7 +1,7 @@
 // ============================================================================
 // 网络图构建 —— 把解析拓扑变成可布局、可派生链路的 NetworkGraph。
 //   buildGraph(topo):通用工厂(DEMO 与 LIVE 共用)
-//   DEMO_GRAPH + 具名导出(NODES/EDGES/...):内置真实 case_001 拓扑,向后兼容
+//   DEMO_GRAPH + 具名导出(NODES/EDGES/...):内置真实 case_001 拓扑，向后兼容
 // ============================================================================
 
 import { PARSED_TOPO, parseTopology } from "./topo";
@@ -35,7 +35,7 @@ const LAYER_OF: Record<NEType, number> = {
   NSSF: 3,
 };
 
-/** 通用布局:某类型实例数超出资定时,自动在带状内均匀展开 */
+/** 通用布局:某类型实例数超出资定时，自动在带状内均匀展开 */
 function ysFor(type: NEType, count: number): number[] {
   const base = LAYOUT[type].ys;
   if (count <= base.length) return base.slice(0, count);
@@ -124,7 +124,7 @@ function buildRegistryEdges(nodes: NEInstance[]): GraphEdge[] {
   const edges: GraphEdge[] = [];
   const nrfs = instancesOf(nodes, "NRF");
   if (nrfs.length === 0) return edges;
-  // UPF 不向 NRF 注册(用户面不展示注册连线),故 sbiTypes 不含 UPF
+  // UPF 不向 NRF 注册(用户面不展示注册连线)，故 sbiTypes 不含 UPF
   const sbiTypes: NEType[] = ["AMF", "SMF", "PCF", "UDM", "AUSF", "NSSF"];
   const primaryNrf = nrfs[0];
   for (const t of sbiTypes) {
@@ -178,7 +178,7 @@ export const EDGES = DEMO_GRAPH.edges;
 export const EDGE_BY_ID = DEMO_GRAPH.edgeById;
 export const ADJ = DEMO_GRAPH.adj;
 
-/** 给定故障,计算受影响的 NE 与链路(指定图) */
+/** 给定故障，计算受影响的 NE 与链路(指定图) */
 export function affectedEntitiesIn(graph: NetworkGraph, fault: FaultSpec): { neSet: Set<string>; edgeSet: Set<string> } {
   const neSet = new Set<string>(fault.elements);
   const edgeSet = new Set<string>();

@@ -4,7 +4,7 @@
 
 import type { NEType, Role } from "./types";
 
-/** 真实拓扑文本(取自 storage/cases/case_001/topo.txt,原样) */
+/** 真实拓扑文本(取自 storage/cases/case_001/topo.txt，原样) */
 export const TOPO_TEXT = `DC: DC1
   ResourcePool: RP_DC1_1
     gNB: gNB_3
