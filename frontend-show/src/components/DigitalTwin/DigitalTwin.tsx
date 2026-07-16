@@ -294,97 +294,114 @@ function donutSeg(cx: number, cy: number, rOut: number, rIn: number, a0: number,
   return `M ${sx0} ${sy0} A ${rOut} ${rOut} 0 ${large} 1 ${ex0} ${ey0} L ${sx1} ${sy1} A ${rIn} ${rIn} 0 ${large} 0 ${ex1} ${ey1} Z`;
 }
 
-/** CHR 用户级根因弹窗(场景 B/C/D):放大版，含主导原因值、原因值分布饼图与说明 */
+/** CHR 用户级根因弹窗(场景 B/C,根因推理阶段):降噪→聚类→根因 三步图文并茂
+ *  降噪卡=降噪前饼图(终端噪声干扰)、聚类卡=降噪后饼图(终端噪声已剔除,比例不变,仅置灰删除线),
+ *  两饼图同基准对照体现降噪作用;每个原因值独立配色,图例列出全部(含已剔除项)。根因卡=靶心。 */
 function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: number } | undefined; chr: NonNullable<StoryState["chrPopup"]> }) {
   if (!node) return null;
   const w = 344;
   const related = chr.related ?? [];
-  const lines = wrap(chr.detail, 24);
+  const NOISE_COLORS = ["#38bdf8", "#f472b6", "#2dd4bf", "#facc15", "#fb923c"];
+  const relRaw = related.map((r, i) => ({ code: r.code, cn: r.cn, share: r.share ?? 8, color: NOISE_COLORS[i % NOISE_COLORS.length] }));
+  const domShare = chr.share ?? Math.max(40, 70 - relRaw.reduce((a, r) => a + r.share, 0));
+  const noiseShare = relRaw.reduce((a, r) => a + r.share, 0);
+  const otherShare = Math.max(0, 100 - domShare - noiseShare);
 
-  // 原因值分布段(主导 + 伴随 + 其他);share 缺省时按叙事浓度给保守默认
-  const PIE_COLORS = ["#f59e0b", "#38bdf8", "#a78bfa", "#2dd4bf", "#f472b6", "#facc15"];
-  const relRaw = related.map((r, i) => ({ label: r.cn, code: r.code, share: r.share ?? Math.max(4, 26 - i * 7) }));
-  const domShare = chr.share ?? Math.max(38, 70 - relRaw.reduce((a, r) => a + r.share, 0));
-  const used = domShare + relRaw.reduce((a, r) => a + r.share, 0);
-  const otherShare = Math.max(0, 100 - used);
-  const segs = [
-    { label: chr.causeCn, code: chr.causeCode, share: domShare, color: PIE_COLORS[0] },
-    ...relRaw.map((r, i) => ({ ...r, color: PIE_COLORS[(i + 1) % PIE_COLORS.length] })),
-    ...(otherShare >= 2 ? [{ label: "其他", code: "", share: otherShare, color: "#475569" }] : []),
+  // 全部原因值(同基准,不重新归一):主导(紫) + 各终端噪声(各独立色) + 其他(灰)
+  const allSegs = [
+    { code: chr.causeCode, cn: chr.causeCn, share: domShare, color: "#a78bfa", removed: false },
+    ...relRaw.map((r) => ({ code: r.code, cn: r.cn, share: r.share, color: r.color, removed: true })),
+    ...(otherShare >= 2 ? [{ code: "", cn: "其他", share: otherShare, color: "#64748b", removed: false }] : []),
   ];
-  const segTotal = segs.reduce((a, s) => a + s.share, 0) || 1;
+  const total = allSegs.reduce((a, s) => a + s.share, 0) || 1;
+  let aAcc = 0;
+  const allArcs = allSegs.map((s) => {
+    const a0 = (aAcc / total) * Math.PI * 2;
+    aAcc += s.share;
+    return { ...s, a0, a1: (aAcc / total) * Math.PI * 2 };
+  });
 
-  // 几何(相对弹窗左上角)
-  const yTitle = 19;
-  const yCauseLbl = 42;
-  const yCauseCn = 64;
-  const yCauseCode = 84;
-  const yDistLbl = 104;
-  const distTop = 114;
-  const pieR = 40, pieRIn = 24;
-  const rowH = 17;
-  const sectionH = Math.max(pieR * 2 + 10, segs.length * rowH + 12);
-  const pieCx = 56;
-  const pieCy = distTop + sectionH / 2;
-  const legendX = 108;
-  const legendY0 = distTop + 12;
-  const yDetailStart = distTop + sectionH + 10;
-  const h = yDetailStart + lines.length * 19 + 14;
+  // 卡片几何
+  const c1y = 30, c1h = 120;
+  const c2y = 158, c2h = 120;
+  const c3y = 286, c3h = 62;
+  const h = 358;
+  const pieR = 18, pieRIn = 12, pieCx = 46;
+  const pieCy1 = c1y + 88, pieCy2 = c2y + 88;
+  const legX = 80, pctX = w - 12;
+  const targetCx = w - 16 - 14, targetCy = c3y + c3h / 2;
+  const C = { denoise: "#2dd4bf", cluster: "#a78bfa", root: STATUS.warning };
 
   const cx = Math.min(node.x + 22, VIEW_W - w - 8);
   const cy = Math.max(8, node.y - h - 22);
 
-  // 饼图角度累加
-  let acc = 0;
-  const arcs = segs.map((s) => {
-    const a0 = (acc / segTotal) * Math.PI * 2;
-    acc += s.share;
-    const a1 = (acc / segTotal) * Math.PI * 2;
-    return { ...s, a0, a1 };
-  });
+  const legendRows = (rows: typeof allSegs, startY: number, keyPrefix: string, after: boolean) =>
+    rows.map((s, i) => {
+      const ry = startY + i * 11;
+      const removed = after && s.removed;
+      return (
+        <g key={`${keyPrefix}${i}`}>
+          <circle cx={legX} cy={ry - 3} r={3.5} fill={removed ? "#64748b" : s.color} opacity={removed ? 0.6 : 1} />
+          <text x={legX + 9} y={ry} fontSize={9} fill={removed ? "var(--text-faint)" : "var(--text-soft)"} fontFamily="var(--font-sans)" textDecoration={removed ? "line-through" : "none"}>
+            {s.code || s.cn}
+            <tspan dx={5} fill="var(--text-dim)" fontSize={8.5} textDecoration="none">{s.code ? s.cn : ""}</tspan>
+          </text>
+          <text x={pctX} y={ry} fontSize={9.5} fontWeight={700} fill={removed ? "var(--text-faint)" : s.color} fontFamily="var(--font-mono)" textAnchor="end">{Math.round(s.share)}%</text>
+        </g>
+      );
+    });
 
   return (
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      {/* 引线 */}
       <line x1={node.x + 8 - cx} y1={node.y - 10 - cy} x2={14} y2={h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.55} />
       <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
-      {/* 标题条 */}
       <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(245,158,11,0.16)" />
-      <text x={12} y={yTitle} fontSize={13.5} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">
-        CHR · 用户级根因 @ {neId}
-      </text>
-      {/* 主导原因值 */}
-      <text x={12} y={yCauseLbl} fontSize={13} fill="var(--text-mid)" fontFamily="var(--font-sans)" letterSpacing="0.04em">主导原因值</text>
-      <text x={12} y={yCauseCn} fontSize={19} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-sans)">{chr.causeCn}</text>
-      <text x={12} y={yCauseCode} fontSize={14} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">{chr.causeCode}</text>
-      {/* 原因值分布:环形饼图 + 图例 */}
-      <text x={12} y={yDistLbl} fontSize={12} fill="var(--text-dim)" fontFamily="var(--font-sans)" letterSpacing="0.06em">原因值分布</text>
+      <text x={12} y={18} fontSize={13.5} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">CHR · 用户级根因 @ {neId}</text>
+
+      {/* ① 降噪 —— 降噪前饼图:主导被多原因值干扰(全部彩色) */}
+      <rect x={8} y={c1y} width={w - 16} height={c1h} rx={8} fill={`${C.denoise}14`} stroke={`${C.denoise}55`} strokeWidth={1} />
+      <rect x={8} y={c1y} width={3} height={c1h} fill={C.denoise} />
+      <text x={24} y={c1y + 19} fontSize={13} fontWeight={800} fill={C.denoise} fontFamily="var(--font-mono)">①</text>
+      <text x={40} y={c1y + 18} fontSize={13} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">降噪 · 排除既有噪声</text>
+      <text x={24} y={c1y + 36} fontSize={10} fill="var(--text-soft)" fontFamily="var(--font-sans)">推理 · 统计终端原因值的持续 / 周期性历史基线</text>
+      <text x={24} y={c1y + 52} fontSize={10} fill="var(--text-soft)" fontFamily="var(--font-sans)">结果 · 降噪前终端噪声 {Math.round(noiseShare)}% 干扰,主导仅 {Math.round(domShare)}%</text>
       <g>
-        {arcs.map((s, i) => (
-          <path key={i} d={donutSeg(pieCx, pieCy, pieR, pieRIn, s.a0, s.a1)} fill={s.color} opacity={0.92} stroke="var(--twin-callout-bg)" strokeWidth={0.9} />
+        {allArcs.map((s, i) => (
+          <path key={`b${i}`} d={donutSeg(pieCx, pieCy1, pieR, pieRIn, s.a0, s.a1)} fill={s.color} opacity={0.92} stroke="var(--twin-callout-bg)" strokeWidth={0.9} />
         ))}
-        <text x={pieCx} y={pieCy - 2} fontSize={20} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-mono)" textAnchor="middle">{Math.round(domShare)}%</text>
-        <text x={pieCx} y={pieCy + 14} fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-sans)" textAnchor="middle" letterSpacing="0.08em">主导占比</text>
+        <text x={pieCx} y={pieCy1} fontSize={11} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-mono)" textAnchor="middle">{Math.round(domShare)}%</text>
+        <text x={pieCx} y={pieCy1 + 10} fontSize={6} fill="var(--text-dim)" fontFamily="var(--font-sans)" textAnchor="middle">降噪前</text>
       </g>
+      {legendRows(allSegs, c1y + 72, "bl", false)}
+
+      {/* ② 聚类 —— 降噪后饼图:终端噪声置灰+删除线(比例不变),主导收敛 */}
+      <rect x={8} y={c2y} width={w - 16} height={c2h} rx={8} fill={`${C.cluster}14`} stroke={`${C.cluster}55`} strokeWidth={1} />
+      <rect x={8} y={c2y} width={3} height={c2h} fill={C.cluster} />
+      <text x={24} y={c2y + 19} fontSize={13} fontWeight={800} fill={C.cluster} fontFamily="var(--font-mono)">②</text>
+      <text x={40} y={c2y + 18} fontSize={13} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">聚类 · 收敛主导原因</text>
+      <text x={24} y={c2y + 36} fontSize={10} fill="var(--text-soft)" fontFamily="var(--font-sans)">推理 · 剔除终端噪声后,对剩余原因值按共因聚类收敛</text>
+      <text x={24} y={c2y + 52} fontSize={10} fill="var(--text-soft)" fontFamily="var(--font-sans)">结果 · 终端噪声 {Math.round(noiseShare)}% 已剔除,主导 {Math.round(domShare)}% 收敛于 {chr.causeCode}</text>
       <g>
-        {segs.map((s, i) => {
-          const ry = legendY0 + i * rowH + 5;
-          return (
-            <g key={i}>
-              <circle cx={legendX} cy={ry - 4} r={4.5} fill={s.color} />
-              <text x={legendX + 11} y={ry} fontSize={12.5} fill="var(--text-soft)" fontFamily="var(--font-sans)">
-                {s.label}
-                {s.code && <tspan dx={6} fill="var(--text-dim)" fontFamily="var(--font-mono)" fontSize={10.5}>{s.code}</tspan>}
-              </text>
-              <text x={w - 12} y={ry} fontSize={12.5} fontWeight={700} fill={s.color} fontFamily="var(--font-mono)" textAnchor="end">{Math.round(s.share)}%</text>
-            </g>
-          );
-        })}
+        {allArcs.map((s, i) => (
+          <path key={`a${i}`} d={donutSeg(pieCx, pieCy2, pieR, pieRIn, s.a0, s.a1)} fill={s.removed ? "#475569" : s.color} opacity={s.removed ? 0.3 : 0.92} stroke="var(--twin-callout-bg)" strokeWidth={0.9} />
+        ))}
+        <text x={pieCx} y={pieCy2} fontSize={11} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-mono)" textAnchor="middle">{Math.round(domShare)}%</text>
+        <text x={pieCx} y={pieCy2 + 10} fontSize={6} fill="var(--text-dim)" fontFamily="var(--font-sans)" textAnchor="middle">降噪后</text>
       </g>
-      {/* 说明 */}
-      {lines.map((ln, i) => (
-        <text key={`d${i}`} x={12} y={yDetailStart + i * 19} fontSize={13} fill="var(--text-detail)" fontFamily="var(--font-sans)">{ln}</text>
-      ))}
+      {legendRows(allSegs, c2y + 72, "al", true)}
+
+      {/* ③ 根因 —— 中性措辞(B 网络根因 / C 用户侧根因均适用) */}
+      <rect x={8} y={c3y} width={w - 16} height={c3h} rx={8} fill={`${C.root}14`} stroke={`${C.root}55`} strokeWidth={1} />
+      <rect x={8} y={c3y} width={3} height={c3h} fill={C.root} />
+      <text x={24} y={c3y + 19} fontSize={13} fontWeight={800} fill={C.root} fontFamily="var(--font-mono)">③</text>
+      <text x={40} y={c3y + 18} fontSize={13} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">根因 · 锁定主导根因</text>
+      <text x={24} y={c3y + 37} fontSize={10} fill="var(--text-soft)" fontFamily="var(--font-sans)">推理 · 结合多维证据确认主导原因</text>
+      <text x={24} y={c3y + 53} fontSize={10} fill="var(--text-soft)" fontFamily="var(--font-sans)">结果 · 锁定 <tspan fontWeight={800} fill={STATUS.warning} fontFamily="var(--font-mono)">{neId}</tspan> · {chr.causeCn}</text>
+      <g>
+        <circle cx={targetCx} cy={targetCy} r={13} fill={`${C.root}1a`} stroke={`${C.root}88`} />
+        <circle cx={targetCx} cy={targetCy} r={8} fill="none" stroke={C.root} strokeWidth={1.2} />
+        <circle cx={targetCx} cy={targetCy} r={3} fill={C.root} />
+      </g>
     </g>
   );
 }

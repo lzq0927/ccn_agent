@@ -1,7 +1,7 @@
 // ============================================================================
-// KpiPanel —— 异常检测 · KPI + CHR 双线监测
-//   ① KPI 线:逐链路成功率时序(异常检测→时空求解)+ 代表链路 sparkline
-//   ② CHR 线:原因值多维时序(降噪→聚类)—— 既有噪声(慢性)排除 / 突变即异常
+// KpiPanel —— 异常检测 · CHR + KPI 双线监测
+//   CHR曲线(上):原因值多维时序(降噪→聚类)—— 既有噪声(慢性)排除 / 突变即异常
+//   KPI曲线(下):逐链路成功率时序(异常检测→时空求解)+ 代表链路曲线
 // ============================================================================
 
 import { getKpi } from "../../story/director";
@@ -54,7 +54,7 @@ export function KpiPanel({
   const winX1 = xOf(kpi.faultEnd - 1);
   const curX = xOf(Math.max(0, Math.min(steps - 1, state.simT - 1)));
 
-  // 代表性链路 sparkline —— 劣化 + 正常(均质化对照)
+  // 代表性链路曲线 —— 劣化 + 正常(均质化对照)
   const degradedEdges = g.flowEdges
     .filter((e) => kpi.edges[e.id]?.some((v) => v < kpi.threshold))
     .sort((a, b) => Math.min(...kpi.edges[a.id]) - Math.min(...kpi.edges[b.id]));
@@ -76,17 +76,21 @@ export function KpiPanel({
   }
 
   return (
-    <HudFrame title="双线监测 · KPI + CHR" subtitle="DUAL-LINE MONITOR" right={<LiveTag on={state.showAnomaly} />}>
+    <HudFrame title="双线监测 · CHR + KPI" subtitle="DUAL-LINE MONITOR" right={<LiveTag on={state.showAnomaly} />}>
       <div style={{ fontSize: 11, color: "var(--text-mid)", marginBottom: 4 }}>
-        <b style={{ color: "var(--text-bright)" }}>{g.flowEdges.length}</b> 条业务链路 · <span style={{ color: STATUS.warning }}>KPI+CHR 双线并行检测</span> · 任一检出异常即触发根因分析
+        <b style={{ color: "var(--text-bright)" }}>{g.flowEdges.length}</b> 条业务链路 · <span style={{ color: STATUS.warning }}>CHR+KPI 双线并行检测</span> · 任一检出异常即触发根因分析
       </div>
       <div style={{ fontSize: 9.5, color: "var(--text-faint)", marginBottom: 6, fontFamily: "var(--font-mono)", letterSpacing: "0.02em" }}>
-        KPI 线 → 时空求解 · CHR 线 → 降噪·聚类 · 双线并行
+        CHR曲线 → 降噪·聚类 · KPI曲线 → 时空求解 · 双线并行
       </div>
 
-      {/* ① KPI 线 —— 逐链路成功率时序(异常检测→时空求解) */}
-      <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 3 }}>
-        ① KPI 线 · 异常检测→时空求解
+      {/* CHR曲线 —— 原因值多维时序(降噪→聚类):既有噪声(慢性)排除 / 突变即异常 */}
+      {showDetails && <ChrBlock scenario={scenario} kpi={kpi} state={state} />}
+
+      {/* KPI曲线 —— 逐链路成功率时序(异常检测→时空求解) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: showDetails ? 10 : 0, marginBottom: 4, fontSize: 10.5, fontWeight: 700, color: "var(--text-bright)", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>
+        <span style={{ width: 3, height: 12, borderRadius: 2, background: STATUS.notice, boxShadow: `0 0 6px ${STATUS.notice}` }} />
+        KPI曲线 · 异常检测→时空求解
       </div>
       <svg viewBox={`0 0 ${CW} ${CH}`} width="100%" height={CH} style={{ display: "block" }}>
         {/* 故障窗阴影(检测后显现) */}
@@ -114,11 +118,12 @@ export function KpiPanel({
         <Stat label="游标" value={`T${state.simT.toFixed(0)}`} color="var(--accent)" />
       </div>
 
-      {/* 代表链路 sparkline:劣化 + 正常(均质化对照)—— 检测后展示(含网络恢复) */}
+      {/* KPI曲线 · 逐链路:劣化 + 正常(均质化对照)—— 检测后展示(含网络恢复) */}
       {showDetails && (degradedEdges.length > 0 || healthyEdges.length > 0) && (
         <div style={{ marginTop: 10, borderTop: "1px solid rgba(56,189,248,0.12)", paddingTop: 8 }}>
-          <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>
-            LINK SPARKLINE · 劣化 / 正常对照
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 9.5, fontWeight: 700, color: "var(--text-soft)", fontFamily: "var(--font-sans)", letterSpacing: "0.04em", marginBottom: 6 }}>
+            <span style={{ width: 3, height: 10, borderRadius: 2, background: STATUS.notice }} />
+            KPI曲线 · 劣化 / 正常对照
           </div>
           {degradedEdges.map((e) => (
             <LinkSpark key={e.id} a={g.nodeById[e.a]?.id} b={g.nodeById[e.b]?.id} es={kpi.edges[e.id]} simT={state.simT} />
@@ -135,9 +140,6 @@ export function KpiPanel({
           )}
         </div>
       )}
-
-      {/* ② CHR 线 —— 原因值多维时序(降噪→聚类):既有噪声(慢性)排除 / 突变即异常 */}
-      {showDetails && <ChrBlock scenario={scenario} kpi={kpi} state={state} />}
     </HudFrame>
   );
 }
@@ -158,10 +160,13 @@ function ChrBlock({ scenario, kpi, state }: { scenario: Scenario; kpi: KpiBundle
   const chronic = all.filter((s) => s.verdict === "chronic");
   const sudden = all.filter((s) => s.verdict === "sudden");
   return (
-    <div style={{ marginTop: 10, borderTop: "1px solid rgba(56,189,248,0.12)", paddingTop: 8 }}>
-      <div style={{ fontSize: 8.5, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 4, display: "flex", justifyContent: "space-between" }}>
-        <span>② CHR 线 · 降噪→聚类 · 原因值多维时序</span>
-        <span style={{ color: "var(--text-dim)" }}>既有噪声·降噪 / 突变·异常</span>
+    <div style={{ borderTop: "1px solid rgba(56,189,248,0.12)", paddingTop: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10.5, fontWeight: 700, color: "var(--text-bright)", fontFamily: "var(--font-sans)", letterSpacing: "0.04em" }}>
+          <span style={{ width: 3, height: 12, borderRadius: 2, background: STATUS.faultGlow, boxShadow: `0 0 6px ${STATUS.faultGlow}` }} />
+          CHR曲线 · 降噪→聚类 · 原因值多维时序
+        </span>
+        <span style={{ fontSize: 8.5, color: "var(--text-dim)", fontFamily: "var(--font-mono)" }}>既有噪声·降噪 / 突变·异常</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: "block" }}>
         {/* 故障窗 */}

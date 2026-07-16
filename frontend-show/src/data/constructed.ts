@@ -168,7 +168,7 @@ const FAULT_B: FaultSpec = {
 const REASONING_B: ReasonStep[] = [
   { n: 1, type: "tool_call", text: "iFFusion 融合异常检测:KPI + CHR 多维时序统计，网络侧 SMF 方向成功率突降(本次突变)，终端原因值(鉴权/兼容性)呈周期性偏高。", result: "网络突变 + 终端周期性噪声 · 信号模糊", highlight: { nes: ["SMF_1"] } },
   { n: 2, type: "tool_call", text: "网络/终端难分 → Agent Loop 迭代②:拉取终端原因值的持续周期性 CHR 历史，做多维时序对比。", highlight: { nes: ["SMF_1"] } },
-  { n: 3, type: "thinking", text: "CHR 降噪:终端侧原因值长期基线即偏高(非本次突增) → 判为既有噪声并排除，网络侧 5GSM#37 与突降同步突增 → 锁定 SMF_1。", highlight: { nes: ["SMF_1"] } },
+  { n: 3, type: "thinking", text: "CHR 降噪:终端原因值长期基线偏高(非突增)→ 既有噪声剔除;聚类收敛于网络侧 5GSM#37,与突降同步 → 锁定 SMF_1。", highlight: { nes: ["SMF_1"] } },
   { n: 4, type: "conclusion", text: "排除终端噪声后，根因为 SMF_1，实施恢复。", result: "GUIDED · 命中", highlight: { nes: ["SMF_1"] } },
 ];
 
@@ -225,10 +225,11 @@ const FAULT_C: FaultSpec = {
 };
 
 const REASONING_C: ReasonStep[] = [
-  { n: 1, type: "tool_call", text: "iFFusion 异常检测:总体微跌，无网元异常。", result: "无 NE 跌破阈值" },
-  { n: 2, type: "tool_call", text: "CHR 聚类:失败原因分散，无网络根因。", highlight: { nes: ["gNB_2"] } },
-  { n: 3, type: "thinking", text: "用户分群追踪:物联终端群体失败率 52%。", highlight: { nes: ["gNB_2"] } },
-  { n: 4, type: "conclusion", text: "物联终端群体异常，网络健康。", result: "AUTONOMOUS · 用户侧恢复" },
+  { n: 1, type: "tool_call", text: "iFFusion 异常检测:总体微跌，KPI 无网元异常、CHR 原因分散。", result: "信号模糊 · 未收敛" },
+  { n: 2, type: "tool_call", text: "首轮未收敛 → Agent Loop 迭代②(自主探索):CHR 降噪去散点 + 聚类，原因值仍分散、无网络共因。", highlight: { nes: ["gNB_2"] } },
+  { n: 3, type: "tool_call", text: "仍无共因 → Agent Loop 迭代③:换角度做用户分群追踪，gNB_2 物联终端群体失败率 52%。", highlight: { nes: ["gNB_2"] } },
+  { n: 4, type: "thinking", text: "群体异常独立于网络 NE(全网健康)→ 信号收敛，网络无需隔离。", highlight: { nes: ["gNB_2"] } },
+  { n: 5, type: "conclusion", text: "物联终端群体异常，网络健康，下发用户侧恢复。", result: "AUTONOMOUS · 用户侧恢复" },
 ];
 
 const CONFIDENCE_C: ConfidenceBreakdown = {

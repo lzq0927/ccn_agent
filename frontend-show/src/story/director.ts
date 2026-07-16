@@ -233,7 +233,7 @@ const SCENARIO_SUB: Record<string, Record<number, string>> = {
   },
   C: {
     2: "逐链路监测 · 无链路/网元跌破阈值 · 仅 CHR 原因值分散",
-    3: "置信度 0.28·信号模糊·自主探索·拦截 AMF 误报",
+    3: "置信度 0.28·信号模糊·自主探索 Loop·多轮收敛·拦截 AMF 误报",
     4: "CHR 聚类 + 用户分群追踪:物联终端群体 52% 失败·网络健康·防误报",
     5: "网络侧无法隔离 gNB·通知物联终端群体换路·用户侧恢复",
   },
@@ -319,8 +319,8 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // (「仅网络KPI」朴素侧在 phase≥2 即出现，由 ComparisonPanel 按 phaseIndex 处理)
   const comparisonReveal = phaseIndex < 4 ? 0 : phaseIndex === 4 ? easeOut(progress) : 1;
 
-  // 用户级 CHR 原因值弹窗(场景 B):推理起至恢复前
-  const chrPopup: ChrInsight | null = s.chrInsight && phaseIndex >= 4 && phaseIndex <= 6 ? s.chrInsight : null;
+  // 用户级 CHR 原因值弹窗(场景 B/C):仅在根因推理阶段(phase 4)展示
+  const chrPopup: ChrInsight | null = s.chrInsight && phaseIndex === 4 ? s.chrInsight : null;
 
   // 均质化比较结果弹窗(场景 A/D):根因推理期间(phase 4)
   const homogenPopup = s.homogen && phaseIndex === 4 ? s.homogen : null;
