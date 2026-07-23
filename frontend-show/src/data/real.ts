@@ -14,6 +14,8 @@ import type {
   ComparisonSide,
   EvalMetrics,
   FalseAlarm,
+  FaultReport,
+  FlowControl,
   GraphEdge,
   HomogenResult,
   IsolationNote,
@@ -22,6 +24,8 @@ import type {
   RouteKey,
   Scenario,
   SkillEvolution,
+  StormMetrics,
+  UfdrReport,
   UserFault,
 } from "./types";
 
@@ -100,6 +104,14 @@ export interface ScenarioNarrative {
   homogen?: HomogenResult;
   /** 隔离标注(场景 A/B/D) */
   isolation?: IsolationNote;
+  /** UPF UFDR 溯源报表(场景 D/E) */
+  ufdr?: UfdrReport;
+  /** 流控策略(场景 D/E) */
+  flowControl?: FlowControl;
+  /** 风暴冲击指标(场景 D/E) */
+  stormMetrics?: StormMetrics;
+  /** 大模型故障报告(场景 D/E) */
+  faultReport?: FaultReport;
 }
 
 /** 简洁中文推理链(替换真实英文 trace，展会可读;根因/后验来自真实诊断) */

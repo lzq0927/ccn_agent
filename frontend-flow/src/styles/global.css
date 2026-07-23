@@ -1,0 +1,483 @@
+/* ==========================================================================
+   高稳智能体 · 全局样式 — 深空 HUD 指挥中心
+   三主题(深邃 / 暮光 / 明亮)由 <html data-theme="..."> 切换;
+   默认裸 :root = 深邃(当前),亦为 JS/脚本失败时的兜底,确保零回归。
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* —— 深邃(默认 = 当前) —— */
+:root {
+  --bg: #04070f;
+  --bg-panel: rgba(10, 16, 30, 0.72);
+  --bg-panel-solid: #0a1020;
+  --border: rgba(56, 189, 248, 0.18);
+  --border-strong: rgba(56, 189, 248, 0.4);
+  --text: #e2e8f0;
+  --text-bright: #eaf4ff;
+  --text-soft: #cde7ff;
+  --text-mid: #9fb0c9;
+  --text-detail: #b8c8de;
+  --text-dim: #7e8aa3;
+  --text-faint: #475569;
+  --text-on-accent: #e8eefb;
+  --accent: #38bdf8;
+  --accent-violet: #a78bfa;
+  --accent-soft: rgba(56, 189, 248, 0.08);
+  --accent-medium: rgba(56, 189, 248, 0.16);
+  --accent-strong: rgba(56, 189, 248, 0.22);
+  --accent-glow: rgba(56, 189, 248, 0.25);
+  --accent-a12: rgba(56, 189, 248, 0.025);
+  --accent-a20: rgba(56, 189, 248, 0.14);
+  --accent-a28: rgba(56, 189, 248, 0.28);
+  --grid: rgba(56, 189, 248, 0.045);
+  --vignette: rgba(0, 0, 0, 0.7);
+  --app-glow-1: rgba(56, 189, 248, 0.1);
+  --app-glow-2: rgba(167, 139, 250, 0.1);
+  --app-glow-3: rgba(16, 185, 129, 0.05);
+  --shimmer: rgba(56, 189, 248, 0.15);
+  --scrollbar: rgba(56, 189, 248, 0.25);
+  --scrollbar-hover: rgba(56, 189, 248, 0.45);
+  --twin-node-bg-1: #13203a;
+  --twin-node-bg-2: #070d1c;
+  --twin-fault-bg-1: #3a1218;
+  --twin-fault-bg-2: #180608;
+  --twin-edge: rgba(56, 189, 248, 0.14);
+  --twin-registry: rgba(148, 163, 184, 0.12);
+  --twin-readout-bg: rgba(4, 7, 15, 0.7);
+  --twin-callout-bg: rgba(4, 7, 15, 0.93);
+  --font-mono: ui-monospace, "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  --font-sans: "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+/* —— 暮光:深色但明显提亮,解决"看不清" —— */
+:root[data-theme="dim"] {
+  --bg: #0b1322;
+  --bg-panel: rgba(22, 32, 52, 0.82);
+  --bg-panel-solid: #141d33;
+  --border: rgba(56, 189, 248, 0.28);
+  --border-strong: rgba(56, 189, 248, 0.5);
+  --text: #eef2fb;
+  --text-bright: #f2f7ff;
+  --text-soft: #dbeeff;
+  --text-mid: #b9c6da;
+  --text-detail: #cdd9ea;
+  --text-dim: #a7b4cc;
+  --text-faint: #6b7a96;
+  --accent-soft: rgba(56, 189, 248, 0.12);
+  --accent-medium: rgba(56, 189, 248, 0.2);
+  --accent-strong: rgba(56, 189, 248, 0.28);
+  --accent-glow: rgba(56, 189, 248, 0.3);
+  --accent-a12: rgba(56, 189, 248, 0.04);
+  --accent-a20: rgba(56, 189, 248, 0.2);
+  --accent-a28: rgba(56, 189, 248, 0.4);
+  --grid: rgba(56, 189, 248, 0.06);
+  --vignette: rgba(0, 0, 0, 0.45);
+  --app-glow-1: rgba(56, 189, 248, 0.12);
+  --app-glow-2: rgba(167, 139, 250, 0.12);
+  --app-glow-3: rgba(16, 185, 129, 0.06);
+  --shimmer: rgba(56, 189, 248, 0.2);
+  --scrollbar: rgba(56, 189, 248, 0.3);
+  --scrollbar-hover: rgba(56, 189, 248, 0.5);
+  --twin-node-bg-1: #1c2c4a;
+  --twin-node-bg-2: #121d33;
+  --twin-fault-bg-1: #4a1820;
+  --twin-fault-bg-2: #220a0c;
+  --twin-edge: rgba(56, 189, 248, 0.2);
+  --twin-registry: rgba(148, 163, 184, 0.18);
+  --twin-readout-bg: rgba(20, 29, 51, 0.78);
+  --twin-callout-bg: rgba(20, 29, 51, 0.95);
+  color-scheme: dark;
+}
+
+/* —— 明亮:浅色 / 白底 —— */
+:root[data-theme="light"] {
+  --bg: #eef2f7;
+  --bg-panel: rgba(255, 255, 255, 0.78);
+  --bg-panel-solid: #ffffff;
+  --border: rgba(56, 189, 248, 0.35);
+  --border-strong: rgba(56, 189, 248, 0.6);
+  --text: #1e293b;
+  --text-bright: #0f172a;
+  --text-soft: #334155;
+  --text-mid: #475569;
+  --text-detail: #334155;
+  --text-dim: #5b6b82;
+  --text-faint: #94a3b8;
+  --text-on-accent: #ffffff;
+  --accent: #0284c7;
+  --accent-violet: #7c3aed;
+  --accent-soft: rgba(2, 132, 199, 0.08);
+  --accent-medium: rgba(2, 132, 199, 0.14);
+  --accent-strong: rgba(2, 132, 199, 0.2);
+  --accent-glow: rgba(2, 132, 199, 0.25);
+  --accent-a12: rgba(2, 132, 199, 0.06);
+  --accent-a20: rgba(2, 132, 199, 0.18);
+  --accent-a28: rgba(2, 132, 199, 0.32);
+  --grid: rgba(56, 189, 248, 0.08);
+  --vignette: rgba(0, 0, 0, 0);
+  --app-glow-1: rgba(56, 189, 248, 0.14);
+  --app-glow-2: rgba(167, 139, 250, 0.12);
+  --app-glow-3: rgba(16, 185, 129, 0.08);
+  --shimmer: rgba(2, 132, 199, 0.18);
+  --scrollbar: rgba(2, 132, 199, 0.3);
+  --scrollbar-hover: rgba(2, 132, 199, 0.5);
+  --twin-node-bg-1: #f1f5f9;
+  --twin-node-bg-2: #e2e8f0;
+  --twin-fault-bg-1: #fee2e2;
+  --twin-fault-bg-2: #fecaca;
+  --twin-edge: rgba(2, 132, 199, 0.25);
+  --twin-registry: rgba(100, 116, 139, 0.2);
+  --twin-readout-bg: rgba(255, 255, 255, 0.85);
+  --twin-callout-bg: rgba(255, 255, 255, 0.96);
+  --ne-type-fill: var(--text-bright);
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  user-select: none;
+}
+
+/* 深空背景:径向辉光 + 细网格 + 暗角 */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(1200px 800px at 28% 18%, var(--app-glow-1), transparent 60%),
+    radial-gradient(1000px 700px at 78% 82%, var(--app-glow-2), transparent 60%),
+    radial-gradient(900px 600px at 50% 50%, var(--app-glow-3), transparent 70%),
+    var(--bg);
+}
+.app-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
+}
+.app-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 220px 60px var(--vignette);
+  pointer-events: none;
+}
+
+/* HUD 面板:半透明玻璃 + 细边 + 角标 */
+.hud {
+  position: relative;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.hud::before,
+.hud::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: var(--border-strong);
+  border-style: solid;
+  pointer-events: none;
+}
+.hud::before {
+  top: -1px;
+  left: -1px;
+  border-width: 1px 0 0 1px;
+}
+.hud::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 1px 1px 0;
+}
+
+.hud-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.hud-head .title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+}
+.hud-head .title .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.dim {
+  color: var(--text-dim);
+}
+.faint {
+  color: var(--text-faint);
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-hover);
+}
+
+/* 动画工具 */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(2000%); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes float-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, var(--shimmer), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2.4s infinite;
+}
+
+/* —— 数字孪生:数据流虚线 —— */
+@keyframes dashmove {
+  to {
+    stroke-dashoffset: -240;
+  }
+}
+@keyframes dashmove-rev {
+  to {
+    stroke-dashoffset: 240;
+  }
+}
+.flow-dash {
+  stroke-dasharray: 4 12;
+  animation: dashmove 1.6s linear infinite;
+}
+.flow-dash-rev {
+  stroke-dasharray: 4 12;
+  animation: dashmove-rev 1.6s linear infinite;
+}
+.flow-dash-fast {
+  stroke-dasharray: 3 9;
+  animation: dashmove 0.7s linear infinite;
+}
+
+/* 告警脉冲环(故障节点) */
+.alert-ring {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: pulse-ring 1.6s ease-out infinite;
+}
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin-slow {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: spin-slow 8s linear infinite;
+}
+.spin-rev {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: spin-slow 12s linear infinite reverse;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--text);
+}
+
+/* ==========================================================================
+   浮动弹窗 · FLOATING POPUP —— 右侧拓扑上的信息浮层(玻璃 HUD + 左侧引导尖角)
+   恒定锚定容器边缘,不挤压拓扑;带指针/圆点引导当前焦点。
+   ========================================================================== */
+.fpop {
+  position: absolute;
+  z-index: 5;
+  min-width: 188px;
+  max-width: 232px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--twin-callout-bg);
+  border: 1px solid var(--accent-a28);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(56, 189, 248, 0.06);
+  animation: fpop-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fpop.accent-fault { border-color: rgba(239, 68, 68, 0.5); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 18px rgba(239, 68, 68, 0.22); }
+.fpop.accent-warn { border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 18px rgba(245, 158, 11, 0.2); }
+.fpop.accent-ok { border-color: rgba(34, 197, 94, 0.5); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), 0 0 18px rgba(34, 197, 94, 0.2); }
+/* 指针:贴在弹窗左缘,指向拓扑中心 */
+.fpop::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: -6px;
+  width: 10px;
+  height: 10px;
+  background: var(--twin-callout-bg);
+  border-left: 1px solid var(--accent-a28);
+  border-bottom: 1px solid var(--accent-a28);
+  transform: rotate(45deg);
+}
+.fpop.accent-fault::before { border-color: rgba(239, 68, 68, 0.5); }
+.fpop.accent-warn::before { border-color: rgba(245, 158, 11, 0.5); }
+.fpop.accent-ok::before { border-color: rgba(34, 197, 94, 0.5); }
+/* 锚定左侧时:指针翻到右缘,指向拓扑 */
+.fpop.anchor-left::before {
+  left: auto;
+  right: -6px;
+  border-left: none;
+  border-right: 1px solid var(--accent-a28);
+  border-bottom: 1px solid var(--accent-a28);
+}
+.fpop.anchor-left.accent-fault::before { border-color: rgba(239, 68, 68, 0.5); }
+.fpop.anchor-left.accent-warn::before { border-color: rgba(245, 158, 11, 0.5); }
+.fpop.anchor-left.accent-ok::before { border-color: rgba(34, 197, 94, 0.5); }
+.fpop-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8.5px;
+  letter-spacing: 0.08em;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.fpop-tag .pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  animation: blink 1.3s ease-in-out infinite;
+}
+.fpop-title {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text-bright);
+  line-height: 1.2;
+  margin-bottom: 3px;
+}
+.fpop-sub {
+  font-size: 9.5px;
+  color: var(--text-mid);
+  line-height: 1.45;
+}
+
+/* 浮动小读数(角标式,极简) */
+.fpop-mini {
+  position: absolute;
+  z-index: 5;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: var(--twin-readout-bg);
+  border: 1px solid var(--accent-a20);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: fpop-in 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes fpop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* 当前指针 · 指向拓扑焦点(三角 + 脉冲) */
+@keyframes ptr-bob {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(3px); opacity: 0.65; }
+}
+
+.btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+}
+.btn:hover {
+  background: var(--accent-medium);
+  border-color: var(--border-strong);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.btn.active {
+  background: var(--accent-strong);
+  border-color: var(--accent);
+  color: var(--text-soft);
+}

@@ -126,7 +126,31 @@ export function EvaluationPanel({ state, scenario }: { state: StoryState; scenar
 
       {/* 能力沉淀 · 闭环学习(场景 B/C) */}
       <Consolidation scenario={scenario} reveal={state.skillReveal} />
+
+      {/* 大模型故障报告(场景 D/E) */}
+      {scenario.faultReport && <FaultReportBlock fr={scenario.faultReport} />}
     </HudFrame>
+  );
+}
+
+function FaultReportBlock({ fr }: { fr: NonNullable<Scenario["faultReport"]> }) {
+  const rows: [string, string][] = [
+    ["根因", fr.rootCause],
+    ["现象", fr.phenomenon],
+    ["影响", fr.impact],
+    ["处置", fr.action],
+    ["结果", fr.outcome],
+  ];
+  return (
+    <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.45)", background: "rgba(167,139,250,0.07)" }}>
+      <div style={{ fontSize: 10, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 5, letterSpacing: "0.05em" }}>🤖 大模型 · 故障报告总结</div>
+      {rows.map(([k, v], i) => (
+        <div key={k} style={{ display: "flex", gap: 7, fontSize: 9.5, lineHeight: 1.5, marginBottom: i === rows.length - 1 ? 0 : 3 }}>
+          <span style={{ color: "var(--text-dim)", flexShrink: 0, minWidth: 28 }}>{k}</span>
+          <span style={{ color: i === rows.length - 1 ? "#c4b5fd" : "var(--text-soft)", fontWeight: i === rows.length - 1 ? 700 : 400 }}>{v}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 

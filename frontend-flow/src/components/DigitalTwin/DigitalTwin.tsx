@@ -1,11 +1,8 @@
 // ============================================================================
-// DigitalTwin —— 中央 SVG 网络数字孪生(用户级韧性 × 网络自治增强版)
-//   节点(9 类 NE，按数据流分层) + 业务流/注册链路 + 流动数据粒子
-//   健康着色由 KPI(simT) 驱动;异常脉冲 / 推理聚焦 / 根因标定 / 恢复叠加
-//   ★ 用户级:UE 接入簇按 gNB 分组、CHR 原因值弹窗(场景B)
-//   ★ 网络自治:误报拦截标记(场景C)、用户群体异常标记(场景C，网络保持绿)
-//   ★ 步骤-拓扑联动:当前执行步的高亮 NE 加「当前排查」脉冲标记
-//   graph / kpi 可由 LIVE 模式注入真实数据;缺省用内置 DEMO 网络。
+// DigitalTwin —— 中央 SVG 网络数字孪生
+//   节点(9 类 NE,按数据流分层)+ 业务流/注册链路 + 流动数据粒子。
+//   showCallouts=false 时不在拓扑内渲染弹窗(下沉到外部容器),
+//   弹窗对应 NE 改用 warning 色环高亮,提示「详见下方」。
 // ============================================================================
 
 import { memo } from "react";
@@ -27,29 +24,16 @@ function lineBetween(ax: number, ay: number, bx: number, by: number, r: number) 
   return { x1: ax + ux * r, y1: ay + uy * r, x2: bx - ux * r, y2: by - uy * r };
 }
 
-/** 简单字符宽度折行(SVG 文本无自动换行) */
-function wrap(text: string, max: number): string[] {
-  const out: string[] = [];
-  let cur = "";
-  for (const ch of text) {
-    cur += ch;
-    if (ch === "，" || ch === "," || cur.length >= max) {
-      out.push(cur.trim());
-      cur = "";
-    }
-  }
-  if (cur.trim()) out.push(cur.trim());
-  return out.slice(0, 3);
-}
-
 interface Props {
   scenario: Scenario;
   state: StoryState;
   graph?: NetworkGraph;
   kpi?: KpiBundle;
+  /** false 时不在拓扑内渲染弹窗(下沉到外部容器),改为节点 warning 色环高亮。 */
+  showCallouts?: boolean;
 }
 
-function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
+function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp, showCallouts = true }: Props) {
   const g: NetworkGraph = graph ?? DEMO_GRAPH;
   const kpi: KpiBundle = kpiProp ?? getKpi(scenario);
   const simT = state.simT;
@@ -61,10 +45,15 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
   const rerouteSet = new Set(state.rerouteEdges);
   const cpuOverloadSet = new Set(state.cpuOverloadNe); // 场景 D/E:AMF/SMF CPU 过载
 
-  // ★ 扩展派生态集合
   const userFaultGnbs = state.userLevelActive && state.userLevel ? new Set(state.userLevel.gnbs) : new Set<string>();
   const currentStepNes = new Set(state.currentStep?.highlight?.nes ?? []);
   const falseAlarmNe = state.falseAlarmActive && scenario.falseAlarm ? scenario.falseAlarm.naiveNe : null;
+  // 弹窗下沉模式(!showCallouts):标记弹窗对应 NE,拓扑内改用 warning 色环高亮
+  const calloutTargets = new Set<string>([
+    ...(state.chrPopup?.nes ?? []),
+    ...(state.homogenPopup ? [state.homogenPopup.anchorNe] : []),
+    ...(state.isolationPopup ? [state.isolationPopup.isolateNe] : []),
+  ]);
   const userFault = state.userLevelActive ? state.userLevel : null;
 
   function edgeLine(a: string, b: string) {
@@ -75,12 +64,9 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
     return lineBetween(from.x, from.y, to.x, to.y, R);
   }
 
-  const overallSr = sample(kpi.overall, simT);
   const degradedCount = g.nodes.filter((n) => sample(kpi.nodes[n.id] ?? [0.999], simT) < threshold).length;
-  // 边线密度自适应:边多的场景(A,168 条)整体调浅调细，避免扎眼;边少的(B/C/D,27 条)保持原样
   const dense = g.flowEdges.length > 60;
 
-  // 异常初筛:逐链路检出跌破阈值的链路(phase 2 弹窗用)——任意链路异常即触发
   const degradedP2 = g.flowEdges
     .filter((e) => kpi.edges[e.id]?.some((v) => v < threshold))
     .sort((a, b) => Math.min(...kpi.edges[a.id]) - Math.min(...kpi.edges[b.id]));
@@ -117,12 +103,11 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
       </defs>
 
       {/* DC 容器 */}
-      <rect x={56} y={46} width={968} height={568} rx={14} fill="var(--accent-a12)" stroke="var(--twin-edge)" strokeDasharray="2 6" />
+      <rect x={56} y={40} width={968} height={VIEW_H - 42} rx={14} fill="var(--accent-a12)" stroke="var(--twin-edge)" strokeDasharray="2 6" />
       <text x={66} y={40} fill="var(--text-dim)" fontSize={11} fontFamily="var(--font-mono)" letterSpacing="0.18em">
         DC1 · 5GC SA CORE · DIGITAL TWIN
       </text>
 
-      {/* UE 接入簇(左)—— 用户级:受影响 gNB 的接入线染琥珀 */}
       <UeCluster nodes={g.nodes} active={state.twinMode !== "healed" || state.phaseIndex <= 1} anomaly={state.showAnomaly} userFaultGnbs={userFaultGnbs} />
 
       {/* 注册链路(弱) */}
@@ -148,18 +133,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
           const opacity = isReroute ? 1 : degraded ? (dense ? 0.6 : 0.95) : dense ? 0.22 : 0.5;
           return (
             <g key={e.id}>
-              <line
-                x1={ll.x1}
-                y1={ll.y1}
-                x2={ll.x2}
-                y2={ll.y2}
-                stroke={color}
-                strokeWidth={width}
-                strokeLinecap="round"
-                className={state.phaseIndex >= 1 ? dashClass : undefined}
-                opacity={opacity}
-                filter={degraded || isReroute ? "url(#twin-glow)" : undefined}
-              />
+              <line x1={ll.x1} y1={ll.y1} x2={ll.x2} y2={ll.y2} stroke={color} strokeWidth={width} strokeLinecap="round" className={state.phaseIndex >= 1 ? dashClass : undefined} opacity={opacity} filter={degraded || isReroute ? "url(#twin-glow)" : undefined} />
               {(isFocus || isReroute) && state.phaseIndex >= 1 && (
                 <circle r={isReroute ? 3.2 : 2.4} fill={isReroute ? "#bbf7d0" : "#7dd3fc"} filter="url(#twin-glow)">
                   <animateMotion dur={isReroute ? "0.9s" : "1.5s"} repeatCount="indefinite" rotate="auto">
@@ -177,20 +151,29 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
         {g.nodes.map((n) => {
           const sr = sample(kpi.nodes[n.id] ?? [0.999], simT);
           const degraded = sr < threshold && state.showAnomaly;
-          const isUserFaultGnb = userFaultGnbs.has(n.id); // 场景 C:用户级异常(琥珀，非红)
+          const isUserFaultGnb = userFaultGnbs.has(n.id);
           const isFocus = focusSet.has(n.id);
           const isRoot = rootSet.has(n.id);
           const isCordoned = cordonedSet.has(n.id);
-          const isCurrentStep = currentStepNes.has(n.id) && state.phaseIndex === 4; // 步骤-拓扑联动
-          const isFalseAlarm = falseAlarmNe === n.id; // 场景 C:误报标记
+          const isCurrentStep = currentStepNes.has(n.id) && state.phaseIndex === 4;
+          const isFalseAlarm = falseAlarmNe === n.id;
+          const isCalloutTarget = calloutTargets.has(n.id) && !showCallouts;
           const tc = NE_COLORS[n.type] ?? { base: "#38bdf8", glow: "#7dd3fc" };
-          const ringColor = isCordoned ? "var(--text-faint)" : isUserFaultGnb ? STATUS.warning : degraded ? STATUS.fault : isFocus ? tc.glow : tc.base;
+          const ringColor = isCordoned
+            ? "var(--text-faint)"
+            : isUserFaultGnb
+              ? STATUS.warning
+              : isCalloutTarget
+                ? STATUS.warning
+                : degraded
+                  ? STATUS.fault
+                  : isFocus
+                    ? tc.glow
+                    : tc.base;
           const fillUrl = degraded && !isUserFaultGnb ? "url(#node-fault)" : "url(#node-healthy)";
           return (
             <g key={n.id} transform={`translate(${n.x} ${n.y})`}>
-              {/* 网络故障告警脉冲(用户级异常的 gNB 不走红色告警) */}
               {degraded && !isUserFaultGnb && <circle r={R} fill="none" stroke={STATUS.fault} strokeWidth={1.5} className="alert-ring" opacity={0.8} />}
-              {/* 用户群体异常标记(场景 C):琥珀脉冲环 + UE 数，网络本体保持健康 */}
               {isUserFaultGnb && (
                 <g filter="url(#twin-glow)">
                   <circle r={R + 6} fill="none" stroke={STATUS.warning} strokeWidth={1.6} strokeDasharray="5 4" className="alert-ring" opacity={0.9} />
@@ -199,23 +182,25 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
                   </text>
                 </g>
               )}
-              {/* 误报标记(场景 C):朴素网络视角误判的 NE;phase≥3 被置信度拦截 */}
               {isFalseAlarm && (
                 <g opacity={state.falseAlarmIntercepted ? 0.55 : 0.95}>
                   <circle r={R + 8} fill="none" stroke={state.falseAlarmIntercepted ? STATUS.fault : STATUS.warning} strokeWidth={1.3} strokeDasharray="3 4" />
                   <text y={-R - 12} textAnchor="middle" fontSize={9} fontWeight={700} fill={state.falseAlarmIntercepted ? STATUS.faultGlow : STATUS.warning} fontFamily="var(--font-mono)">
                     {state.falseAlarmIntercepted ? "✗ 已拦截·误报" : "？ 误报嫌疑"}
                   </text>
-                  {state.falseAlarmIntercepted && (
-                    <line x1={-R - 6} y1={-R - 14} x2={R + 6} y2={-R - 8} stroke={STATUS.fault} strokeWidth={1.4} opacity={0.8} />
-                  )}
+                  {state.falseAlarmIntercepted && <line x1={-R - 6} y1={-R - 14} x2={R + 6} y2={-R - 8} stroke={STATUS.fault} strokeWidth={1.4} opacity={0.8} />}
                 </g>
               )}
-              {/* 当前排查标记(步骤-拓扑联动):执行中步骤的高亮 NE */}
               {isCurrentStep && (
                 <g>
                   <circle r={R + 5} fill="none" stroke={tc.glow} strokeWidth={1.1} className="alert-ring" opacity={0.7} />
                   <text y={R + 26} textAnchor="middle" fontSize={8} fontWeight={700} fill={`var(--ne-type-fill, ${tc.glow})`} fontFamily="var(--font-mono)">▶ 当前排查</text>
+                </g>
+              )}
+              {isCalloutTarget && (
+                <g>
+                  <circle r={R + 5} fill="none" stroke={STATUS.warning} strokeWidth={1.3} className="alert-ring" opacity={0.85} />
+                  <text y={-R - 12} textAnchor="middle" fontSize={8} fontWeight={700} fill={STATUS.warning} fontFamily="var(--font-mono)">详见下方 ↓</text>
                 </g>
               )}
               {isRoot && (
@@ -223,9 +208,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
                   <circle r={R + 9} fill="none" stroke={isUserFaultGnb ? STATUS.warning : STATUS.fault} strokeWidth={1.4} strokeDasharray="14 6" opacity={0.9} />
                 </g>
               )}
-              {isCordoned && (
-                <rect x={-R - 7} y={-R - 7} width={(R + 7) * 2} height={(R + 7) * 2} rx={6} fill="none" stroke="var(--text-faint)" strokeWidth={1.2} strokeDasharray="3 3" />
-              )}
+              {isCordoned && <rect x={-R - 7} y={-R - 7} width={(R + 7) * 2} height={(R + 7) * 2} rx={6} fill="none" stroke="var(--text-faint)" strokeWidth={1.2} strokeDasharray="3 3" />}
               {/* CPU 过载角标(场景 D/E):AMF/SMF 被冲击 */}
               {cpuOverloadSet.has(n.id) && (
                 <g transform={`translate(${R + 8} ${-R - 8})`} filter="url(#twin-glow)">
@@ -240,7 +223,6 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
               <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? (isUserFaultGnb ? STATUS.warning : STATUS.faultGlow) : isCordoned ? "var(--text-faint)" : "var(--text-mid)"} fontFamily="var(--font-mono)">
                 {n.id}
               </text>
-              {/* 劣化 SR% —— 用户级异常 gNB 改显示 UE 数(上方已有)，网络故障 NE 显示 SR% */}
               {degraded && !isUserFaultGnb && (
                 <text y={-R - 8} textAnchor="middle" fontSize={8} fill={STATUS.faultGlow} fontFamily="var(--font-mono)">
                   {(sr * 100).toFixed(1)}%
@@ -259,34 +241,15 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
         })}
       </g>
 
-      {/* 异常初筛弹窗(phase 2):逐链路检出多条路径异常 */}
-      {state.phaseIndex === 2 && degradedP2.length > 0 && <AnomalyCallout edges={degradedP2} kpi={kpi} simT={simT} />}
-      {scenario.stormMetrics && state.phaseIndex === 2 && <StormMetricsCallout m={scenario.stormMetrics} node={g.nodeById["AMF_1"]} />}
+      {/* 弹窗:showCallouts=true 时锚定节点渲染(右侧拓扑为主 · 全弹窗) */}
+      {showCallouts && state.phaseIndex === 2 && degradedP2.length > 0 && <AnomalyCallout edges={degradedP2} kpi={kpi} simT={simT} />}
+      {showCallouts && state.chrPopup && <ChrCallout neId={state.chrPopup.nes[0]} node={g.nodeById[state.chrPopup.nes[0]]} chr={state.chrPopup} />}
+      {showCallouts && state.homogenPopup && <HomogenCallout result={state.homogenPopup} node={g.nodeById[state.homogenPopup.anchorNe]} />}
+      {showCallouts && state.isolationPopup && <IsolationCallout note={state.isolationPopup} node={g.nodeById[state.isolationPopup.isolateNe]} />}
 
-      {/* CHR 用户级原因值弹窗(场景 B) */}
-      {state.chrPopup && <ChrCallout neId={state.chrPopup.nes[0]} node={g.nodeById[state.chrPopup.nes[0]]} chr={state.chrPopup} />}
-
-      {/* 均质化比较结果弹窗(场景 A/D,phase 4) */}
-      {state.homogenPopup && <HomogenCallout result={state.homogenPopup} node={g.nodeById[state.homogenPopup.anchorNe]} />}
-
-      {/* 隔离标注弹窗(场景 A/B/D,phase 5) */}
-      {state.isolationPopup && <IsolationCallout note={state.isolationPopup} node={g.nodeById[state.isolationPopup.isolateNe]} />}
-      {state.ufdrPopup && <UfdrCallout report={state.ufdrPopup} node={g.nodeById[state.ufdrPopup.nes[0]]} />}
-      {state.flowControlPopup && <FlowControlCallout fc={state.flowControlPopup} node={g.nodeById[state.flowControlPopup.anchorNe]} />}
-
-      {/* 实时读数 */}
-      <g transform={`translate(${VIEW_W - 188} 60)`}>
-        <rect x={0} y={0} width={178} height={74} rx={8} fill="var(--twin-readout-bg)" stroke="var(--accent-a28)" />
-        <text x={12} y={20} fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)" letterSpacing="0.1em">
-          LIVE · T={simT.toFixed(0)}s
-        </text>
-        <text x={12} y={42} fontSize={20} fontWeight={700} fill={srColor(overallSr)} fontFamily="var(--font-mono)">
-          {(overallSr * 100).toFixed(2)}%
-        </text>
-        <text x={104} y={42} fontSize={9} fill="var(--text-dim)" fontFamily="var(--font-mono)">
-          整网聚合
-        </text>
-        <text x={12} y={62} fontSize={9} fill={userFault ? STATUS.warning : degradedCount > 0 ? STATUS.fault : STATUS.healthy} fontFamily="var(--font-mono)">
+      {/* 节点级健康摘要(左下角小标,避开右上浮动 PhasePopup) */}
+      <g transform={`translate(10 ${VIEW_H - 18})`}>
+        <text x={0} y={0} fontSize={8.5} fill={userFault ? STATUS.warning : degradedCount > 0 ? STATUS.fault : STATUS.healthy} fontFamily="var(--font-mono)" textAnchor="start" letterSpacing="0.04em">
           {userFault ? `▲ 用户级异常 · ${userFault.affectedUe} UE` : degradedCount > 0 ? `▲ ${degradedCount} NE degraded` : "● all NE nominal"}
         </text>
       </g>
@@ -294,7 +257,7 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
   );
 }
 
-/** 环形饼图单段路径(角度从正上方顺时针，弧度制) */
+/** 环形饼图单段路径(角度从正上方顺时针,弧度制) */
 function donutSeg(cx: number, cy: number, rOut: number, rIn: number, a0: number, a1: number) {
   const large = a1 - a0 > Math.PI ? 1 : 0;
   const pt = (r: number, a: number): [number, number] => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
@@ -305,11 +268,9 @@ function donutSeg(cx: number, cy: number, rOut: number, rIn: number, a0: number,
   return `M ${sx0} ${sy0} A ${rOut} ${rOut} 0 ${large} 1 ${ex0} ${ey0} L ${sx1} ${sy1} A ${rIn} ${rIn} 0 ${large} 0 ${ex1} ${ey1} Z`;
 }
 
-/** CHR 用户级根因弹窗(场景 B/C,根因推理阶段):降噪→聚类→根因 三步图文并茂
- *  降噪卡=降噪前饼图(终端噪声干扰)、聚类卡=降噪后饼图(终端噪声已剔除,比例不变,仅置灰删除线),
- *  两饼图同基准对照体现降噪作用;每个原因值独立配色,图例列出全部(含已剔除项)。根因卡=靶心。 */
-function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: number } | undefined; chr: NonNullable<StoryState["chrPopup"]> }) {
-  if (!node) return null;
+/** CHR 用户级根因弹窗。card=true 时作独立卡片(固定左上、无引线),供下方区渲染。 */
+export function ChrCallout({ neId, node, chr, card = false }: { neId: string; node?: { x: number; y: number }; chr: NonNullable<StoryState["chrPopup"]>; card?: boolean }) {
+  if (!card && !node) return null;
   const w = 344;
   const related = chr.related ?? [];
   const NOISE_COLORS = ["#38bdf8", "#f472b6", "#2dd4bf", "#facc15", "#fb923c"];
@@ -318,7 +279,6 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
   const noiseShare = relRaw.reduce((a, r) => a + r.share, 0);
   const otherShare = Math.max(0, 100 - domShare - noiseShare);
 
-  // 全部原因值(同基准,不重新归一):主导(紫) + 各终端噪声(各独立色) + 其他(灰)
   const allSegs = [
     { code: chr.causeCode, cn: chr.causeCn, share: domShare, color: "#a78bfa", removed: false },
     ...relRaw.map((r) => ({ code: r.code, cn: r.cn, share: r.share, color: r.color, removed: true })),
@@ -332,7 +292,6 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
     return { ...s, a0, a1: (aAcc / total) * Math.PI * 2 };
   });
 
-  // 卡片几何
   const c1y = 30, c1h = 120;
   const c2y = 158, c2h = 120;
   const c3y = 286, c3h = 62;
@@ -343,8 +302,9 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
   const targetCx = w - 16 - 14, targetCy = c3y + c3h / 2;
   const C = { denoise: "#2dd4bf", cluster: "#a78bfa", root: STATUS.warning };
 
-  const cx = Math.min(node.x + 22, VIEW_W - w - 8);
-  const cy = Math.max(8, node.y - h - 22);
+  // 偏左放置:避开右侧浮动 PhasePopup
+  const cx = card ? 0 : Math.max(8, Math.min(node!.x + 22, VIEW_W * 0.62 - w));
+  const cy = card ? 0 : Math.max(8, node!.y - h - 22);
 
   const legendRows = (rows: typeof allSegs, startY: number, keyPrefix: string, after: boolean) =>
     rows.map((s, i) => {
@@ -364,12 +324,11 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
 
   return (
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      <line x1={node.x + 8 - cx} y1={node.y - 10 - cy} x2={14} y2={h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.55} />
+      {!card && <line x1={node!.x + 8 - cx} y1={node!.y - 10 - cy} x2={14} y2={h} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.55} />}
       <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
       <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(245,158,11,0.16)" />
       <text x={12} y={18} fontSize={13.5} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.06em">CHR · 用户级根因 @ {neId}</text>
 
-      {/* ① 降噪 —— 降噪前饼图:主导被多原因值干扰(全部彩色) */}
       <rect x={8} y={c1y} width={w - 16} height={c1h} rx={8} fill={`${C.denoise}14`} stroke={`${C.denoise}55`} strokeWidth={1} />
       <rect x={8} y={c1y} width={3} height={c1h} fill={C.denoise} />
       <text x={24} y={c1y + 19} fontSize={13} fontWeight={800} fill={C.denoise} fontFamily="var(--font-mono)">①</text>
@@ -385,7 +344,6 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
       </g>
       {legendRows(allSegs, c1y + 72, "bl", false)}
 
-      {/* ② 聚类 —— 降噪后饼图:终端噪声置灰+删除线(比例不变),主导收敛 */}
       <rect x={8} y={c2y} width={w - 16} height={c2h} rx={8} fill={`${C.cluster}14`} stroke={`${C.cluster}55`} strokeWidth={1} />
       <rect x={8} y={c2y} width={3} height={c2h} fill={C.cluster} />
       <text x={24} y={c2y + 19} fontSize={13} fontWeight={800} fill={C.cluster} fontFamily="var(--font-mono)">②</text>
@@ -401,7 +359,6 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
       </g>
       {legendRows(allSegs, c2y + 72, "al", true)}
 
-      {/* ③ 根因 —— 中性措辞(B 网络根因 / C 用户侧根因均适用) */}
       <rect x={8} y={c3y} width={w - 16} height={c3h} rx={8} fill={`${C.root}14`} stroke={`${C.root}55`} strokeWidth={1} />
       <rect x={8} y={c3y} width={3} height={c3h} fill={C.root} />
       <text x={24} y={c3y + 19} fontSize={13} fontWeight={800} fill={C.root} fontFamily="var(--font-mono)">③</text>
@@ -417,16 +374,16 @@ function ChrCallout({ neId, node, chr }: { neId: string; node: { x: number; y: n
   );
 }
 
-/** 异常初筛弹窗(phase 2):逐链路检出多条路径异常，任意链路异常即触发检测 */
-function AnomalyCallout({ edges, kpi, simT }: { edges: NetworkGraph["flowEdges"]; kpi: KpiBundle; simT: number }) {
+/** 异常初筛弹窗(phase 2)。card=true 时作独立卡片。 */
+export function AnomalyCallout({ edges, kpi, simT, card = false }: { edges: NetworkGraph["flowEdges"]; kpi: KpiBundle; simT: number; card?: boolean }) {
   const w = 286;
   const show = edges.slice(0, 5);
   const rowH = 17;
   const listY0 = 58;
   const noteY = listY0 + show.length * rowH + 14;
   const h = noteY + 16;
-  const cx = 68;
-  const cy = 52;
+  const cx = card ? 0 : 68;
+  const cy = card ? 0 : 52;
   return (
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
       <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.fault} strokeWidth={1} filter="url(#twin-glow-strong)" />
@@ -438,10 +395,10 @@ function AnomalyCallout({ edges, kpi, simT }: { edges: NetworkGraph["flowEdges"]
       <text x={12} y={42} fontSize={11.5} fill="var(--text-mid)" fontFamily="var(--font-sans)">
         检出 <tspan fontWeight={800} fill={STATUS.fault}>{edges.length}</tspan> 条链路异常 · 任意链路异常即触发
       </text>
-      {show.map((e, i) => {
+      {show.map((e) => {
         const sr = sample(kpi.edges[e.id], simT);
         const col = srColor(sr);
-        const y = listY0 + i * rowH;
+        const y = listY0 + show.indexOf(e) * rowH;
         return (
           <g key={e.id}>
             <circle cx={17} cy={y - 4} r={3.5} fill={col} />
@@ -457,28 +414,28 @@ function AnomalyCallout({ edges, kpi, simT }: { edges: NetworkGraph["flowEdges"]
   );
 }
 
-/** 均质化比较结果弹窗(场景 A/D,phase 4):按轮次展示实例异常分布 + 排除/根因结论 */
-function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homogenPopup"]>; node: { x: number; y: number } | undefined }) {
-  if (!node) return null;
+/** 均质化比较结果弹窗(场景 A/D,phase 4)。card=true 时作独立卡片。 */
+export function HomogenCallout({ result, node, card = false }: { result: NonNullable<StoryState["homogenPopup"]>; node?: { x: number; y: number }; card?: boolean }) {
+  if (!card && !node) return null;
   const w = 300;
-  const top = 30; // 内容起始 y
-  const roundH = 90; // 每轮:类型行 + 原则 + chips + note(轮内紧凑、轮间留白)
+  const top = 30;
+  const roundH = 90;
   const principlesY0 = top + result.rounds.length * roundH + (result.principles.length ? 8 : 0);
   const pRows = Math.ceil(result.principles.length / 2);
   const principlesH = result.principles.length ? 22 + pRows * 19 + 6 : 0;
   const h = principlesY0 + principlesH + 4;
-  // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧，避开右上「整网聚合」读数框
-  const placeLeft = node.x > VIEW_W * 0.6;
-  const cx = placeLeft ? Math.max(8, node.x - w - 48) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
-  const cy = placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node.y - h / 2)) : Math.max(8, node.y - h - 24);
-  const lx = placeLeft ? w : Math.max(20, Math.min(w - 20, node.x - cx));
-  const ly = placeLeft ? Math.max(20, Math.min(h - 20, node.y - cy)) : h;
+  // 偏左放置:阈值降到 0.4 → 多数根因节点把弹窗摆在左侧,避开右侧 PhasePopup
+  const placeLeft = !card && node!.x > VIEW_W * 0.4;
+  const cx = card ? 0 : placeLeft ? Math.max(8, node!.x - w - 48) : Math.max(8, Math.min(VIEW_W * 0.62 - w, node!.x - w / 2));
+  const cy = card ? 0 : placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node!.y - h / 2)) : Math.max(8, node!.y - h - 24);
+  const lx = card ? 0 : placeLeft ? w : Math.max(20, Math.min(w - 20, node!.x - cx));
+  const ly = card ? 0 : placeLeft ? Math.max(20, Math.min(h - 20, node!.y - cy)) : h;
   const chipW = 46, chipH = 17, chipGap = 5;
   const pChipW = 134, pChipH = 15;
 
   return (
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      <line x1={node.x - cx} y1={node.y - cy} x2={lx} y2={ly} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
+      {!card && <line x1={node!.x - cx} y1={node!.y - cy} x2={lx} y2={ly} stroke={STATUS.warning} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />}
       <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.warning} strokeWidth={1} filter="url(#twin-glow-strong)" />
       <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(245,158,11,0.16)" />
       <text x={12} y={19} fontSize={13} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.05em">
@@ -497,24 +454,20 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
         const tagText = isRoot ? "离群 · 根因" : isNormal ? "正常 · 排除" : "共性 · 排除";
         return (
           <g key={ri}>
-            {/* 轮间分隔线(实线、更醒目) */}
             {ri > 0 && <line x1={12} y1={base - 8} x2={w - 12} y2={base - 8} stroke="rgba(148,163,184,0.75)" strokeWidth={1.4} />}
             <text x={12} y={typeY} fontSize={12} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">{r.type}</text>
-            {/* 结论标签 */}
             <g transform={`translate(${w - 12 - 92} ${typeY - 11})`}>
               <rect width={92} height={15} rx={4} fill={tagFill} stroke={tagStroke} strokeWidth={0.8} />
               <text x={46} y={11} fontSize={10} fontWeight={700} fill={tagColor} textAnchor="middle" fontFamily="var(--font-mono)">
                 {tagText}
               </text>
             </g>
-            {/* 本轮应用的推理原则(醒目明亮) */}
             {r.principle && (
               <g>
                 <rect x={12} y={base + 16} width={116} height={16} rx={4} fill="rgba(167,139,250,0.28)" stroke="rgba(196,181,253,0.85)" strokeWidth={0.9} />
                 <text x={18} y={base + 28} fontSize={10} fontWeight={700} fill="#f5f3ff" fontFamily="var(--font-sans)">▸ {r.principle}</text>
               </g>
             )}
-            {/* 实例 chip 行:异常红 / 正常绿 */}
             {r.instances.map((ins, j) => {
               const ix = 12 + j * (chipW + chipGap);
               const col = ins.anomalous ? STATUS.fault : STATUS.healthy;
@@ -529,7 +482,6 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
           </g>
         );
       })}
-      {/* 推理原则/算法 */}
       {result.principles.length > 0 && (
         <g>
           <line x1={12} y1={principlesY0} x2={w - 12} y2={principlesY0} stroke="rgba(56,189,248,0.18)" strokeWidth={1} />
@@ -552,20 +504,20 @@ function HomogenCallout({ result, node }: { result: NonNullable<StoryState["homo
   );
 }
 
-/** 隔离标注弹窗(场景 A/B/D,phase 5):标注被隔离 NE + 流量切换目标 */
-function IsolationCallout({ note, node }: { note: NonNullable<StoryState["isolationPopup"]>; node: { x: number; y: number } | undefined }) {
-  if (!node) return null;
+/** 隔离标注弹窗(场景 A/B/D,phase 5)。card=true 时作独立卡片。 */
+export function IsolationCallout({ note, node, card = false }: { note: NonNullable<StoryState["isolationPopup"]>; node?: { x: number; y: number }; card?: boolean }) {
+  if (!card && !node) return null;
   const w = 252;
   const h = 92;
-  // 节点偏右(UPF/UDM 列)→ 弹窗置于节点左侧，避开右上「整网聚合」读数框
-  const placeLeft = node.x > VIEW_W * 0.6;
-  const cx = placeLeft ? Math.max(8, node.x - w - 48) : Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
-  const cy = placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node.y - h / 2)) : Math.max(8, node.y - h - 24);
-  const lx = placeLeft ? w : Math.max(20, Math.min(w - 20, node.x - cx));
-  const ly = placeLeft ? Math.max(20, Math.min(h - 20, node.y - cy)) : h;
+  // 偏左放置(同 HomogenCallout):避开右侧 PhasePopup
+  const placeLeft = !card && node!.x > VIEW_W * 0.4;
+  const cx = card ? 0 : placeLeft ? Math.max(8, node!.x - w - 48) : Math.max(8, Math.min(VIEW_W * 0.62 - w, node!.x - w / 2));
+  const cy = card ? 0 : placeLeft ? Math.max(8, Math.min(VIEW_H - h - 8, node!.y - h / 2)) : Math.max(8, node!.y - h - 24);
+  const lx = card ? 0 : placeLeft ? w : Math.max(20, Math.min(w - 20, node!.x - cx));
+  const ly = card ? 0 : placeLeft ? Math.max(20, Math.min(h - 20, node!.y - cy)) : h;
   return (
     <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      <line x1={node.x - cx} y1={node.y - cy} x2={lx} y2={ly} stroke={STATUS.fault} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
+      {!card && <line x1={node!.x - cx} y1={node!.y - cy} x2={lx} y2={ly} stroke={STATUS.fault} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />}
       <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={STATUS.fault} strokeWidth={1} filter="url(#twin-glow-strong)" />
       <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(239,68,68,0.16)" />
       <rect x={12} y={9} width={8} height={8} rx={2} fill={STATUS.fault} />
@@ -581,135 +533,16 @@ function IsolationCallout({ note, node }: { note: NonNullable<StoryState["isolat
   );
 }
 
-/** UPF UFDR 溯源弹窗(场景 D/E,phase 4):SST=3 注册突增 + 物联 DNN 会话突增 → 溯源到物联终端 */
-function UfdrCallout({ report, node }: { report: NonNullable<StoryState["ufdrPopup"]>; node: { x: number; y: number } | undefined }) {
-  if (!node) return null;
-  const w = 268;
-  const h = 150;
-  const cx = Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
-  const cy = Math.max(8, node.y - h - 24);
-  const C = "#2dd4bf";
-  return (
-    <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      <line x1={node.x - cx} y1={node.y - cy} x2={w / 2} y2={h} stroke={C} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
-      <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={C} strokeWidth={1} filter="url(#twin-glow-strong)" />
-      <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(45,212,191,0.16)" />
-      <text x={12} y={15} fontSize={12} fontWeight={700} fill="#5eead4" fontFamily="var(--font-mono)" letterSpacing="0.04em">UFDR 溯源 · 流控定位</text>
-      {/* 证据① SST=3 注册突增 */}
-      <text x={12} y={44} fontSize={10} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">① {report.sstLabel}</text>
-      <rect x={12} y={50} width={w - 24} height={8} rx={4} fill="rgba(148,163,184,0.18)" />
-      <rect x={12} y={50} width={((w - 24) * report.sstSurge) / 100} height={8} rx={4} fill={C} />
-      <text x={w - 12} y={57} textAnchor="end" fontSize={9} fontWeight={700} fill={C} fontFamily="var(--font-mono)">+{report.sstSurge}%</text>
-      {/* 证据② 物联 DNN 会话突增 */}
-      <text x={12} y={80} fontSize={10} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">② {report.dnnLabel}</text>
-      <rect x={12} y={86} width={w - 24} height={8} rx={4} fill="rgba(148,163,184,0.18)" />
-      <rect x={12} y={86} width={((w - 24) * report.dnnSurge) / 100} height={8} rx={4} fill={C} />
-      <text x={w - 12} y={93} textAnchor="end" fontSize={9} fontWeight={700} fill={C} fontFamily="var(--font-mono)">+{report.dnnSurge}%</text>
-      <text x={12} y={120} fontSize={9.5} fill="var(--text-mid)" fontFamily="var(--font-sans)">▸ 切片 SST=3(MIoT) + 物联 DNN 双突增</text>
-      <text x={12} y={138} fontSize={10.5} fontWeight={700} fill="#5eead4" fontFamily="var(--font-sans)">{report.summary}</text>
-    </g>
-  );
-}
-
-/** 流控策略弹窗(场景 D/E,phase 5):D=UE 侧 back-off;E=网络侧 NSSAI/APN 限流 + 比例算法 */
-function FlowControlCallout({ fc, node }: { fc: NonNullable<StoryState["flowControlPopup"]>; node: { x: number; y: number } | undefined }) {
-  if (!node) return null;
-  const w = 286;
-  const isNet = fc.kind === "net_admission";
-  const measuresH = fc.measures.length * 18;
-  const ratioH = isNet && fc.ratio ? (fc.ratio.basis ? 86 : 58) : 0;
-  const h = 70 + measuresH + ratioH + 20;
-  const cx = Math.max(8, Math.min(VIEW_W - w - 8, node.x - w / 2));
-  const cy = Math.max(8, node.y - h - 24);
-  const C = isNet ? "#a78bfa" : "#f59e0b";
-  const ratio = fc.ratio;
-  return (
-    <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      <line x1={node.x - cx} y1={node.y - cy} x2={w / 2} y2={h} stroke={C} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
-      <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={C} strokeWidth={1} filter="url(#twin-glow-strong)" />
-      <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill={`${C}29`} />
-      <text x={12} y={15} fontSize={12} fontWeight={700} fill={C} fontFamily="var(--font-mono)" letterSpacing="0.04em">流控策略 · {isNet ? "网络侧限流" : "UE 侧 back-off"} @ {fc.anchorNe}</text>
-      <text x={12} y={40} fontSize={10} fontWeight={700} fill="var(--text-bright)" fontFamily="var(--font-sans)">溯源对象 ▸ {fc.target}</text>
-      <text x={12} y={56} fontSize={8.5} fill="var(--text-dim)" fontFamily="var(--font-mono)">流控措施</text>
-      {fc.measures.map((m, i) => (
-        <g key={i} transform={`translate(12 ${68 + i * 18})`}>
-          <circle cx={4} cy={-3} r={3} fill={C} />
-          <text x={14} y={0} fontSize={10} fill="var(--text-soft)" fontFamily="var(--font-sans)">{m}</text>
-        </g>
-      ))}
-      {isNet && ratio && (
-        <g transform={`translate(12 ${68 + measuresH + 8})`}>
-          <text x={0} y={0} fontSize={8.5} fill="var(--text-dim)" fontFamily="var(--font-mono)">限流比例 · {ratio.algo}</text>
-          <text x={0} y={18} fontSize={9} fill="var(--text-mid)" fontFamily="var(--font-sans)">AMF NSSAI</text>
-          <rect x={92} y={10} width={120} height={8} rx={4} fill="rgba(148,163,184,0.18)" />
-          <rect x={92} y={10} width={(120 * ratio.nssai) / 100} height={8} rx={4} fill="#a78bfa" />
-          <text x={w - 24} y={17} textAnchor="end" fontSize={9} fontWeight={700} fill="#a78bfa" fontFamily="var(--font-mono)">{ratio.nssai}%</text>
-          <text x={0} y={36} fontSize={9} fill="var(--text-mid)" fontFamily="var(--font-sans)">SMF APN</text>
-          <rect x={92} y={28} width={120} height={8} rx={4} fill="rgba(148,163,184,0.18)" />
-          <rect x={92} y={28} width={(120 * ratio.apn) / 100} height={8} rx={4} fill="#38bdf8" />
-          <text x={w - 24} y={35} textAnchor="end" fontSize={9} fontWeight={700} fill="#38bdf8" fontFamily="var(--font-mono)">{ratio.apn}%</text>
-          {ratio.basis && (
-            <g transform="translate(0 52)">
-              <rect x={0} y={-9} width={w - 24} height={28} rx={4} fill="rgba(167,139,250,0.08)" stroke="rgba(167,139,250,0.3)" strokeWidth={0.7} />
-              <text x={4} y={0} fontSize={7.5} fontWeight={700} fill="#c4b5fd" fontFamily="var(--font-mono)">▸ 计算依据(反压/自保)</text>
-              <text fontSize={7.8} fill="var(--text-detail)" fontFamily="var(--font-sans)">
-                <tspan x={4} y={11}>{ratio.basis.slice(0, 30)}</tspan>
-                <tspan x={4} y={21}>{ratio.basis.slice(30)}</tspan>
-              </text>
-            </g>
-          )}
-        </g>
-      )}
-      <text x={12} y={h - 8} fontSize={10.5} fontWeight={700} fill={STATUS.healthy} fontFamily="var(--font-sans)">{fc.converged ? "✓ 冲击收敛 · " : ""}{fc.summary}</text>
-    </g>
-  );
-}
-
-/** 风暴冲击指标弹窗(场景 D/E,phase 2):AMF/SMF CPU + 注册/会话突增 + 2C 影响 */
-function StormMetricsCallout({ m, node }: { m: NonNullable<Scenario["stormMetrics"]>; node: { x: number; y: number } | undefined }) {
-  if (!node) return null;
-  const w = 250;
-  const h = 158;
-  const cx = Math.max(8, Math.min(VIEW_W - w - 8, node.x - w - 40));
-  const cy = Math.max(8, node.y - h / 2);
-  const C = "#f59e0b";
-  const bar = (v: number) => Math.min(140, (140 * v) / 100);
-  return (
-    <g style={{ animation: "float-up 0.4s ease" }} transform={`translate(${cx} ${cy})`}>
-      <line x1={node.x - cx} y1={node.y - cy} x2={w} y2={h / 2} stroke={C} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.5} />
-      <rect x={0} y={0} width={w} height={h} rx={10} fill="var(--twin-callout-bg)" stroke={C} strokeWidth={1} filter="url(#twin-glow-strong)" />
-      <path d={`M 0 10 Q 0 0 10 0 L ${w - 10} 0 Q ${w} 0 ${w} 10 L ${w} 22 L 0 22 Z`} fill="rgba(245,158,11,0.16)" />
-      <text x={12} y={15} fontSize={12} fontWeight={700} fill="#fbbf24" fontFamily="var(--font-mono)" letterSpacing="0.04em">⚠ 容器过载 + 突增 KPI</text>
-      <text x={12} y={42} fontSize={9} fill="var(--text-mid)" fontFamily="var(--font-sans)">AMF CPU</text>
-      <rect x={70} y={35} width={140} height={8} rx={4} fill="rgba(148,163,184,0.18)" />
-      <rect x={70} y={35} width={bar(m.amfCpu)} height={8} rx={4} fill={C} />
-      <text x={w - 12} y={42} textAnchor="end" fontSize={9} fontWeight={700} fill={C} fontFamily="var(--font-mono)">{m.amfCpu}%</text>
-      <text x={12} y={60} fontSize={9} fill="var(--text-mid)" fontFamily="var(--font-sans)">SMF CPU</text>
-      <rect x={70} y={53} width={140} height={8} rx={4} fill="rgba(148,163,184,0.18)" />
-      <rect x={70} y={53} width={bar(m.smfCpu)} height={8} rx={4} fill={C} />
-      <text x={w - 12} y={60} textAnchor="end" fontSize={9} fontWeight={700} fill={C} fontFamily="var(--font-mono)">{m.smfCpu}%</text>
-      <text x={12} y={82} fontSize={9.5} fill="var(--text-soft)" fontFamily="var(--font-sans)">注册请求突增 <tspan fontWeight={800} fill={STATUS.fault}>+{m.regSurge}%</tspan></text>
-      <text x={12} y={98} fontSize={9.5} fill="var(--text-soft)" fontFamily="var(--font-sans)">PDU 会话突增 <tspan fontWeight={800} fill={STATUS.fault}>+{m.sessionSurge}%</tspan></text>
-      <rect x={12} y={108} width={w - 24} height={40} rx={6} fill="rgba(239,68,68,0.08)" stroke="rgba(239,68,68,0.3)" strokeWidth={0.8} />
-      <text x={18} y={121} fontSize={7.5} fontWeight={700} fill={STATUS.faultGlow} fontFamily="var(--font-mono)">流控扩散 · 2C 影响</text>
-      <text fontSize={8} fill="var(--text-soft)" fontFamily="var(--font-sans)">
-        <tspan x={18} y={133}>{m.impact2c.slice(0, 22)}</tspan>
-        <tspan x={18} y={143}>{m.impact2c.slice(22)}</tspan>
-      </text>
-    </g>
-  );
-}
-
 /** UE 接入簇 + 到 gNB 的弱流动(用户级:受影响 gNB 接入线染琥珀) */
 function UeCluster({ nodes, active, anomaly, userFaultGnbs }: { nodes: NetworkGraph["nodes"]; active: boolean; anomaly: boolean; userFaultGnbs: Set<string> }) {
   const gnbs = nodes.filter((n) => n.type === "gNB");
-  const ueYs = [300, 340, 380];
+  const ueYs = [250, 392, 540];
   return (
     <g>
-      <text x={4} y={252} fontSize={11.5} fontWeight={700} fill="var(--text-mid)" fontFamily="var(--font-sans)" letterSpacing="0.04em">
+      <text x={4} y={172} fontSize={11.5} fontWeight={700} fill="var(--text-mid)" fontFamily="var(--font-sans)" letterSpacing="0.04em">
         在网用户
       </text>
-      <text x={4} y={273} fontSize={16} fontWeight={800} fill="var(--text-soft)" fontFamily="var(--font-sans)" letterSpacing="0.02em">
+      <text x={4} y={194} fontSize={16} fontWeight={800} fill="var(--text-soft)" fontFamily="var(--font-sans)" letterSpacing="0.02em">
         128万
       </text>
       {ueYs.map((y, i) => (

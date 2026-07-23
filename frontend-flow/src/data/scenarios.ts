@@ -163,6 +163,8 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       nextHitRate: 0.91,
     },
   },
+
+// 场景 D/E:流控溯源(物联网注册风暴)
   D: {
     cn: "流控溯源·物联网注册风暴(UE 侧 back-off)",
     en: "IOT STORM · UE BACK-OFF",
