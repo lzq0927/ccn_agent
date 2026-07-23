@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DEFAULT_SCENARIO_ID, SCENARIOS, getScenario } from "./data/scenarios";
 import { fetchHealth } from "./data/api";
+import { SimView } from "./components/Sim/SimView";
 import { buildLiveModel, buildLiveScenario, type CaseMeta } from "./data/live";
 import type { LiveModel } from "./data/live";
 import type { Scenario } from "./data/types";
@@ -37,7 +38,7 @@ interface CaseListItem {
 
 export default function App() {
   const [scenarioId, setScenarioId] = useState(DEFAULT_SCENARIO_ID);
-  const [mode, setMode] = useState<"demo" | "live">("demo");
+  const [mode, setMode] = useState<"demo" | "live" | "sim">("demo");
   const [liveConnected, setLiveConnected] = useState(false);
 
   // LIVE 用例状态
@@ -154,6 +155,28 @@ export default function App() {
     }
   };
 
+  // SIM 模式:实时仿真(过载场景 D/E),替换三栏布局
+  if (mode === "sim") {
+    return (
+      <>
+        <div className="app-bg" />
+        <div style={{ position: "relative", zIndex: 1, height: "100vh", display: "flex", flexDirection: "column", padding: 10, gap: 10 }}>
+          <TopBar
+            clock={clock}
+            state={state}
+            scenario={scenario}
+            mode={mode}
+            onToggleMode={() => setMode((m) => (m === "demo" ? "live" : m === "live" ? "sim" : "demo"))}
+            liveConnected={liveConnected}
+          />
+          <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+            <SimView />
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div className="app-bg" />
@@ -163,7 +186,7 @@ export default function App() {
           state={state}
           scenario={scenario}
           mode={mode}
-          onToggleMode={() => setMode((m) => (m === "demo" ? "live" : "demo"))}
+          onToggleMode={() => setMode((m) => (m === "demo" ? "live" : m === "live" ? "sim" : "demo"))}
           liveConnected={liveConnected}
         />
 

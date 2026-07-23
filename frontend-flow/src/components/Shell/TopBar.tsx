@@ -12,6 +12,8 @@ interface Props {
   clock: ClockApi;
   state: StoryState;
   scenario: Scenario;
+  mode: "demo" | "sim";
+  onSelectMode: (m: "demo" | "sim") => void;
 }
 
 /** 双主题徽标(始终展示,按当前场景 pillars 点亮)—— 对齐收敛色板 */
@@ -20,10 +22,18 @@ const PILLARS = [
   { key: "autonomy" as const, cn: "网络自治", color: "#2dd4bf" },
 ];
 
-export function TopBar({ clock, state, scenario }: Props) {
+export function TopBar({ clock, state, scenario, mode, onSelectMode }: Props) {
   const { theme, setTheme } = useTheme();
   return (
     <div className="hud" style={{ borderRadius: 10, padding: "8px 16px", display: "flex", alignItems: "center", gap: 16 }}>
+      {/* 模式切换 DEMO / SIM */}
+      <div style={{ display: "flex", gap: 3, padding: 3, border: "1px solid var(--border)", borderRadius: 7 }}>
+        {(["demo", "sim"] as const).map((m) => (
+          <button key={m} className={mode === m ? "btn active" : "btn"} onClick={() => onSelectMode(m)} style={{ padding: "4px 10px", fontSize: 9.5 }}>
+            {m === "demo" ? "DEMO 演示" : "SIM 实时仿真"}
+          </button>
+        ))}
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
         {/* 标识 */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 200 }}>

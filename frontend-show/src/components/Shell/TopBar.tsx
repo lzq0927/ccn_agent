@@ -12,7 +12,7 @@ interface Props {
   clock: ClockApi;
   state: StoryState;
   scenario: Scenario;
-  mode: "demo" | "live";
+  mode: "demo" | "live" | "sim";
   onToggleMode: () => void;
   liveConnected: boolean;
 }
@@ -98,13 +98,15 @@ export function TopBar({ clock, state, scenario, mode, onToggleMode, liveConnect
           ))}
         </div>
 
-        {/* 模式 */}
-        <button className={mode === "live" ? "btn active" : "btn"} onClick={onToggleMode} title="演示/真实后端" style={{ fontSize: 9.5 }}>
+        {/* 模式:DEMO → LIVE → SIM → DEMO */}
+        <button className={mode !== "demo" ? "btn active" : "btn"} onClick={onToggleMode} title="演示 / 真实后端 / 实时仿真" style={{ fontSize: 9.5 }}>
           {mode === "live" ? (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: liveConnected ? STATUS.healthy : STATUS.fault, boxShadow: `0 0 6px ${liveConnected ? STATUS.healthy : STATUS.fault}` }} />
               LIVE
             </span>
+          ) : mode === "sim" ? (
+            "SIM 实时仿真"
           ) : (
             "DEMO"
           )}
