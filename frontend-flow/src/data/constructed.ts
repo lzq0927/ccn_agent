@@ -361,12 +361,20 @@ const FAULT_E: FaultSpec = {
 };
 
 const REASONING_E: ReasonStep[] = [
-  { n: 1, type: "tool_call", text: "iFFusion+容器指标检测:AMF/SMF CPU 过载 + 注册/会话突增,流控扩散影响 2C 手机。", result: "AMF/SMF 被冲击", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
-  { n: 2, type: "thinking", text: "首轮(与 D 相同):溯源物联终端风暴,⑤输出评估通过,执行⑥恢复策略 1:AMF Reg Reject + back-off timer。", highlight: { nes: ["AMF_1"] } },
-  { n: 3, type: "tool_call", text: "[首轮] 恢复策略 1 执行后网络未恢复(仅 20% 终端支持 back-off,冲击未收敛)→ Agent3 评估:未恢复。", result: "首轮恢复失败", highlight: { nes: ["AMF_1"] } },
-  { n: 4, type: "thinking", text: "Agent3 判定未恢复 → 回 Agent1 第二轮。Agent Loop 二轮探索:UFDR 溯源 SST=3 + 物联 DNN → 定位 AMF(NSSAI)/SMF(APN)。", highlight: { nes: ["UPF_1"] } },
-  { n: 5, type: "tool_call", text: "[第二轮] 决策恢复策略 2:AMF 限制物联 NSSAI 接入 + SMF 限制物联 APN/DNN 接入,比例按容量/流量/CPU 反压实调节。", result: "策略 2:双通道限流", highlight: { nes: ["AMF_1", "SMF_1"] } },
-  { n: 6, type: "conclusion", text: "[第二轮] 恢复策略 2 执行后冲击收敛,网络恢复。根因为物联终端风暴,两轮流控收敛。", result: "AUTONOMOUS · 第二轮收敛" },
+  // ===== 第一轮(完整 6 步) =====
+  { n: 1, type: "tool_call", text: "[轮1·①预处理] 容器指标采集:AMF/SMF CPU 过载 + 注册/会话突增,流控扩散影响 2C 手机。", result: "AMF/SMF 被冲击", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
+  { n: 2, type: "tool_call", text: "[轮1·②拓扑] 溯源:注册请求集中于物联网终端(应用平台故障致反复上线),AMF/SMF 为被冲击方。", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
+  { n: 3, type: "tool_call", text: "[轮1·③检测] iFFusion 融合检测:AMF 注册突增 + SMF 会话突增 → 物联终端风暴。", result: "异常确认", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 4, type: "thinking", text: "[轮1·◇策略匹配→④根因] 置信度 0.30,信号模糊,策略匹配:溯源到物联终端群体。", highlight: { nes: ["AMF_1"] } },
+  { n: 5, type: "tool_call", text: "[轮1·⑤输出评估] 评估通过,执行⑥恢复策略 1:AMF Reg Reject + back-off timer。", result: "评估通过", highlight: { nes: ["AMF_1"] } },
+  { n: 6, type: "tool_call", text: "[轮1·⑥恢复策略 1] back-off 执行后仅 20% 终端支持,冲击未收敛 → Agent3 评估:网络未恢复。", result: "首轮恢复失败", highlight: { nes: ["AMF_1"] } },
+  // ===== 回到 Agent1 第二轮 =====
+  { n: 7, type: "thinking", text: "Agent3 判定未恢复 → 通过 loop② 回 Agent1 重新采集 → Agent2 第二轮执行 6 步。", highlight: { nes: [] } },
+  { n: 8, type: "tool_call", text: "[轮2·①②③] 第二轮采集 + 拓扑 + 检测:UPF UFDR 溯源 SST=3(MIoT) 注册突增 + 物联 DNN 会话突增。", result: "SST=3 + 物联 DNN", highlight: { nes: ["UPF_1"] } },
+  { n: 9, type: "thinking", text: "[轮2·◇策略匹配→④根因] 二轮溯源定位 AMF(物联 NSSAI 接入)与 SMF(物联 APN/DNN 接入)。", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 10, type: "tool_call", text: "[轮2·⑤输出评估] 评估通过,决策恢复策略 2:AMF 限制 NSSAI + SMF 限制 APN,比例按容量/流量/CPU 反压实调节。", result: "策略 2:双通道限流", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 11, type: "tool_call", text: "[轮2·⑥恢复策略 2] AMF NSSAI + SMF APN 双通道限流执行,注册/会话请求同步下降。", result: "第二轮执行中", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 12, type: "conclusion", text: "第二轮恢复策略 2 执行后冲击收敛,网络恢复。Agent3 评估:已恢复 → 沉淀 NSSAI/APN 准入控制 skill。", result: "AUTONOMOUS · 第二轮收敛" },
 ];
 
 const CONFIDENCE_E: ConfidenceBreakdown = {

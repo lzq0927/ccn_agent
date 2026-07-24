@@ -67,10 +67,10 @@ export function AgentLoop({ state }: { state: StoryState }) {
 
   // #4: phase6(Agent2恢复完成)即切换到 Agent3
   const activeAgent = phase === 1 ? 1 : phase >= 2 && phase <= 5 ? 2 : phase >= 6 ? 3 : 0;
-  // #3/#4: D 恢复成功→loop③亮(phase7); E 恢复未恢复→loop②亮(phase5-6),第二轮恢复后→loop③(phase7)
-  const l1 = false; // 永不亮(⑤始终通过)
-  const l2 = phase === 5 || phase === 6; // E 恢复后未恢复
-  const l3 = phase === 7; // 成功沉淀
+  // #1/#3: D(guided)恢复成功→loop③亮(phase7); E(autonomous)恢复后未恢复→loop②亮(phase5-6)
+  const l1 = false;
+  const l2 = (phase === 5 || phase === 6) && state.route === "autonomous";
+  const l3 = phase === 7;
 
   // ◇→④ 的状态(#3: 使用 st(4) 正确三态)
   const gateTo4 = st(4);
