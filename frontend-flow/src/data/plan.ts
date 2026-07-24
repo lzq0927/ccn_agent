@@ -63,7 +63,7 @@ export interface GateInfo {
   en: string;
 }
 
-export const GATE: GateInfo = { cn: "置信度判定", en: "CONFIDENCE GATE" };
+export const GATE: GateInfo = { cn: "策略匹配", en: "POLICY MATCH" };
 
 /** 探索回环的一轮迭代 —— B/C 场景逐轮揭示「采什么数据 · 用什么方法 · 是否收敛」 */
 export interface ExplorationIter {

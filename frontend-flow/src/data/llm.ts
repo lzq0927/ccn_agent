@@ -158,16 +158,15 @@ export function llmAnalysis(s: Scenario, phase: number): LlmAnalysis {
       };
     default: // 7
       if (s.id === "D" || s.id === "E") {
-        const fr = s.faultReport;
         return {
           method: "llm",
           title: "大模型 · 故障报告总结",
           insights: [
-            `比对真值:P=${m.precision.toFixed(2)} · R=${m.recall.toFixed(2)} · F1=${m.f1.toFixed(2)} → ${m.category}。`,
-            `大模型质析推理链,总结故障报告:根因「${fr?.rootCause ?? "物联终端风暴"}」、影响「${fr?.impact ?? "流控扩散至 2C 手机"}」。`,
-            `处置「${fr?.action ?? "流控策略"}」→ ${fr?.outcome ?? "收敛恢复"};沉淀「${s.id === "D" ? "UFDR 流控溯源" : "NSSAI/APN 准入控制"}」skill。`,
+            "数据采集:Agent 1 实时采集 KPI / CHR / 3GPP 信令,LLM 多维校验通过,确认数据可信。",
+            "故障感知:Agent 2 检测 AMF/SMF CPU 过载 + 注册/会话突增,溯源到物联终端风暴" + (s.id === "E" ? ";首轮 UE back-off(20% 支持)未收敛,二轮 UFDR 溯源 SST=3 + 物联 DNN,AMF 限 NSSAI + SMF 限 APN(反压比例算法)" : ";UE 侧 back-off(Reg Reject + back-off timer)") + "。",
+            "恢复:冲击收敛,2C 用户上网恢复;物联平台恢复后物联终端快速收敛;沉淀「" + (s.id === "D" ? "UFDR 流控溯源" : "NSSAI/APN 准入控制") + "」skill。",
           ],
-          verdict: "大模型:故障报告已生成(详见弹窗) · 流控 skill 沉淀。",
+          verdict: "大模型:故障报告已生成 · 全过程闭环 · skill 沉淀。",
         };
       }
       return {

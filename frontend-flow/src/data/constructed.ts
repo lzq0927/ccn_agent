@@ -361,12 +361,12 @@ const FAULT_E: FaultSpec = {
 };
 
 const REASONING_E: ReasonStep[] = [
-  { n: 1, type: "tool_call", text: "iFFusion+容器指标检测:AMF、SMF 容器 CPU 过载,KPI 受影响;AMF 注册/上行 NAS、SMF N11 PDU 建立请求明显突增。", result: "AMF/SMF 被注册/会话风暴冲击", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
-  { n: 2, type: "thinking", text: "首轮溯源:注册请求集中于物联网终端(反复上线),决策策略1(溯源到 UE)下发 back-off timer。", highlight: { nes: ["AMF_1"] } },
-  { n: 3, type: "tool_call", text: "执行策略1:仅约 20% 物联终端支持 back-off timer → 过载程度降低但未消除、仍过载,启动第二轮。", result: "策略1 部分缓解·仍过载", highlight: { nes: ["AMF_1"] } },
-  { n: 4, type: "tool_call", text: "Agent Loop 迭代②(自主探索):换角度拉取 UPF UFDR 报表 → Requested NSSAI 中 SST=3(MIoT) 注册突增、PDU 建立中物联 DNN/APN 突增。", result: "SST=3 + 物联 DNN 双突增", highlight: { nes: ["UPF_1"] } },
-  { n: 5, type: "thinking", text: "二轮溯源:定位到 AMF(物联切片 NSSAI 接入)与 SMF(物联 APN/DNN 接入),决策策略2 双通道准入限流 + 比例算法。", highlight: { nes: ["AMF_1", "SMF_1"] } },
-  { n: 6, type: "conclusion", text: "根因为物联终端风暴;策略1 失效,决策策略2 网络侧 NSSAI/APN 限流,待执行后验证收敛。", result: "AUTONOMOUS · 待执行恢复" },
+  { n: 1, type: "tool_call", text: "iFFusion+容器指标检测:AMF/SMF CPU 过载 + 注册/会话突增,流控扩散影响 2C 手机。", result: "AMF/SMF 被冲击", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
+  { n: 2, type: "thinking", text: "首轮(与 D 相同):溯源物联终端风暴,⑤输出评估通过,执行⑥恢复策略 1:AMF Reg Reject + back-off timer。", highlight: { nes: ["AMF_1"] } },
+  { n: 3, type: "tool_call", text: "[首轮] 恢复策略 1 执行后网络未恢复(仅 20% 终端支持 back-off,冲击未收敛)→ Agent3 评估:未恢复。", result: "首轮恢复失败", highlight: { nes: ["AMF_1"] } },
+  { n: 4, type: "thinking", text: "Agent3 判定未恢复 → 回 Agent1 第二轮。Agent Loop 二轮探索:UFDR 溯源 SST=3 + 物联 DNN → 定位 AMF(NSSAI)/SMF(APN)。", highlight: { nes: ["UPF_1"] } },
+  { n: 5, type: "tool_call", text: "[第二轮] 决策恢复策略 2:AMF 限制物联 NSSAI 接入 + SMF 限制物联 APN/DNN 接入,比例按容量/流量/CPU 反压实调节。", result: "策略 2:双通道限流", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 6, type: "conclusion", text: "[第二轮] 恢复策略 2 执行后冲击收敛,网络恢复。根因为物联终端风暴,两轮流控收敛。", result: "AUTONOMOUS · 第二轮收敛" },
 ];
 
 const CONFIDENCE_E: ConfidenceBreakdown = {

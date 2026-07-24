@@ -8,9 +8,9 @@ import { PARSED_TOPO, parseTopology } from "./topo";
 import type { NEInstance, NEType, GraphEdge, FaultSpec } from "./types";
 
 export const VIEW_W = 1040;
-export const VIEW_H = 646; // 宽版(宽高比≈1.61):匹配实测的右栏区域,meet 基本铺满、节点铺满更密
+export const VIEW_H = 646;
 
-/** 每类 NE 的布局:x 列 + 该类型实例的 y 序列(纵向铺满 668 高度,避免聚集留白) */
+/** 每类 NE 的布局:x 列 + 该类型实例的 y 序列(横向流 gNB(左)->UPF(右)) */
 const LAYOUT: Record<NEType, { x: number; ys: number[] }> = {
   gNB: { x: 92, ys: [237, 392, 548] },
   AMF: { x: 288, ys: [250, 392, 535] },
@@ -84,10 +84,10 @@ function buildNodes(topo: ReturnType<typeof parseTopology>): NEInstance[] {
   const out: NEInstance[] = [];
   for (const type of Object.keys(byType)) {
     const list = byType[type].sort((a, b) => numSuffix(a.id) - numSuffix(b.id));
-    const xs = LAYOUT[type as NEType].x;
+    const colX = LAYOUT[type as NEType].x;
     const ys = ysFor(type as NEType, list.length);
     list.forEach((n, i) => {
-      n.x = xs;
+      n.x = colX;
       n.y = ys[i] ?? ys[ys.length - 1] ?? 300;
       out.push(n);
     });

@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { DEFAULT_SCENARIO_ID, SCENARIOS, getScenario } from "./data/scenarios";
 import { fetchHealth } from "./data/api";
-import { SimView } from "./components/Sim/SimView";
+import { useSimClock } from "./story/useSimClock";
 import { buildLiveModel, buildLiveScenario, type CaseMeta } from "./data/live";
 import type { LiveModel } from "./data/live";
 import type { Scenario } from "./data/types";
@@ -39,6 +39,7 @@ interface CaseListItem {
 export default function App() {
   const [scenarioId, setScenarioId] = useState(DEFAULT_SCENARIO_ID);
   const [mode, setMode] = useState<"demo" | "live" | "sim">("demo");
+  const [simStrategy, setSimStrategy] = useState<"D" | "E">("D");
   const [liveConnected, setLiveConnected] = useState(false);
 
   // LIVE 用例状态
@@ -127,8 +128,12 @@ export default function App() {
   }, [mode, liveCaseId]);
 
   const isLive = mode === "live" && liveScenario && liveModel;
-  const scenario: Scenario = isLive ? (liveScenario as Scenario) : getScenario(scenarioId);
-  const clock = useStoryClock(scenario);
+  const isSim = mode === "sim";
+  const simScenario = getScenario(simStrategy);
+  const scenario: Scenario = isLive ? (liveScenario as Scenario) : isSim ? simScenario : getScenario(scenarioId);
+  const demoClock = useStoryClock(scenario);
+  const simClock = useSimClock(simScenario, simStrategy);
+  const clock = isSim ? simClock : demoClock;
   const { state } = clock;
   // DEMO 模式注入 scenario 的真实拓扑/遥测(优先于内置 DEMO_GRAPH/buildKpi);
   // LIVE 模式注入后端实时构建的图/KPI。
@@ -155,28 +160,6 @@ export default function App() {
     }
   };
 
-  // SIM 模式:实时仿真(过载场景 D/E),替换三栏布局
-  if (mode === "sim") {
-    return (
-      <>
-        <div className="app-bg" />
-        <div style={{ position: "relative", zIndex: 1, height: "100vh", display: "flex", flexDirection: "column", padding: 10, gap: 10 }}>
-          <TopBar
-            clock={clock}
-            state={state}
-            scenario={scenario}
-            mode={mode}
-            onToggleMode={() => setMode((m) => (m === "demo" ? "live" : m === "live" ? "sim" : "demo"))}
-            liveConnected={liveConnected}
-          />
-          <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-            <SimView />
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <div className="app-bg" />
@@ -199,6 +182,7 @@ export default function App() {
           {/* 中:场景标签 + 数字孪生 + 对比区 */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, gap: 10 }}>
             {mode === "demo" && <ScenarioTags scenarios={SCENARIOS} scenario={scenario} onSelect={setScenarioId} />}
+            {mode === "sim" && <ScenarioTags scenarios={SCENARIOS.filter((s) => s.id === "D" || s.id === "E")} scenario={scenario} onSelect={(id) => setSimStrategy(id as "D" | "E")} />}
             <div className="hud" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
               <div className="hud-head">
                 <span className="title">

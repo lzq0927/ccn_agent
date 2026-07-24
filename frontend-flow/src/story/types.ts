@@ -61,6 +61,10 @@ export interface StoryState {
   ufdrPopup: UfdrReport | null; // UPF UFDR 溯源报表(phase 4)
   flowControlPopup: FlowControl | null; // 流控策略(phase 5)
 
+  // —— SIM 实时仿真专属(DEMO 模式 undefined)——
+  simNeCpu?: Record<string, number>; // 全网 NE CPU%(SIM 模式)
+  simRates?: { amfCpu: number; smfCpu: number; regRate: number; iotRegRate: number; sessionRate: number; twoCThrottle: number };
+
   // —— 用户级韧性 × 网络自治 · 扩展派生态(确定性，随相位揭示)——
   currentStep: ReasonStep | null; // 当前执行中的推理步(最后揭示的一步)
   comparisonReveal: number; // 拓扑下对比区揭示度 0..1

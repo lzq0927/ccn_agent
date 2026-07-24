@@ -49,6 +49,12 @@ interface Props {
   kpi?: KpiBundle;
 }
 
+/** SIM 模式:节点 CPU% 文本(绿/琥珀/红) */
+function cpuText(cpu: number, radius: number) {
+  const c = cpu >= 85 ? STATUS.fault : cpu >= 70 ? STATUS.warning : STATUS.healthy;
+  return <text y={radius + 24} textAnchor="middle" fontSize={7.5} fontWeight={700} fill={c} fontFamily="var(--font-mono)">CPU {cpu}%</text>;
+}
+
 function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
   const g: NetworkGraph = graph ?? DEMO_GRAPH;
   const kpi: KpiBundle = kpiProp ?? getKpi(scenario);
@@ -240,6 +246,8 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp }: Props) {
               <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? (isUserFaultGnb ? STATUS.warning : STATUS.faultGlow) : isCordoned ? "var(--text-faint)" : "var(--text-mid)"} fontFamily="var(--font-mono)">
                 {n.id}
               </text>
+              {/* SIM 模式:全网 CPU% 显示 */}
+              {state.simNeCpu && state.simNeCpu[n.id] != null && cpuText(state.simNeCpu[n.id], R)}
               {/* 劣化 SR% —— 用户级异常 gNB 改显示 UE 数(上方已有)，网络故障 NE 显示 SR% */}
               {degraded && !isUserFaultGnb && (
                 <text y={-R - 8} textAnchor="middle" fontSize={8} fill={STATUS.faultGlow} fontFamily="var(--font-mono)">

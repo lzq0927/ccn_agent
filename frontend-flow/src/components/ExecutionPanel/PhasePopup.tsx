@@ -45,7 +45,19 @@ export function PhasePopup({ scenario, state }: { scenario: Scenario; state: Sto
         <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-bright)" }}>{focus}</span>
       </div>
 
-      <div style={{ minHeight: 0, maxHeight: "calc(100vh - 280px)", overflowY: "auto", overflowX: "hidden", marginTop: 5, paddingRight: 3 }}>
+      {/* SIM 模式:实时仿真指标(全网 CPU 概览 + 注册/会话速率 + 2C 限流) */}
+      {state.simRates && (
+        <div style={{ marginTop: 4, padding: "5px 7px", borderRadius: 5, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.05)", display: "flex", flexWrap: "wrap", gap: "2px 8px" }}>
+          <SimStat label="AMF" v={`${state.simRates.amfCpu.toFixed(0)}%`} c={state.simRates.amfCpu >= 85 ? STATUS.fault : state.simRates.amfCpu >= 70 ? STATUS.warning : STATUS.healthy} />
+          <SimStat label="SMF" v={`${state.simRates.smfCpu.toFixed(0)}%`} c={state.simRates.smfCpu >= 85 ? STATUS.fault : state.simRates.smfCpu >= 70 ? STATUS.warning : STATUS.healthy} />
+          <SimStat label="注册" v={`${state.simRates.regRate.toFixed(0)}/s`} c="#38bdf8" />
+          <SimStat label="会话" v={`${state.simRates.sessionRate.toFixed(0)}/s`} c="#a78bfa" />
+          <SimStat label="物联重注" v={`${state.simRates.iotRegRate.toFixed(0)}/s`} c="#f59e0b" />
+          <SimStat label="2C限流" v={`${(state.simRates.twoCThrottle * 100).toFixed(0)}%`} c={state.simRates.twoCThrottle > 0.1 ? STATUS.fault : "var(--text-mid)"} />
+        </div>
+      )}
+
+      <div style={{ minHeight: 0, maxHeight: "calc(100vh - 320px)", overflowY: "auto", overflowX: "hidden", marginTop: 5, paddingRight: 3 }}>
         {/* 上半:相位关键信息 */}
         {phase === 0 && <P0 scenario={scenario} state={state} />}
         {phase === 1 && <P1 state={state} />}
@@ -56,8 +68,9 @@ export function PhasePopup({ scenario, state }: { scenario: Scenario; state: Sto
         {phase === 6 && <P6 scenario={scenario} state={state} />}
         {phase === 7 && <P7 scenario={scenario} state={state} />}
 
-        {/* 下半:分析(按相位实际方法:大模型 / 规则 / 算法) */}
-        <div style={{ marginTop: 8, padding: "7px 8px", borderRadius: 7, border: `1px solid ${meta.color}59`, background: `${meta.color}0d` }}>
+        {/* 下半:分析(按相位实际方法:大模型 / 规则 / 算法) — #7 延迟到相位进度>40%才出现,逐步显示 */}
+        {state.phaseProgress > 0.4 && (
+        <div style={{ marginTop: 8, padding: "7px 8px", borderRadius: 7, border: `1px solid ${meta.color}59`, background: `${meta.color}0d`, animation: "float-up 0.35s ease" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
             <span style={{ fontSize: 10 }}>{meta.icon}</span>
             <span style={{ fontSize: 8.5, fontWeight: 800, color: meta.color, fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>{meta.label}</span>
@@ -75,6 +88,7 @@ export function PhasePopup({ scenario, state }: { scenario: Scenario; state: Sto
             <div style={{ marginTop: 5, paddingTop: 4, borderTop: `1px dashed ${meta.color}4d`, fontSize: 8.8, fontWeight: 700, color: meta.color, lineHeight: 1.4 }}>{llm.verdict}</div>
           )}
         </div>
+        )}
       </div>
     </div>
   );
@@ -375,6 +389,16 @@ function ReportRow({ k, v, accent }: { k: string; v: string; accent?: boolean })
       <span style={{ color: "var(--text-dim)", flexShrink: 0, minWidth: 30 }}>{k}</span>
       <span style={accent ? { fontWeight: 700 } : undefined}>{v}</span>
     </div>
+  );
+}
+
+/** SIM 实时指标小标签(label + value) */
+function SimStat({ label, v, c }: { label: string; v: string; c: string }) {
+  return (
+    <span style={{ fontSize: 8, fontFamily: "var(--font-mono)" }}>
+      <span style={{ color: "var(--text-dim)" }}>{label} </span>
+      <span style={{ fontWeight: 700, color: c }}>{v}</span>
+    </span>
   );
 }
 

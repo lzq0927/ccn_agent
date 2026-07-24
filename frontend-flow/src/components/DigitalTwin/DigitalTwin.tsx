@@ -33,6 +33,13 @@ interface Props {
   showCallouts?: boolean;
 }
 
+/** SIM 模式:节点 CPU% 文本(绿/琥珀/红);gNB 不显示 */
+function cpuText(cpu: number, radius: number, type: string) {
+  if (type === "gNB") return null;
+  const c = cpu >= 85 ? STATUS.fault : cpu >= 70 ? STATUS.warning : STATUS.healthy;
+  return <text y={radius + 24} textAnchor="middle" fontSize={7.5} fontWeight={700} fill={c} fontFamily="var(--font-mono)">CPU {cpu}%</text>;
+}
+
 function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp, showCallouts = true }: Props) {
   const g: NetworkGraph = graph ?? DEMO_GRAPH;
   const kpi: KpiBundle = kpiProp ?? getKpi(scenario);
@@ -102,9 +109,9 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp, showCallouts = 
         })}
       </defs>
 
-      {/* DC 容器 */}
-      <rect x={56} y={40} width={968} height={VIEW_H - 42} rx={14} fill="var(--accent-a12)" stroke="var(--twin-edge)" strokeDasharray="2 6" />
-      <text x={66} y={40} fill="var(--text-dim)" fontSize={11} fontFamily="var(--font-mono)" letterSpacing="0.18em">
+      {/* DC 容器(横向) */}
+      <rect x={56} y={40} width={968} height={VIEW_H - 82} rx={14} fill="var(--accent-a12)" stroke="var(--twin-edge)" strokeDasharray="2 6" />
+      <text x={66} y={33} fill="var(--text-dim)" fontSize={11} fontFamily="var(--font-mono)" letterSpacing="0.18em">
         DC1 · 5GC SA CORE · DIGITAL TWIN
       </text>
 
@@ -223,6 +230,8 @@ function DigitalTwinBase({ scenario, state, graph, kpi: kpiProp, showCallouts = 
               <text y={R + 13} textAnchor="middle" fontSize={8.5} fill={isRoot ? (isUserFaultGnb ? STATUS.warning : STATUS.faultGlow) : isCordoned ? "var(--text-faint)" : "var(--text-mid)"} fontFamily="var(--font-mono)">
                 {n.id}
               </text>
+              {/* SIM 模式:全网 CPU% 显示 */}
+              {state.simNeCpu && state.simNeCpu[n.id] != null && cpuText(state.simNeCpu[n.id], R, n.type)}
               {degraded && !isUserFaultGnb && (
                 <text y={-R - 8} textAnchor="middle" fontSize={8} fill={STATUS.faultGlow} fontFamily="var(--font-mono)">
                   {(sr * 100).toFixed(1)}%
@@ -533,34 +542,23 @@ export function IsolationCallout({ note, node, card = false }: { note: NonNullab
   );
 }
 
-/** UE 接入簇 + 到 gNB 的弱流动(用户级:受影响 gNB 接入线染琥珀) */
+/** UE 接入簇(横向:UE 点在 gNB 左侧,线向右) */
 function UeCluster({ nodes, active, anomaly, userFaultGnbs }: { nodes: NetworkGraph["nodes"]; active: boolean; anomaly: boolean; userFaultGnbs: Set<string> }) {
   const gnbs = nodes.filter((n) => n.type === "gNB");
   const ueYs = [250, 392, 540];
   return (
     <g>
-      <text x={4} y={172} fontSize={11.5} fontWeight={700} fill="var(--text-mid)" fontFamily="var(--font-sans)" letterSpacing="0.04em">
-        在网用户
-      </text>
-      <text x={4} y={194} fontSize={16} fontWeight={800} fill="var(--text-soft)" fontFamily="var(--font-sans)" letterSpacing="0.02em">
-        128万
-      </text>
+      <text x={4} y={172} fontSize={11.5} fontWeight={700} fill="var(--text-mid)" fontFamily="var(--font-sans)" letterSpacing="0.04em">在网用户</text>
+      <text x={4} y={194} fontSize={16} fontWeight={800} fill="var(--text-soft)" fontFamily="var(--font-sans)" letterSpacing="0.02em">128万</text>
       {ueYs.map((y, i) => (
         <g key={i}>
           <circle cx={26} cy={y} r={5} fill={anomaly ? STATUS.fault : "var(--accent)"} opacity={0.9} filter="url(#twin-glow)" />
           {gnbs.map((nd, j) => {
             const ug = userFaultGnbs.has(nd.id);
             return (
-              <line
-                key={j}
-                x1={31}
-                y1={y}
-                x2={nd.x - R}
-                y2={nd.y}
+              <line key={j} x1={31} y1={y} x2={nd.x - R} y2={nd.y}
                 stroke={ug ? "rgba(245,158,11,0.45)" : anomaly && j === 0 ? "rgba(239,68,68,0.3)" : "var(--accent-medium)"}
-                strokeWidth={ug ? 1.1 : 0.8}
-                className={active ? "flow-dash" : undefined}
-              />
+                strokeWidth={ug ? 1.1 : 0.8} className={active ? "flow-dash" : undefined} />
             );
           })}
         </g>

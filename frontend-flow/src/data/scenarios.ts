@@ -187,11 +187,11 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       summary: "UE 侧 back-off 收敛 · 注册冲击下降 · 正常用户上网恢复",
     },
     faultReport: {
-      rootCause: "物联网应用平台故障 → 物联终端反复注册上线,注册/会话风暴冲击 AMF/SMF",
-      phenomenon: "AMF/SMF 容器 CPU 过载;注册请求与 PDU 会话建立突增;流控扩散影响 2C 手机",
-      impact: "正常 2C 手机注册/会话建立被限流,部分手机无法上网",
-      action: "溯源到 UE:AMF 对注册成功物联终端发 Registration Reject + back-off timer(UE 侧流控)",
-      outcome: "物联终端冲击收敛,正常用户上网恢复;物联平台恢复后物联终端快速收敛",
+      rootCause: "物联网应用平台故障 -> 物联终端反复注册上线",
+      phenomenon: "Agent 1 采集:AMF/SMF CPU 过载 + 注册/会话突增 + 流控扩散影响 2C 手机",
+      impact: "正常 2C 手机注册/会话被限流,部分手机无法上网",
+      action: "Agent 2 溯源物联终端风暴 -> 决策 UE back-off(Reg Reject + back-off timer) -> 执行后收敛",
+      outcome: "冲击收敛,2C 用户上网恢复;物联平台恢复后物联终端快速收敛;沉淀 UFDR 流控溯源 skill",
     },
     skillEvolution: {
       kind: "NEW",
@@ -226,11 +226,11 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       summary: "网络侧双通道限流收敛 · 注册/会话请求下降 · 正常用户上网恢复",
     },
     faultReport: {
-      rootCause: "物联网应用平台故障 → 物联终端反复注册;UE back-off 仅 20% 支持,首轮不足以收敛",
-      phenomenon: "AMF/SMF 容器 CPU 过载;首轮 UE back-off 部分缓解仍过载;二轮 UFDR 溯源 SST=3 + 物联 DNN",
-      impact: "流控扩散影响正常 2C 手机(注册/会话被限流、无法上网)",
-      action: "二轮溯源到 AMF(NSSAI)/SMF(APN):双通道准入限流,比例按容量/流量/CPU 反压实调节",
-      outcome: "注册/会话请求收敛,正常用户上网恢复;物联平台恢复后物联终端快速收敛",
+      rootCause: "物联网应用平台故障 -> 物联终端反复注册上线",
+      phenomenon: "Agent 1 采集:AMF/SMF CPU 过载 + 注册/会话突增 + 流控扩散影响 2C 手机",
+      impact: "正常 2C 手机注册/会话被限流,部分手机无法上网",
+      action: "Agent 2 溯源物联终端 -> 首轮 back-off(20% 支持)未收敛 -> 二轮 UFDR 溯源 SST=3 + 物联 DNN -> AMF 限 NSSAI + SMF 限 APN(反压比例算法)",
+      outcome: "注册/会话请求收敛,2C 用户上网恢复;物联平台恢复后物联终端快速收敛;沉淀 NSSAI/APN 准入控制 skill",
     },
     skillEvolution: {
       kind: "NEW",

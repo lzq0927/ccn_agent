@@ -83,12 +83,15 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
     case "iot_storm":
       // 流控溯源:不隔离网元,按场景下发流控策略
       if (s.id === "E") {
+        // E:首轮 back-off(20% 支持,未收敛)→ 二轮 NSSAI+APN 限流(收敛)
         return [
-          { id: "nssai_limit", cn: "AMF 限制物联切片 NSSAI 接入", en: "AMF NSSAI ADMISSION LIMIT" },
-          { id: "apn_limit", cn: "SMF 限制物联 APN/DNN 接入", en: "SMF APN/DNN ADMISSION LIMIT" },
-          { id: "ratio", cn: "两限制比例 · 算法实时调节", en: "RATIO CONTROL" },
+          { id: "r1_backoff", cn: "[轮1] AMF Reg Reject + back-off(仅 20% 支持,未收敛)", en: "R1 BACKOFF FAIL" },
+          { id: "r2_nssai", cn: "[轮2] AMF 限制物联切片 NSSAI 接入", en: "R2 NSSAI LIMIT" },
+          { id: "r2_apn", cn: "[轮2] SMF 限制物联 APN/DNN 接入", en: "R2 APN LIMIT" },
+          { id: "r2_ratio", cn: "[轮2] 两限制比例 · 算法实时调节", en: "R2 RATIO CONTROL" },
         ];
       }
+      // D:首轮 back-off 即收敛
       return [
         { id: "reg_reject", cn: "AMF 对注册成功终端发 Registration Reject", en: "AMF REGISTRATION REJECT" },
         { id: "backoff", cn: "下发 back-off timer 抑制反复上线", en: "UE BACK-OFF TIMER" },
