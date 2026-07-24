@@ -48,50 +48,88 @@ export function ExecutionPanel({ scenario, state, scenarios, currentScenarioId, 
   );
 }
 
-/** #5 KPI 曲线面板:SR 曲线 + 请求数曲线 + NE CPU 热力 + UFDR */
+/** #1 KPI 曲线面板:AMF(注册SR+注册请求数) | SMF(会话SR+会话请求数) | NE CPU | UFDR */
 function KpiPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
   const kpi = getKpi(scenario);
   const simT = state.simT;
   const sim = state.simRates;
   const graph = scenario.realGraph;
-  const amfNodes = graph ? graph.nodes.filter((n) => n.type === "AMF") : [];
-  const smfNodes = graph ? graph.nodes.filter((n) => n.type === "SMF") : [];
-  const allTypes = ["gNB", "AMF", "SMF", "UPF", "UDM", "AUSF", "PCF", "NRF", "NSSF"];
   const neCpu = state.simNeCpu;
   const xAt = (i: number) => (i / 59) * 100;
-  const amfSrPts = amfNodes.length ? amfNodes.reduce((acc, n) => { const s = kpi.nodes[n.id] ?? []; s.forEach((v, i) => { acc[i] = (acc[i] ?? 0) + v; }); return acc; }, [] as number[]).map((v) => v / amfNodes.length).map((v, i) => xAt(i).toFixed(1) + "," + (50 - ((v - 0.8) / 0.2) * 40).toFixed(1)).join(" ") : "";
-  const smfSrPts = smfNodes.length ? smfNodes.reduce((acc, n) => { const s = kpi.nodes[n.id] ?? []; s.forEach((v, i) => { acc[i] = (acc[i] ?? 0) + v; }); return acc; }, [] as number[]).map((v) => v / smfNodes.length).map((v, i) => xAt(i).toFixed(1) + "," + (50 - ((v - 0.8) / 0.2) * 40).toFixed(1)).join(" ") : "";
-  const overallPts = kpi.overall.map((v, i) => xAt(i).toFixed(1) + "," + (50 - ((v - 0.8) / 0.2) * 40).toFixed(1)).join(" ");
-  const curSr = sample(kpi.overall, simT);
   const curX = ((simT - 1) / 59) * 100;
   const fs = kpi.faultStart, fe = kpi.faultEnd;
-  const regReqPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 20; if (t >= fs && t < fe) v = 200; if (sim) v = sim.regRate; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 10)).toFixed(1); }).join(" ");
-  const sessReqPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 340; if (t >= fs && t < fe) v = 1000; if (sim) v = sim.sessionRate; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 25)).toFixed(1); }).join(" ");
   const showUfdr = state.phaseIndex >= 4 && scenario.ufdr;
   const ufdr = scenario.ufdr;
+  const allTypes = ["gNB", "AMF", "SMF", "UPF", "UDM", "AUSF", "PCF", "NRF", "NSSF"];
+
+  // AMF 注册成功率(取 AMF 节点 KPI 均值)
+  const amfNodes = graph ? graph.nodes.filter((n) => n.type === "AMF") : [];
+  const amfSr = amfNodes.length ? amfNodes.reduce((acc, n) => { const s = kpi.nodes[n.id] ?? []; s.forEach((v, i) => { acc[i] = (acc[i] ?? 0) + v; }); return acc; }, [] as number[]).map((v) => v / amfNodes.length) : kpi.overall;
+  const amfSrPts = amfSr.map((v, i) => xAt(i).toFixed(1) + "," + (50 - ((v - 0.8) / 0.2) * 40).toFixed(1)).join(" ");
+
+  // SMF 会话成功率
+  const smfNodes = graph ? graph.nodes.filter((n) => n.type === "SMF") : [];
+  const smfSr = smfNodes.length ? smfNodes.reduce((acc, n) => { const s = kpi.nodes[n.id] ?? []; s.forEach((v, i) => { acc[i] = (acc[i] ?? 0) + v; }); return acc; }, [] as number[]).map((v) => v / smfNodes.length) : kpi.overall;
+  const smfSrPts = smfSr.map((v, i) => xAt(i).toFixed(1) + "," + (50 - ((v - 0.8) / 0.2) * 40).toFixed(1)).join(" ");
+
+  // 注册请求数(物联网 vs ToC 分拆)
+  const regIotPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 5; if (t >= fs && t < fe) v = 180; if (sim) v = sim.iotRegRate; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 8)).toFixed(1); }).join(" ");
+  const regTocPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 15; if (sim) v = sim.regRate - sim.iotRegRate; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 8)).toFixed(1); }).join(" ");
+
+  // PDU 会话建立数(物联网 vs ToC 分拆)
+  const sessIotPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 40; if (t >= fs && t < fe) v = 400; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 20)).toFixed(1); }).join(" ");
+  const sessTocPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 300; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 20)).toFixed(1); }).join(" ");
+
+  const curAmfSr = sample(amfSr, simT);
+  const curSmfSr = sample(smfSr, simT);
+
   return (
-    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-panel-solid)", height: 130, display: "flex" }}>
-      <div style={{ flex: "1 1 28%", display: "flex", flexDirection: "column", padding: "3px 5px", borderRight: "1px solid var(--border)" }}>
-        <span style={{ fontSize: 8, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700 }}>SR(整网/AMF/SMF)</span>
-        <svg viewBox="0 0 100 50" preserveAspectRatio="none" style={{ flex: 1, width: "100%" }}>
-          <line x1="0" y1="10" x2="100" y2="10" stroke="rgba(148,163,184,0.25)" strokeWidth="0.3" strokeDasharray="2 2" />
-          {overallPts && <polyline points={overallPts} fill="none" stroke={srColor(curSr)} strokeWidth="1" vectorEffect="non-scaling-stroke" opacity="0.9" />}
-          {amfSrPts && <polyline points={amfSrPts} fill="none" stroke="#38bdf8" strokeWidth="0.8" vectorEffect="non-scaling-stroke" opacity="0.7" />}
-          {smfSrPts && <polyline points={smfSrPts} fill="none" stroke="#a78bfa" strokeWidth="0.8" vectorEffect="non-scaling-stroke" opacity="0.7" />}
-          <line x1={curX} y1="0" x2={curX} y2="50" stroke="var(--text-bright)" strokeWidth="0.5" opacity="0.5" />
+    <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-panel-solid)", height: 140, display: "flex" }}>
+      {/* AMF 区:注册成功率 + 注册请求数(物联/ToC) */}
+      <div style={{ flex: "1 1 28%", display: "flex", flexDirection: "column", padding: "2px 4px", borderRight: "1px solid var(--border)" }}>
+        <span style={{ fontSize: 8, color: "#38bdf8", fontFamily: "var(--font-mono)", fontWeight: 700, marginBottom: 1 }}>AMF · 注册成功率 {srColor(curAmfSr) === "#22c55e" ? "" : ""}</span>
+        <svg viewBox="0 0 100 24" preserveAspectRatio="none" style={{ height: 26, width: "100%" }}>
+          <line x1="0" y1="4" x2="100" y2="4" stroke="rgba(148,163,184,0.2)" strokeWidth="0.3" strokeDasharray="2 2" />
+          <polyline points={amfSrPts} fill="none" stroke="#38bdf8" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1={curX} y1="0" x2={curX} y2="24" stroke="var(--text-bright)" strokeWidth="0.4" opacity="0.5" />
         </svg>
-      </div>
-      <div style={{ flex: "1 1 28%", display: "flex", flexDirection: "column", padding: "3px 5px", borderRight: "1px solid var(--border)" }}>
-        <span style={{ fontSize: 8, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700 }}>请求数(注册/s · 会话/s)</span>
-        <svg viewBox="0 0 100 50" preserveAspectRatio="none" style={{ flex: 1, width: "100%" }}>
-          <rect x={((fs - 1) / 59) * 100} y="0" width={((fe - fs) / 59) * 100} height="50" fill="rgba(239,68,68,0.06)" />
-          <polyline points={regReqPts} fill="none" stroke="#38bdf8" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <polyline points={sessReqPts} fill="none" stroke="#a78bfa" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <line x1={curX} y1="0" x2={curX} y2="50" stroke="var(--text-bright)" strokeWidth="0.5" opacity="0.5" />
+        <span style={{ fontSize: 7.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)", marginTop: 2 }}>注册请求数/s(物联·ToC)</span>
+        <svg viewBox="0 0 100 24" preserveAspectRatio="none" style={{ flex: 1, width: "100%" }}>
+          <rect x={((fs - 1) / 59) * 100} y="0" width={((fe - fs) / 59) * 100} height="24" fill="rgba(239,68,68,0.06)" />
+          <polyline points={regIotPts} fill="none" stroke="#f59e0b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <polyline points={regTocPts} fill="none" stroke="#38bdf8" strokeWidth="0.8" vectorEffect="non-scaling-stroke" opacity="0.7" />
+          <line x1={curX} y1="0" x2={curX} y2="24" stroke="var(--text-bright)" strokeWidth="0.4" opacity="0.5" />
         </svg>
+        <div style={{ display: "flex", gap: 6, fontSize: 7 }}>
+          <span style={{ color: "#f59e0b" }}>■ 物联</span>
+          <span style={{ color: "#38bdf8" }}>■ ToC</span>
+        </div>
       </div>
-      <div style={{ flex: "1 1 24%", display: "flex", flexDirection: "column", padding: "3px 5px", borderRight: showUfdr ? "1px solid var(--border)" : "none" }}>
-        <span style={{ fontSize: 8, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700 }}>NE CPU</span>
+
+      {/* SMF 区:会话成功率 + PDU 会话建立数(物联/ToC) */}
+      <div style={{ flex: "1 1 28%", display: "flex", flexDirection: "column", padding: "2px 4px", borderRight: "1px solid var(--border)" }}>
+        <span style={{ fontSize: 8, color: "#a78bfa", fontFamily: "var(--font-mono)", fontWeight: 700, marginBottom: 1 }}>SMF · PDU 会话成功率</span>
+        <svg viewBox="0 0 100 24" preserveAspectRatio="none" style={{ height: 26, width: "100%" }}>
+          <line x1="0" y1="4" x2="100" y2="4" stroke="rgba(148,163,184,0.2)" strokeWidth="0.3" strokeDasharray="2 2" />
+          <polyline points={smfSrPts} fill="none" stroke="#a78bfa" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <line x1={curX} y1="0" x2={curX} y2="24" stroke="var(--text-bright)" strokeWidth="0.4" opacity="0.5" />
+        </svg>
+        <span style={{ fontSize: 7.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)", marginTop: 2 }}>PDU 会话建立数/s(物联·ToC)</span>
+        <svg viewBox="0 0 100 24" preserveAspectRatio="none" style={{ flex: 1, width: "100%" }}>
+          <rect x={((fs - 1) / 59) * 100} y="0" width={((fe - fs) / 59) * 100} height="24" fill="rgba(239,68,68,0.06)" />
+          <polyline points={sessIotPts} fill="none" stroke="#f59e0b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+          <polyline points={sessTocPts} fill="none" stroke="#a78bfa" strokeWidth="0.8" vectorEffect="non-scaling-stroke" opacity="0.7" />
+          <line x1={curX} y1="0" x2={curX} y2="24" stroke="var(--text-bright)" strokeWidth="0.4" opacity="0.5" />
+        </svg>
+        <div style={{ display: "flex", gap: 6, fontSize: 7 }}>
+          <span style={{ color: "#f59e0b" }}>■ 物联 DNN</span>
+          <span style={{ color: "#a78bfa" }}>■ ToC</span>
+        </div>
+      </div>
+
+      {/* NE CPU 热力 */}
+      <div style={{ flex: "1 1 22%", display: "flex", flexDirection: "column", padding: "2px 4px", borderRight: showUfdr ? "1px solid var(--border)" : "none" }}>
+        <span style={{ fontSize: 8, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700, marginBottom: 2 }}>NE CPU 利用率</span>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1, justifyContent: "center" }}>
           {allTypes.map((t) => {
             const ns = graph ? graph.nodes.filter((n) => n.type === t) : [];
@@ -99,26 +137,30 @@ function KpiPanel({ scenario, state }: { scenario: Scenario; state: StoryState }
             const avg = neCpu ? ns.reduce((s, n) => s + (neCpu[n.id] ?? 40), 0) / ns.length : 35 + (t === "AMF" || t === "SMF" ? 5 : 0);
             const c = avg >= 85 ? "#ef4444" : avg >= 70 ? "#f59e0b" : "#22c55e";
             return (
-              <div key={t} style={{ display: "flex", alignItems: "center", gap: 3, height: 10 }}>
-                <span style={{ fontSize: 7, color: "var(--text-mid)", fontFamily: "var(--font-mono)", width: 22 }}>{t}</span>
+              <div key={t} style={{ display: "flex", alignItems: "center", gap: 3, height: 11 }}>
+                <span style={{ fontSize: 7, color: "var(--text-mid)", fontFamily: "var(--font-mono)", width: 20 }}>{t}</span>
                 <div style={{ flex: 1, height: 5, borderRadius: 2, background: "rgba(148,163,184,0.15)", overflow: "hidden" }}><div style={{ height: "100%", width: avg + "%", background: c, borderRadius: 2, transition: "width 0.3s" }} /></div>
-                <span style={{ fontSize: 7, color: c, fontFamily: "var(--font-mono)", fontWeight: 700, width: 24, textAlign: "right" }}>{avg.toFixed(0)}%</span>
+                <span style={{ fontSize: 7, color: c, fontFamily: "var(--font-mono)", fontWeight: 700, width: 22, textAlign: "right" }}>{avg.toFixed(0)}%</span>
               </div>
             );
           })}
         </div>
       </div>
+
+      {/* UFDR 柱状(SST=3 + 物联 DNN, phase4+) */}
       {showUfdr && ufdr && (
-        <div style={{ flex: "1 1 20%", display: "flex", flexDirection: "column", padding: "3px 5px" }}>
-          <span style={{ fontSize: 8, color: "#2dd4bf", fontFamily: "var(--font-mono)", fontWeight: 700 }}>UFDR SST=3 / DNN</span>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6, justifyContent: "center" }}>
+        <div style={{ flex: "1 1 22%", display: "flex", flexDirection: "column", padding: "2px 4px" }}>
+          <span style={{ fontSize: 8, color: "#2dd4bf", fontFamily: "var(--font-mono)", fontWeight: 700, marginBottom: 2 }}>UFDR 溯源(SST/APN)</span>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4, justifyContent: "center" }}>
             <div>
-              <div style={{ fontSize: 7, color: "var(--text-mid)", marginBottom: 2 }}>SST=3 注册 +{ufdr.sstSurge}%</div>
+              <div style={{ fontSize: 7, color: "var(--text-mid)", marginBottom: 1 }}>SST=3(MIoT) 注册突增</div>
               <div style={{ height: 10, borderRadius: 2, background: "rgba(148,163,184,0.15)", overflow: "hidden" }}><div style={{ height: "100%", width: ufdr.sstSurge + "%", background: "#2dd4bf", borderRadius: 2 }} /></div>
+              <div style={{ fontSize: 7, color: "#2dd4bf", fontFamily: "var(--font-mono)", marginTop: 1 }}>+{ufdr.sstSurge}% · {ufdr.sstLabel}</div>
             </div>
             <div>
-              <div style={{ fontSize: 7, color: "var(--text-mid)", marginBottom: 2 }}>物联 DNN 会话 +{ufdr.dnnSurge}%</div>
+              <div style={{ fontSize: 7, color: "var(--text-mid)", marginBottom: 1 }}>物联 DNN/APN 会话突增</div>
               <div style={{ height: 10, borderRadius: 2, background: "rgba(148,163,184,0.15)", overflow: "hidden" }}><div style={{ height: "100%", width: ufdr.dnnSurge + "%", background: "#38bdf8", borderRadius: 2 }} /></div>
+              <div style={{ fontSize: 7, color: "#38bdf8", fontFamily: "var(--font-mono)", marginTop: 1 }}>+{ufdr.dnnSurge}% · {ufdr.dnnLabel}</div>
             </div>
           </div>
         </div>

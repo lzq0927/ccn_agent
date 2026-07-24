@@ -243,7 +243,7 @@ function P4({ state }: { state: StoryState }) {
   const steps = state.reasoningSteps;
   if (!steps.length) return <Empty text="推理展开中…" />;
   const typeIcon: Record<string, string> = { thinking: "💭", tool_call: "🔧", tool_result: "↳", conclusion: "🎯" };
-  const shown = steps.slice(-5); // 最近的 5 步,避免过长
+  const shown = steps.slice(-10); // 显示最近 10 步(E 两轮 12 步都能看到)
   return (
     <>
       <SubTitle>推理链 · Agent Loop {steps.length > 5 ? `(近5/${steps.length})` : ""}</SubTitle>
