@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Scenario } from "../data/types";
-import { direct, LOOP_DURATION, PHASE_DURATIONS } from "./director";
+import { direct, PHASE_DURATIONS, loopDurationFor } from "./director";
 import type { StoryState } from "./types";
 
 const clamp = (x: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, x));
@@ -33,6 +33,7 @@ export interface ClockApi {
 }
 
 export function useStoryClock(scenario: Scenario): ClockApi {
+  const LOOP_DURATION = loopDurationFor(scenario);
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
@@ -45,6 +46,9 @@ export function useStoryClock(scenario: Scenario): ClockApi {
   const lastRef = useRef<number | null>(null);
   const reactAccumRef = useRef(0);
   const playheadRef = useRef<HTMLDivElement | null>(null);
+  const durRef = useRef(LOOP_DURATION);
+
+  useEffect(() => { durRef.current = loopDurationFor(scenario); }, [scenario.id]);
 
   useEffect(() => {
     playingRef.current = playing;
@@ -56,7 +60,7 @@ export function useStoryClock(scenario: Scenario): ClockApi {
   /** 把播放头 left 同步到 timeRef 当前值(供跳转 / 复位时即时校正) */
   const syncPlayhead = () => {
     const ph = playheadRef.current;
-    if (ph) ph.style.left = `${(timeRef.current / LOOP_DURATION) * 100}%`;
+    if (ph) ph.style.left = `${(timeRef.current / durRef.current) * 100}%`;
   };
 
   useEffect(() => {
@@ -66,16 +70,17 @@ export function useStoryClock(scenario: Scenario): ClockApi {
       const dt = (now - lastRef.current) / 1000;
       lastRef.current = now;
       if (playingRef.current) {
+        const dur = durRef.current;
         let nt = timeRef.current + dt * speedRef.current;
-        if (nt >= LOOP_DURATION) {
-          nt -= LOOP_DURATION;
+        if (nt >= dur) {
+          nt -= dur;
           loopRef.current += 1;
           setLoop(loopRef.current);
         }
         timeRef.current = nt;
         // 播放头直接驱动 DOM:每帧推进，不随 React 渲染节流，鼠标交互也不卡
         const ph = playheadRef.current;
-        if (ph) ph.style.left = `${(nt / LOOP_DURATION) * 100}%`;
+        if (ph) ph.style.left = `${(nt / dur) * 100}%`;
         // React 树降频刷新(~30fps)，削减每帧整树重渲染开销
         reactAccumRef.current += dt;
         if (reactAccumRef.current >= REACT_TICK) {
@@ -104,7 +109,7 @@ export function useStoryClock(scenario: Scenario): ClockApi {
   const toggle = () => setPlaying((p) => !p);
   const setSpeedN = (n: number) => setSpeed(n);
   const seekGlobal = (frac: number) => {
-    const nt = clamp(frac, 0, 0.9999) * LOOP_DURATION;
+    const nt = clamp(frac, 0, 0.9999) * durRef.current;
     timeRef.current = nt;
     setTime(nt);
     syncPlayhead();
@@ -125,7 +130,7 @@ export function useStoryClock(scenario: Scenario): ClockApi {
     playing,
     speed,
     loop,
-    duration: LOOP_DURATION,
+    duration: durRef.current,
     playheadRef,
     play,
     pause,

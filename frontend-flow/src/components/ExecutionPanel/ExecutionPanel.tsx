@@ -72,13 +72,35 @@ function KpiPanel({ scenario, state }: { scenario: Scenario; state: StoryState }
   const smfSr = smfNodes.length ? smfNodes.reduce((acc, n) => { const s = kpi.nodes[n.id] ?? []; s.forEach((v, i) => { acc[i] = (acc[i] ?? 0) + v; }); return acc; }, [] as number[]).map((v) => v / smfNodes.length) : kpi.overall;
   const smfSrPts = smfSr.map((v, i) => xAt(i).toFixed(1) + "," + (50 - ((v - 0.8) / 0.2) * 40).toFixed(1)).join(" ");
 
-  // 注册请求数(物联网 vs ToC 分拆)
-  const regIotPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 5; if (t >= fs && t < fe) v = 180; if (sim) v = sim.iotRegRate; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 8)).toFixed(1); }).join(" ");
-  const regTocPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 15; if (sim) v = sim.regRate - sim.iotRegRate; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 8)).toFixed(1); }).join(" ");
+  // 注册请求数(物联网 vs ToC 分拆) — E 场景:back-off 部分缓解(simT 30-33 降至 140),NSSAI+APN 完全恢复(simT 44-52 降至 5)
+  const isE = scenario.id === "E";
+  const regIotPts = Array.from({ length: 60 }, (_, i) => {
+    const t = i + 1; let v = 5;
+    if (isE) {
+      if (t >= 28 && t < 30) v = 180;
+      else if (t >= 30 && t < 33) v = lerp2(180, 140, (t - 30) / 3);  // back-off 部分缓解
+      else if (t >= 33 && t < 44) v = 140;  // 未收敛
+      else if (t >= 44 && t < 52) v = lerp2(140, 5, (t - 44) / 8);  // NSSAI+APN 完全恢复
+    } else if (t >= fs && t < fe) v = 180;
+    if (sim) v = sim.iotRegRate;
+    return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 8)).toFixed(1);
+  }).join(" ");
+  const regTocPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 15; if (sim) v = Math.max(0, sim.regRate - sim.iotRegRate); return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 8)).toFixed(1); }).join(" ");
 
-  // PDU 会话建立数(物联网 vs ToC 分拆)
-  const sessIotPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 40; if (t >= fs && t < fe) v = 400; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 20)).toFixed(1); }).join(" ");
+  // PDU 会话建立数(物联网 vs ToC 分拆) — E 同理
+  const sessIotPts = Array.from({ length: 60 }, (_, i) => {
+    const t = i + 1; let v = 40;
+    if (isE) {
+      if (t >= 28 && t < 30) v = 400;
+      else if (t >= 30 && t < 33) v = lerp2(400, 300, (t - 30) / 3);
+      else if (t >= 33 && t < 44) v = 300;
+      else if (t >= 44 && t < 52) v = lerp2(300, 40, (t - 44) / 8);
+    } else if (t >= fs && t < fe) v = 400;
+    return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 20)).toFixed(1);
+  }).join(" ");
   const sessTocPts = Array.from({ length: 60 }, (_, i) => { const t = i + 1; let v = 300; return xAt(i).toFixed(1) + "," + (50 - Math.min(45, v / 20)).toFixed(1); }).join(" ");
+
+  function lerp2(a: number, b: number, t: number) { return a + (b - a) * Math.max(0, Math.min(1, t)); }
 
   const curAmfSr = sample(amfSr, simT);
   const curSmfSr = sample(smfSr, simT);

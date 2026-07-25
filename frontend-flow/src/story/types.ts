@@ -25,6 +25,7 @@ export interface StoryState {
   globalProgress: number; // 整轮进度 0..1
   simT: number; // 仿真时间戳 1..60(驱动 KPI 着色)
   loop: number; // 第几轮循环
+  round: 1 | 2; // Agent2 执行轮次(E 两轮:首轮 back-off 未收敛 / 二轮 NSSAI+APN 收敛)
 
   // —— 数字孪生 ——
   twinMode: "healthy" | "building" | "anomaly" | "diagnosing" | "recovering" | "healed";

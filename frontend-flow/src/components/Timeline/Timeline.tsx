@@ -9,7 +9,8 @@ import type { ClockApi } from "../../story/useStoryClock";
 
 export function Timeline({ clock }: { clock: ClockApi }) {
   const { state, seekPhase, time, playheadRef } = clock;
-  const total = LOOP_DURATION;
+  const total = LOOP_DURATION; // 8 阶段按钮宽度基准(各场景通用)
+  const dur = clock.duration; // 实际单轮时长(E 两轮 68s,其余 50s)—— 用于播放头与时间标签
   const cur = state.phaseIndex;
 
   return (
@@ -69,7 +70,7 @@ export function Timeline({ clock }: { clock: ClockApi }) {
           </div>
         </div>
         <span style={{ fontSize: 9, color: "var(--text-faint)", fontFamily: "var(--font-mono)", whiteSpace: "nowrap" }}>
-          {time.toFixed(1)}s / {total}s
+          {time.toFixed(1)}s / {dur}s
         </span>
       </div>
     </div>

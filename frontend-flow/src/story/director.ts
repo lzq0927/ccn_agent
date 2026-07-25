@@ -145,6 +145,61 @@ export function phaseAt(t: number): { index: number; progress: number } {
   return { index: PHASE_DURATIONS.length - 1, progress: 1 };
 }
 
+// —— E 场景两轮时间线(68s):phase 0→1→2→3→4→5→[1→2→3→4→5]→6→7 ——
+const E_SEGS: Array<{ dur: number; phase: number; round: 1 | 2 }> = [
+  { dur: 3, phase: 0, round: 1 },
+  { dur: 4, phase: 1, round: 1 }, { dur: 4, phase: 2, round: 1 }, { dur: 3, phase: 3, round: 1 },
+  { dur: 6, phase: 4, round: 1 }, { dur: 4, phase: 5, round: 1 },
+  { dur: 4, phase: 1, round: 2 }, { dur: 4, phase: 2, round: 2 }, { dur: 3, phase: 3, round: 2 },
+  { dur: 9, phase: 4, round: 2 }, { dur: 6, phase: 5, round: 2 },
+  { dur: 5, phase: 6, round: 2 }, { dur: 13, phase: 7, round: 2 },
+];
+const E_LOOP = E_SEGS.reduce((a, b) => a + b.dur, 0);
+
+export function loopDurationFor(s: Scenario): number {
+  return s.id === "E" ? E_LOOP : LOOP_DURATION;
+}
+
+function phaseAtForScenario(s: Scenario, t: number): { index: number; progress: number; round: 1 | 2 } {
+  if (s.id === "E") {
+    let acc = 0;
+    for (let i = 0; i < E_SEGS.length; i++) {
+      if (t < acc + E_SEGS[i].dur || i === E_SEGS.length - 1) {
+        return { index: E_SEGS[i].phase, progress: clamp((t - acc) / E_SEGS[i].dur, 0, 1), round: E_SEGS[i].round };
+      }
+      acc += E_SEGS[i].dur;
+    }
+    return { index: 7, progress: 1, round: 2 as const };
+  }
+  const r = phaseAt(t);
+  return { index: r.index, progress: r.progress, round: 1 as const };
+}
+
+/** E 场景 simT 映射:两轮映射到仿真时间 1-60,第一轮结束 back-off 部分缓解,第二轮 NSSAI+APN 完全恢复 */
+function simTForE(phaseIndex: number, p: number, round: 1 | 2): number {
+  if (round === 1) {
+    switch (phaseIndex) {
+      case 0: return 6;
+      case 1: return lerp(6, 24, p);
+      case 2: return lerp(24, 28, p);
+      case 3: return 28;
+      case 4: return lerp(28, 30, p);
+      case 5: return lerp(30, 33, p); // back-off 部分缓解
+      default: return 33;
+    }
+  }
+  // round 2
+  switch (phaseIndex) {
+    case 1: return lerp(33, 36, p);
+    case 2: return lerp(36, 40, p);
+    case 3: return 40;
+    case 4: return lerp(40, 44, p);
+    case 5: return lerp(44, 52, p); // NSSAI+APN 完全恢复
+    case 6: return lerp(52, 56, p);
+    default: return 56;
+  }
+}
+
 /** 仿真时间戳随阶段推进 */
 function simTFor(s: Scenario, phaseIndex: number, p: number): number {
   const fs = s.fault.faultStart;
@@ -282,17 +337,28 @@ const SCENARIO_SUB: Record<string, Record<number, string>> = {
 };
 
 export function direct(s: Scenario, t: number, loop: number): StoryState {
-  const { index: phaseIndex, progress } = phaseAt(t);
+  const dur = loopDurationFor(s);
+  const phaseInfo = phaseAtForScenario(s, t);
+  const phaseIndex = phaseInfo.index;
+  const progress = phaseInfo.progress;
+  const eRound = phaseInfo.round;
   const phase = PHASES[phaseIndex];
   const p = prepare(s);
   const { neSet } = affectedEntities(s.fault);
-  const simT = clamp(simTFor(s, phaseIndex, progress), 1, 60);
+  const simT = clamp(s.id === "E" ? simTForE(phaseIndex, progress, eRound) : simTFor(s, phaseIndex, progress), 1, 60);
 
-  // 推理步揭示(阶段4)
+  // 推理步揭示(阶段4) — E 两轮:轮1揭示1-6,轮2揭示7-12
   const total = s.reasoning.length;
-  const revealedCount = phaseIndex < 4 ? 0 : phaseIndex === 4 ? Math.ceil(progress * total) : total;
+  let revealedCount: number;
+  if (s.id === "E") {
+    if (phaseIndex < 4) revealedCount = eRound === 2 ? 6 : 0;
+    else if (phaseIndex === 4) revealedCount = eRound === 1 ? Math.ceil(progress * 6) : 6 + Math.ceil(progress * (total - 6));
+    else revealedCount = eRound === 1 ? 6 : total; // phase≥5:首轮仅 1-6 步,二轮才全部
+  } else {
+    revealedCount = phaseIndex < 4 ? 0 : phaseIndex === 4 ? Math.ceil(progress * total) : total;
+  }
   const reasoningSteps: ReasonStep[] = s.reasoning.slice(0, revealedCount);
-  const conclusionRevealed = phaseIndex > 4 || (phaseIndex === 4 && revealedCount >= total);
+  const conclusionRevealed = (s.id === "E" ? eRound === 2 : phaseIndex > 4) || (phaseIndex === 4 && revealedCount >= total);
 
   // 聚焦 NE:阶段2-3=检测到的受影响集;阶段4=已揭示步骤的高亮;阶段5=隔离集
   let affectedNe: string[] = [];
@@ -315,14 +381,20 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // 生成校验揭示(阶段1)
   const generationChecksReveal = phaseIndex < 1 ? 0 : phaseIndex === 1 ? easeOut(progress) : 1;
 
-  // 恢复动作揭示(阶段5)
+  // 恢复动作揭示(阶段5) — E 两轮:轮1=back-off(1条),轮2=NSSAI+APN(3条)
   const recoveryActive = phaseIndex === 5 || phaseIndex === 6;
   let recoveryActions: RecoveryAction[] = [];
   let rerouteEdges: string[] = [];
   let cordonedNe: string[] = [];
   if (phaseIndex === 5) {
-    const n = Math.ceil(progress * p.recoveryActions.length);
-    recoveryActions = p.recoveryActions.slice(0, n);
+    if (s.id === "E") {
+      // E: 4 条恢复动作(r1_backoff, r2_nssai, r2_apn, r2_ratio)
+      const n = eRound === 1 ? Math.min(1, Math.ceil(progress * 1)) : p.recoveryActions.length;
+      recoveryActions = p.recoveryActions.slice(0, n);
+    } else {
+      const n = Math.ceil(progress * p.recoveryActions.length);
+      recoveryActions = p.recoveryActions.slice(0, n);
+    }
     rerouteEdges = p.rerouteEdges;
     cordonedNe = p.cordoned;
   } else if (phaseIndex === 6) {
@@ -372,8 +444,11 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
 
   // 流控溯源(场景 D/E):CPU 过载标注(phase≥2)、UFDR 溯源弹窗(phase 4)、流控策略弹窗(phase 5)
   const cpuOverloadNe = phaseIndex >= 2 && s.fault.faultType === "iot_storm" ? s.fault.elements : [];
-  const ufdrPopup = s.ufdr && phaseIndex === 4 ? s.ufdr : null;
   const flowControlPopup = s.flowControl && phaseIndex === 5 ? s.flowControl : null;
+  // E 轮2 UFDR 弹窗(phase 4 第二轮才显示)
+  const ufdrPopup = s.id === "E"
+    ? (s.ufdr && phaseIndex === 4 && eRound === 2 ? s.ufdr : null)
+    : (s.ufdr && phaseIndex === 4 ? s.ufdr : null);
 
   // 误报拦截(场景 C):phase 2-4 可见，phase≥3 被置信度拦截/划掉
   const falseAlarmActive = !!s.falseAlarm && phaseIndex >= 2 && phaseIndex <= 4;
@@ -392,9 +467,10 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     phaseIndex,
     phase,
     phaseProgress: progress,
-    globalProgress: clamp(t / LOOP_DURATION, 0, 1),
+    globalProgress: clamp(t / dur, 0, 1),
     simT,
     loop,
+    round: eRound,
     twinMode,
     showAnomaly,
     affectedNe,

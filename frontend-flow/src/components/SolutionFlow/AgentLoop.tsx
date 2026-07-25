@@ -38,7 +38,19 @@ const GRAY = "rgba(148,163,184,0.35)";
 
 type Status = "done" | "active" | "pending";
 
-function stepState(phase: number, p: number): { doneUpTo: number; active: number | null; gate: Status } {
+function stepState(phase: number, p: number, round: 1 | 2): { doneUpTo: number; active: number | null; gate: Status } {
+  // 第二轮:第一轮 6 步基线为「已完成」,仅高亮当前重新执行的步(避免全灰闪烁,读作"二轮重跑")
+  if (round === 2) {
+    switch (phase) {
+      case 0: case 1: return { doneUpTo: 6, active: null, gate: "done" };
+      case 2: return p < 0.5 ? { doneUpTo: 6, active: 2, gate: "done" } : { doneUpTo: 6, active: 3, gate: "done" };
+      case 3: return { doneUpTo: 6, active: null, gate: "active" };
+      case 4: return p < 0.6 ? { doneUpTo: 6, active: 4, gate: "done" } : { doneUpTo: 6, active: 5, gate: "done" };
+      case 5: return { doneUpTo: 6, active: 6, gate: "done" };
+      case 6: return { doneUpTo: 6, active: null, gate: "done" };
+      default: return { doneUpTo: 6, active: null, gate: "done" };
+    }
+  }
   switch (phase) {
     case 0: return { doneUpTo: 0, active: null, gate: "pending" };
     case 1: return { doneUpTo: 0, active: null, gate: "pending" };
@@ -59,17 +71,21 @@ function statusMarker(s: Status): string | undefined { return s === "done" ? "ur
 export function AgentLoop({ state }: { state: StoryState }) {
   const phase = state.phaseIndex;
   const p = state.phaseProgress;
-  const ss = stepState(phase, p);
+  const round = state.round;
+  const isR2 = round === 2;
+  const ss = stepState(phase, p, round);
   const doneUpTo = ss.doneUpTo;
   const active = ss.active;
   const gate = ss.gate;
-  const st = (n: number): Status => (n === active ? "active" : n <= doneUpTo ? "done" : "pending");
+  // 第二轮:6 步基线保持「已完成」,仅高亮当前重跑的步;首轮维持原 pending/active/done 逻辑
+  const st = (n: number): Status => (n === active ? "active" : isR2 ? "done" : n <= doneUpTo ? "done" : "pending");
 
   // #4: phase6(Agent2恢复完成)即切换到 Agent3
   const activeAgent = phase === 1 ? 1 : phase >= 2 && phase <= 5 ? 2 : phase >= 6 ? 3 : 0;
   // #1/#3: D(guided)恢复成功→loop③亮(phase7); E(autonomous)恢复后未恢复→loop②亮(phase5-6)
+  // E 第二轮全程亮 loop②(回 Agent1 重采→Agent2 二轮执行),恢复成功(phase7)后熄灭转 loop③
   const l1 = false;
-  const l2 = (phase === 5 || phase === 6) && state.route === "autonomous";
+  const l2 = state.route === "autonomous" && phase < 7 && (isR2 || phase === 5 || phase === 6);
   const l3 = phase === 7;
 
   // ◇→④ 的状态(#3: 使用 st(4) 正确三态)
@@ -104,6 +120,15 @@ export function AgentLoop({ state }: { state: StoryState }) {
       {/* A2 -> pipeline (dim when A2 not active) */}
       <line x1={A2.cx} y1={A2.y + A2.h} x2={A2.cx} y2={250} stroke={activeAgent === 2 ? "#7dd3fc" : GRAY} strokeWidth={activeAgent === 2 ? 2.2 : 1.4} strokeLinecap="round" markerEnd={activeAgent === 2 ? "url(#al-a)" : undefined} className={activeAgent === 2 ? "flow-dash" : undefined} />
       <text x={28} y={246} fontSize={11} fontWeight={700} fill={activeAgent === 2 ? "#5eead4" : "var(--text-faint)"} fontFamily="var(--font-mono)" letterSpacing="0.05em">{"故障感知 Agent · 内部 6 步流程"}</text>
+
+      {/* E 两轮徽标:首轮 back-off 未收敛(青) / 二轮 NSSAI+APN 收敛(琥珀,呼应 loop②) */}
+      {state.route === "autonomous" && (
+        <g transform="translate(640, 244)">
+          <rect x={-58} y={-12} width={116} height={20} rx={6} fill={isR2 ? RETRY + "22" : "rgba(45,212,191,0.12)"} stroke={isR2 ? RETRY + "aa" : "rgba(45,212,191,0.45)"} strokeWidth={1} />
+          <circle cx={-44} cy={-2} r={3} fill={isR2 ? RETRY : "#2dd4bf"} className={isR2 ? "flow-dash" : undefined} />
+          <text x={6} y={2} textAnchor="middle" fontSize={10.5} fontWeight={800} fill={isR2 ? RETRY : "#5eead4"} fontFamily="var(--font-mono)" letterSpacing="0.03em">{isR2 ? "第 ② 轮 · ROUND 2" : "第 ① 轮 · ROUND 1"}</text>
+        </g>
+      )}
 
       {/* pipeline frame */}
       <rect x={28} y={260} width={724} height={380} rx={12} fill="rgba(45,212,191,0.04)" stroke="rgba(45,212,191,0.28)" strokeWidth={1.3} strokeDasharray="3 7" />
