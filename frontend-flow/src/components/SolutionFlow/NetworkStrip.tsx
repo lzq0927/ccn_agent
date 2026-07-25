@@ -23,16 +23,16 @@ export function NetworkStrip({ scenario }: { scenario: Scenario }) {
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
         <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", padding: "3px 6px", borderRadius: 8, border: `1px solid ${NE_COLOR}55`, background: `${NE_COLOR}14` }}>
           <BaseStationIcon color={NE_COLOR} />
-          <span style={{ fontSize: 8.5, fontWeight: 800, color: NE_COLOR, fontFamily: "var(--font-mono)", marginTop: 1 }}>gNB 基站</span>
+          <span style={{ fontSize: 10, fontWeight: 800, color: NE_COLOR, fontFamily: "var(--font-mono)", marginTop: 1 }}>gNB 基站</span>
         </div>
-        <span style={{ fontSize: 7, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>RAN 接入</span>
+        <span style={{ fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>RAN 接入</span>
       </div>
       <MiniArrow />
       {/* 核心网容器 */}
       <div style={{ flex: 1, minWidth: 0, borderRadius: 8, border: "1px dashed rgba(56,189,248,0.35)", background: "var(--accent-a12)", padding: "6px 10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
           <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-bright)", letterSpacing: "0.04em" }}>核心网</span>
-          <span style={{ marginLeft: "auto", fontSize: 7.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{poolCount} ResourcePool · 主备冗余</span>
+          <span style={{ marginLeft: "auto", fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{poolCount} ResourcePool · 主备冗余</span>
         </div>
         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
           {CORE_TYPES.map((t) => (
@@ -49,8 +49,8 @@ function Endpoint({ icon, cn: cnT, sub }: { icon: string; cn: string; sub: strin
     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 8px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-panel-solid)" }}>
       <span style={{ fontSize: 14 }}>{icon}</span>
       <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.1 }}>
-        <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-bright)" }}>{cnT}</span>
-        <span style={{ fontSize: 7, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{sub}</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: "var(--text-bright)" }}>{cnT}</span>
+        <span style={{ fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{sub}</span>
       </div>
     </div>
   );
@@ -59,7 +59,7 @@ function Endpoint({ icon, cn: cnT, sub }: { icon: string; cn: string; sub: strin
 function NeChip({ type }: { type: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "3px 5px", minWidth: 30, borderRadius: 6, border: `1px solid ${NE_COLOR}55`, background: `${NE_COLOR}14` }}>
-      <span style={{ fontSize: 9, fontWeight: 800, color: NE_COLOR, fontFamily: "var(--font-mono)" }}>{type}</span>
+      <span style={{ fontSize: 10.5, fontWeight: 800, color: NE_COLOR, fontFamily: "var(--font-mono)" }}>{type}</span>
     </div>
   );
 }

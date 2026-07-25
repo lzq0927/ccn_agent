@@ -19,6 +19,7 @@ export interface GenerationCheck {
 }
 
 export interface StoryState {
+  scenarioId: string; // 场景标识(A/B/C/D/E)—— 供视图按场景分支
   phaseIndex: number;
   phase: PhaseDef;
   phaseProgress: number; // 当前阶段内进度 0..1
@@ -26,6 +27,7 @@ export interface StoryState {
   simT: number; // 仿真时间戳 1..60(驱动 KPI 着色)
   loop: number; // 第几轮循环
   round: 1 | 2; // Agent2 执行轮次(E 两轮:首轮 back-off 未收敛 / 二轮 NSSAI+APN 收敛)
+  loopBackKind: "loop1" | "loop2" | null; // 评估/恢复未通过回 Agent1 的回路:B/C=loop①(⑤评估未通过,A2→A1)/ E=loop②(经 Agent3,A3→A1)
 
   // —— 数字孪生 ——
   twinMode: "healthy" | "building" | "anomaly" | "diagnosing" | "recovering" | "healed";

@@ -27,8 +27,8 @@ export function Bridge({ state }: { state: StoryState }) {
 function TextBlock({ title, sub, on, color, align }: { title: string; sub: string; on: boolean; color: string; align: "left" | "right" }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", lineHeight: 1.15, opacity: on ? 1 : 0.6, transition: "opacity 0.4s ease", textAlign: align, minWidth: 92 }}>
-      <span style={{ fontSize: 10, fontWeight: 800, color: on ? color : "var(--text-mid)" }}>{title}</span>
-      <span style={{ fontSize: 8, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{sub}</span>
+      <span style={{ fontSize: 11, fontWeight: 800, color: on ? color : "var(--text-mid)" }}>{title}</span>
+      <span style={{ fontSize: 9.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{sub}</span>
     </div>
   );
 }

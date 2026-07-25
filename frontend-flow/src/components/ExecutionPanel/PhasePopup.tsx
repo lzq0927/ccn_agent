@@ -6,6 +6,7 @@
 //   拓扑节点锚定的 SVG 弹窗承载。
 // ============================================================================
 
+import { useEffect, useRef, Fragment } from "react";
 import { Gauge } from "../shared/Gauge";
 import { KpiChart } from "./KpiChart";
 import { SkillLibrary } from "../SkillLibrary/SkillLibrary";
@@ -24,6 +25,22 @@ export function PhasePopup({ scenario, state }: { scenario: Scenario; state: Sto
   const sr = sample(getKpi(scenario).overall, state.simT);
   const accent = phase === 6 ? "accent-ok" : phase === 2 || phase === 4 || phase === 5 ? "accent-warn" : "";
   const focus = currentFocus(phase, state.phaseProgress); // 与左侧方案执行呼应
+  // 分析步逐步揭示数(随相位进度);相位≥6 后序阶段直接全显
+  const aStepsVisible = phase >= 6 ? llm.steps.length : Math.max(0, Math.ceil((state.phaseProgress - 0.15) * llm.steps.length));
+  const showAnalysis = state.phaseProgress > 0.15 || phase >= 6;
+  const showVerdict = state.phaseProgress > 0.85 || phase >= 6;
+
+  // 内容区自动滚动:内容增多(推理步/恢复动作/分析步揭示)→ 滚到底保持新增可见;相位切换重置 → 回顶部
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevLenRef = useRef(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const len = state.reasoningSteps.length + state.recoveryActions.length + Math.max(0, aStepsVisible);
+    if (len >= prevLenRef.current) el.scrollTop = el.scrollHeight;
+    else el.scrollTop = 0;
+    prevLenRef.current = len;
+  }, [state.reasoningSteps.length, state.recoveryActions.length, aStepsVisible]);
 
   return (
     <div className={`fpop anchor-left ${accent}`} style={{ top: 10, left: 10, width: 244, display: "flex", flexDirection: "column", maxHeight: "calc(100% - 20px)" }}>
@@ -45,6 +62,21 @@ export function PhasePopup({ scenario, state }: { scenario: Scenario; state: Sto
         <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-bright)" }}>{focus}</span>
       </div>
 
+      {/* 评估未通过 → 进入循环探索(B/C ⑤评估未通过=loop① / E Agent3未恢复=loop②)*/}
+      {state.loopBackKind && (
+        <div className="alert-ring" style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, padding: "5px 8px", borderRadius: 6, background: "rgba(245,158,11,0.12)", border: "1px solid #f59e0b", boxShadow: "0 0 12px rgba(245,158,11,0.25)" }}>
+          <span style={{ fontSize: 12 }}>⚠</span>
+          <div style={{ lineHeight: 1.3 }}>
+            <div style={{ fontSize: 9.5, fontWeight: 800, color: "#fbbf24", fontFamily: "var(--font-mono)" }}>
+              {state.loopBackKind === "loop1" ? "⑤ 输出评估未通过 · 置信度不足" : "Agent3 评估 · 网络未恢复"}
+            </div>
+            <div style={{ fontSize: 8.5, color: "var(--text-soft)" }}>
+              {state.loopBackKind === "loop1" ? "loop① 回 Agent1 补采 → 第二轮重新执行" : "loop② 回 Agent1 → 第二轮重新执行"}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* SIM 模式:实时仿真指标(全网 CPU 概览 + 注册/会话速率 + 2C 限流) */}
       {state.simRates && (
         <div style={{ marginTop: 4, padding: "5px 7px", borderRadius: 5, border: "1px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.05)", display: "flex", flexWrap: "wrap", gap: "2px 8px" }}>
@@ -57,38 +89,45 @@ export function PhasePopup({ scenario, state }: { scenario: Scenario; state: Sto
         </div>
       )}
 
-      <div style={{ minHeight: 0, maxHeight: "calc(100vh - 320px)", overflowY: "auto", overflowX: "hidden", marginTop: 5, paddingRight: 3 }}>
-        {/* 上半:相位关键信息 */}
+      <div ref={scrollRef} style={{ minHeight: 0, maxHeight: "calc(100vh - 320px)", overflowY: "auto", overflowX: "hidden", marginTop: 5, paddingRight: 3 }}>
+        {/* 分析引导(非推理相位4/报告相位7:方法步在顶部融入流程,不再固定底部)*/}
+        {phase !== 4 && phase !== 7 && showAnalysis && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
+              <span style={{ fontSize: 9 }}>{meta.icon}</span>
+              <span style={{ fontSize: 8, fontWeight: 800, color: meta.color, fontFamily: "var(--font-mono)", letterSpacing: "0.05em" }}>{meta.label}</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-bright)" }}>{llm.title}</span>
+              {llm.principle && (
+                <span style={{ fontSize: 7.5, fontWeight: 700, color: meta.color, fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: 3, background: `${meta.color}14`, border: `1px solid ${meta.color}33`, letterSpacing: "0.02em" }}>📐 {llm.principle}</span>
+              )}
+            </div>
+            {llm.steps.slice(0, Math.max(1, aStepsVisible)).map((st, i) => {
+              const mm = METHOD_META[st.method ?? llm.method];
+              return (
+                <div key={i} style={{ fontSize: 8.8, color: "var(--text-soft)", lineHeight: 1.45, display: "flex", gap: 5, alignItems: "flex-start", marginBottom: 3, animation: "float-up 0.3s ease" }}>
+                  <span style={{ fontSize: 8.5, flexShrink: 0, marginTop: 1 }}>{mm.icon}</span>
+                  <span>
+                    <span style={{ fontSize: 8, fontWeight: 800, color: mm.color, fontFamily: "var(--font-mono)", letterSpacing: "0.03em" }}>{st.label}</span>
+                    <span style={{ display: "block", marginTop: 1 }}>{st.text}</span>
+                  </span>
+                </div>
+              );
+            })}
+            {showVerdict && llm.verdict && (
+              <div style={{ marginTop: 4, marginBottom: 4, fontSize: 8.8, fontWeight: 700, color: meta.color, lineHeight: 1.4, padding: "4px 6px", borderRadius: 5, background: `${meta.color}0d`, borderLeft: `2px solid ${meta.color}` }}>→ {llm.verdict}</div>
+            )}
+          </>
+        )}
+
+        {/* 相位关键信息(phase4 推理链内嵌分析,phase7 故障报告)*/}
         {phase === 0 && <P0 scenario={scenario} state={state} />}
         {phase === 1 && <P1 state={state} />}
         {phase === 2 && <P2 scenario={scenario} state={state} />}
         {phase === 3 && <P3 state={state} />}
-        {phase === 4 && <P4 state={state} />}
+        {phase === 4 && <P4 scenario={scenario} state={state} />}
         {phase === 5 && <P5 state={state} />}
         {phase === 6 && <P6 scenario={scenario} state={state} />}
         {phase === 7 && <P7 scenario={scenario} state={state} />}
-
-        {/* 下半:分析(按相位实际方法:大模型 / 规则 / 算法) — #7 延迟到相位进度>40%才出现,逐步显示 */}
-        {state.phaseProgress > 0.4 && (
-        <div style={{ marginTop: 8, padding: "7px 8px", borderRadius: 7, border: `1px solid ${meta.color}59`, background: `${meta.color}0d`, animation: "float-up 0.35s ease" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 4 }}>
-            <span style={{ fontSize: 10 }}>{meta.icon}</span>
-            <span style={{ fontSize: 8.5, fontWeight: 800, color: meta.color, fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>{meta.label}</span>
-          </div>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-bright)", marginBottom: 3 }}>{llm.title}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {llm.insights.map((t, i) => (
-              <div key={i} style={{ fontSize: 8.8, color: "var(--text-soft)", lineHeight: 1.45, display: "flex", gap: 4 }}>
-                <span style={{ color: meta.color, flexShrink: 0 }}>·</span>
-                <span>{t}</span>
-              </div>
-            ))}
-          </div>
-          {llm.verdict && (
-            <div style={{ marginTop: 5, paddingTop: 4, borderTop: `1px dashed ${meta.color}4d`, fontSize: 8.8, fontWeight: 700, color: meta.color, lineHeight: 1.4 }}>{llm.verdict}</div>
-          )}
-        </div>
-        )}
       </div>
     </div>
   );
@@ -238,28 +277,60 @@ function P3({ state }: { state: StoryState }) {
   );
 }
 
-// —— 4 根因推理(推理链)——
-function P4({ state }: { state: StoryState }) {
+// —— 4 根因推理(推理链 + 内嵌 CHR/算法/大模型分析,逐步往下,不再固定底部)——
+function P4({ scenario, state }: { scenario: Scenario; state: StoryState }) {
   const steps = state.reasoningSteps;
-  if (!steps.length) return <Empty text="推理展开中…" />;
+  const analysis = llmAnalysis(scenario, 4);
+  const meta = METHOD_META[analysis.method];
+  const p = state.phaseProgress;
+  const aVisible = Math.max(0, Math.ceil((p - 0.15) * analysis.steps.length));
+  const showVerdict = p > 0.85;
+  const shown = steps.slice(-10); // 最近 10 步
   const typeIcon: Record<string, string> = { thinking: "💭", tool_call: "🔧", tool_result: "↳", conclusion: "🎯" };
-  const shown = steps.slice(-10); // 显示最近 10 步(E 两轮 12 步都能看到)
+  // 推理步在 mid 处插入分析块(根因点),让 CHR/算法/大模型嵌入推理链中段
+  const mid = Math.max(1, Math.ceil(shown.length / 2));
+  if (!shown.length && aVisible <= 0) return <Empty text="推理展开中…" />;
   return (
     <>
-      <SubTitle>推理链 · Agent Loop {steps.length > 5 ? `(近5/${steps.length})` : ""}</SubTitle>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
+        <span style={{ fontSize: 9 }}>{meta.icon}</span>
+        <span style={{ fontSize: 8, fontWeight: 800, color: meta.color, fontFamily: "var(--font-mono)", letterSpacing: "0.03em" }}>{meta.label}</span>
+        {analysis.principle && <span style={{ fontSize: 7.5, fontWeight: 700, color: meta.color, fontFamily: "var(--font-mono)", padding: "1px 5px", borderRadius: 3, background: `${meta.color}14`, border: `1px solid ${meta.color}33` }}>📐 {analysis.principle}</span>}
+      </div>
+      <SubTitle>推理链 · Agent Loop {steps.length > 5 ? `(${shown.length}/${steps.length})` : ""}</SubTitle>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {shown.map((s, i) => {
           const isConcl = s.type === "conclusion";
-          const isLatest = i === shown.length - 1 && !isConcl; // 最新一步(重点高亮)
+          const isLatest = i === shown.length - 1 && !isConcl;
           return (
-            <div key={s.n} style={{ padding: "4px 6px", borderRadius: 6, border: `1px solid ${isConcl ? STATUS.fault + "66" : isLatest ? "var(--accent)" : "rgba(148,163,184,0.18)"}`, background: isConcl ? "rgba(239,68,68,0.08)" : isLatest ? "var(--accent-a20)" : "rgba(10,16,30,0.4)", boxShadow: isLatest ? "0 0 10px var(--accent-glow)" : "none", transition: "all 0.3s ease" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1 }}>
-                <span style={{ fontSize: 7.5, fontWeight: 800, color: isConcl ? STATUS.faultGlow : "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{typeIcon[s.type] ?? "·"} #{s.n}</span>
-                {s.tool && <span style={{ fontSize: 7, fontFamily: "var(--font-mono)", color: "var(--text-detail)" }}>{s.tool}</span>}
+            <Fragment key={s.n}>
+              <div style={{ padding: "4px 6px", borderRadius: 6, border: `1px solid ${isConcl ? STATUS.fault + "66" : isLatest ? "var(--accent)" : "rgba(148,163,184,0.18)"}`, background: isConcl ? "rgba(239,68,68,0.08)" : isLatest ? "var(--accent-a20)" : "rgba(10,16,30,0.4)", boxShadow: isLatest ? "0 0 10px var(--accent-glow)" : "none", transition: "all 0.3s ease" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1 }}>
+                  <span style={{ fontSize: 7.5, fontWeight: 800, color: isConcl ? STATUS.faultGlow : "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{typeIcon[s.type] ?? "·"} #{s.n}</span>
+                  {s.tool && <span style={{ fontSize: 7, fontFamily: "var(--font-mono)", color: "var(--text-detail)" }}>{s.tool}</span>}
+                </div>
+                <div style={{ fontSize: 9, color: "var(--text-soft)", lineHeight: 1.4 }}>{s.text}</div>
+                {s.result && <div style={{ fontSize: 8.5, color: isConcl ? STATUS.faultGlow : "#7dd3fc", fontFamily: "var(--font-mono)", marginTop: 1 }}>→ {s.result}</div>}
               </div>
-              <div style={{ fontSize: 9, color: "var(--text-soft)", lineHeight: 1.4 }}>{s.text}</div>
-              {s.result && <div style={{ fontSize: 8.5, color: isConcl ? STATUS.faultGlow : "#7dd3fc", fontFamily: "var(--font-mono)", marginTop: 1 }}>→ {s.result}</div>}
-            </div>
+              {/* 在中段(根因点)嵌入分析步 + 饼图,逐步揭示 */}
+              {i === mid - 1 && aVisible > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 3, padding: "5px 6px", borderRadius: 6, border: `1px solid ${meta.color}33`, background: `${meta.color}0a` }}>
+                  {analysis.steps.slice(0, aVisible).map((st, j) => {
+                    const mm = METHOD_META[st.method ?? analysis.method];
+                    return (
+                      <div key={j} style={{ fontSize: 8.8, color: "var(--text-soft)", lineHeight: 1.45, display: "flex", gap: 5, alignItems: "flex-start", animation: "float-up 0.3s ease" }}>
+                        <span style={{ fontSize: 8.5, flexShrink: 0, marginTop: 1 }}>{mm.icon}</span>
+                        <span>
+                          <span style={{ fontSize: 8, fontWeight: 800, color: mm.color, fontFamily: "var(--font-mono)" }}>{st.label}</span>
+                          <span style={{ display: "block", marginTop: 1 }}>{st.text}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {state.chrPopup && <ChrPie chr={state.chrPopup} />}
+                </div>
+              )}
+            </Fragment>
           );
         })}
       </div>
@@ -271,6 +342,9 @@ function P4({ state }: { state: StoryState }) {
           <div style={{ fontSize: 9, fontWeight: 700, color: "#5eead4", marginTop: 2 }}>{state.ufdrPopup.summary}</div>
         </div>
       )}
+      {showVerdict && analysis.verdict && (
+        <div style={{ marginTop: 4, fontSize: 8.8, fontWeight: 700, color: meta.color, lineHeight: 1.4, padding: "4px 6px", borderRadius: 5, background: `${meta.color}0d`, borderLeft: `2px solid ${meta.color}` }}>→ {analysis.verdict}</div>
+      )}
     </>
   );
 }
@@ -279,11 +353,20 @@ function P4({ state }: { state: StoryState }) {
 function P5({ state }: { state: StoryState }) {
   const actions = state.recoveryActions;
   const cordoned = state.cordonedNe;
+  // B/C 首轮:评估未通过,不执行恢复,loop② 回 Agent1 补采
+  const evalFailedLoop = (state.scenarioId === "B" || state.scenarioId === "C") && state.round === 1 && actions.length === 0;
   return (
     <>
       <SubTitle>恢复策略 · 网络自愈</SubTitle>
       {actions.length === 0 ? (
-        <Empty text="编排恢复策略中…" />
+        evalFailedLoop ? (
+          <div style={{ padding: "6px 8px", borderRadius: 6, border: "1px dashed #f59e0b88", background: "rgba(245,158,11,0.07)" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "#fbbf24", fontFamily: "var(--font-mono)" }}>🤖 评估未通过 · 置信度不足</div>
+            <div style={{ fontSize: 8.5, color: "var(--text-soft)", marginTop: 2 }}>loop② 回 Agent1 补采数据 → Agent2 第二轮重新执行</div>
+          </div>
+        ) : (
+          <Empty text="编排恢复策略中…" />
+        )
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
           {actions.map((a, i) => (
@@ -335,42 +418,11 @@ function P6({ scenario, state }: { scenario: Scenario; state: StoryState }) {
 
 // —— 7 评估沉淀 ——
 function P7({ scenario, state }: { scenario: Scenario; state: StoryState }) {
-  const m = state.evalMetrics;
   return (
     <>
-      {m && (
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-            <span style={{ fontSize: 7.5, padding: "2px 6px", borderRadius: 4, color: STATUS.healthy, border: `1px solid ${STATUS.healthy}66`, fontFamily: "var(--font-mono)" }}>{m.category}</span>
-            <div style={{ display: "flex", gap: 8, fontSize: 9.5, fontFamily: "var(--font-mono)", color: "var(--text-detail)" }}>
-              <span>P<b style={{ color: "var(--text-bright)" }}>{m.precision.toFixed(2)}</b></span>
-              <span>R<b style={{ color: "var(--text-bright)" }}>{m.recall.toFixed(2)}</b></span>
-              <span>F1<b style={{ color: "var(--text-bright)" }}>{m.f1.toFixed(2)}</b></span>
-            </div>
-          </div>
-          <SubTitle>推理链质析</SubTitle>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {[
-              { k: "逻辑连贯", v: m.traceAxes.logicalCoherence },
-              { k: "工具效率", v: m.traceAxes.toolEfficiency },
-              { k: "证据质量", v: m.traceAxes.evidenceQuality },
-            ].map((a) => (
-              <div key={a.k}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 8.5, color: "var(--text-detail)", marginBottom: 1 }}>
-                  <span>{a.k}</span>
-                  <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-bright)" }}>{(a.v * 100).toFixed(0)}%</span>
-                </div>
-                <div style={{ height: 4, borderRadius: 3, background: "rgba(148,163,184,0.15)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${a.v * 100}%`, background: "#2dd4bf", borderRadius: 3 }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
       {scenario.faultReport && (
-        <div style={{ marginTop: 7, padding: "7px 8px", borderRadius: 6, border: "1px solid rgba(167,139,250,0.45)", background: "rgba(167,139,250,0.07)" }}>
-          <div style={{ fontSize: 8.5, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 4, letterSpacing: "0.04em" }}>🤖 大模型 · 故障报告总结</div>
+        <div style={{ marginTop: 4, padding: "7px 8px", borderRadius: 6, border: "1px solid rgba(167,139,250,0.45)", background: "rgba(167,139,250,0.07)" }}>
+          <div style={{ fontSize: 9, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 4, letterSpacing: "0.04em" }}>🤖 Agent3 · 大模型故障报告</div>
           <ReportRow k="根因" v={scenario.faultReport.rootCause} />
           <ReportRow k="现象" v={scenario.faultReport.phenomenon} />
           <ReportRow k="影响" v={scenario.faultReport.impact} />
@@ -413,4 +465,42 @@ function Stat({ k, v, c }: { k: string; v: string; c: string }) {
 
 function Empty({ text = "— 无数据 —" }: { text?: string }) {
   return <div style={{ fontSize: 10, color: "var(--text-mid)", textAlign: "center", padding: "12px 0" }}>{text}</div>;
+}
+
+/** 紧凑原因值饼图(场景 B/C,根因推理阶段):主导 vs 终端噪声 —— 内联到推理流中 */
+function donutSeg(cx: number, cy: number, rOut: number, rIn: number, a0: number, a1: number) {
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  const pt = (r: number, a: number): [number, number] => [cx + r * Math.sin(a), cy - r * Math.cos(a)];
+  const [sx0, sy0] = pt(rOut, a0), [ex0, ey0] = pt(rOut, a1), [sx1, sy1] = pt(rIn, a1), [ex1, ey1] = pt(rIn, a0);
+  return `M ${sx0} ${sy0} A ${rOut} ${rOut} 0 ${large} 1 ${ex0} ${ey0} L ${sx1} ${sy1} A ${rIn} ${rIn} 0 ${large} 0 ${ex1} ${ey1} Z`;
+}
+function ChrPie({ chr }: { chr: NonNullable<StoryState["chrPopup"]> }) {
+  const NOISE = ["#38bdf8", "#f472b6", "#2dd4bf", "#facc15", "#fb923c"];
+  const related = chr.related ?? [];
+  const domShare = chr.share ?? 60;
+  const segs = [
+    { cn: chr.causeCn, code: chr.causeCode, share: domShare, color: "#a78bfa", dom: true },
+    ...related.map((r, i) => ({ cn: r.cn, code: r.code, share: r.share ?? 8, color: NOISE[i % NOISE.length], dom: false })),
+  ];
+  const total = segs.reduce((a, s) => a + s.share, 0) || 1;
+  let acc = 0;
+  const arcs = segs.map((s) => { const a0 = (acc / total) * Math.PI * 2; acc += s.share; return { ...s, a0, a1: (acc / total) * Math.PI * 2 }; });
+  const noiseShare = related.reduce((a, r) => a + (r.share ?? 8), 0);
+  const cx = 26, cy = 26, rO = 22, rI = 14;
+  return (
+    <div style={{ marginTop: 6, padding: "5px 7px", borderRadius: 6, border: "1px solid rgba(167,139,250,0.4)", background: "rgba(167,139,250,0.06)" }}>
+      <div style={{ fontSize: 8.5, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 3, letterSpacing: "0.04em" }}>🥧 CHR 原因值分布 · 降噪→聚类</div>
+      <div style={{ display: "flex", gap: 7, alignItems: "center" }}>
+        <svg width={52} height={52} viewBox="0 0 52 52" style={{ flexShrink: 0 }}>
+          {arcs.map((s, i) => (<path key={i} d={donutSeg(cx, cy, rO, rI, s.a0, s.a1)} fill={s.color} opacity={s.dom ? 0.95 : 0.55} stroke="rgba(10,16,30,0.6)" strokeWidth={0.6} />))}
+          <text x={cx} y={cy - 1} textAnchor="middle" fontSize={9} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-mono)">{Math.round(domShare)}%</text>
+          <text x={cx} y={cy + 8} textAnchor="middle" fontSize={5} fill="var(--text-dim)" fontFamily="var(--font-sans)">主导</text>
+        </svg>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <div style={{ fontSize: 8.5, color: "#a78bfa", fontWeight: 700, fontFamily: "var(--font-mono)" }}>● {chr.causeCode} {chr.causeCn} · {Math.round(domShare)}%</div>
+          <div style={{ fontSize: 7.8, color: "var(--text-mid)" }}>终端噪声 {Math.round(noiseShare)}%(降噪剔除):{related.map((r) => r.code).join(" · ")}</div>
+        </div>
+      </div>
+    </div>
+  );
 }

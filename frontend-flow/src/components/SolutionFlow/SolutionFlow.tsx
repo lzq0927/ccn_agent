@@ -13,13 +13,14 @@ import { AgentLoop } from "./AgentLoop";
 
 export function SolutionFlow({ state, scenario }: { state: StoryState; scenario: Scenario }) {
   return (
-    <div className="hud" style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div className="hud" style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", borderTop: "2px solid #2dd4bf", boxShadow: "inset 0 2px 0 rgba(45,212,191,0.12)" }}>
       <div className="hud-head">
         <span className="title">
-          <span className="dot" />
+          <span className="dot" style={{ background: "#2dd4bf", boxShadow: "0 0 6px #2dd4bf" }} />
           方案流程
+          <span style={{ fontSize: 8, fontWeight: 800, color: "#2dd4bf", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", marginLeft: 6, padding: "1px 5px", borderRadius: 3, background: "rgba(45,212,191,0.12)", border: "1px solid rgba(45,212,191,0.4)" }}>方案 · PLAN</span>
         </span>
-        <span style={{ fontSize: 8, color: "var(--text-mid)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
+        <span style={{ fontSize: 9.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)", letterSpacing: "0.1em" }}>
           {state.phase.cn} · PHASE {state.phaseIndex} · AUTO
         </span>
       </div>
@@ -43,8 +44,8 @@ function SectionLabel({ cn: cnT, en }: { cn: string; en: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       <span style={{ width: 3, height: 11, background: "var(--accent)", borderRadius: 2 }} />
-      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-bright)", letterSpacing: "0.02em" }}>{cnT}</span>
-      <span style={{ fontSize: 7.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}>{en}</span>
+      <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--text-bright)", letterSpacing: "0.02em" }}>{cnT}</span>
+      <span style={{ fontSize: 9, color: "var(--text-mid)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em" }}>{en}</span>
     </div>
   );
 }
@@ -71,7 +72,7 @@ function BrainBox({ state }: { state: StoryState }) {
         <span style={{ fontSize: 15 }}>🧠</span>
         <div>
           <span style={{ fontSize: 12, fontWeight: 800, color: "var(--text-bright)" }}>高稳智能体</span>
-          <span style={{ fontSize: 7.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", marginLeft: 7 }}>3 AGENT · 故障感知 6 步 · 3 个闭环</span>
+          <span style={{ fontSize: 9.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)", letterSpacing: "0.08em", marginLeft: 7 }}>3 AGENT · 故障感知 6 步 · 3 个闭环</span>
         </div>
       </div>
       <div style={{ flex: 1, minHeight: 0, display: "flex" }}>

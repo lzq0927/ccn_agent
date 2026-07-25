@@ -145,29 +145,40 @@ export function phaseAt(t: number): { index: number; progress: number } {
   return { index: PHASE_DURATIONS.length - 1, progress: 1 };
 }
 
-// —— E 场景两轮时间线(68s):phase 0→1→2→3→4→5→[1→2→3→4→5]→6→7 ——
-const E_SEGS: Array<{ dur: number; phase: number; round: 1 | 2 }> = [
+// —— 两轮场景时间线:B/C/E。首轮评估/恢复未通过 → loop② 回 Agent1 → 二轮重新执行 → 恢复成功 ——
+//   E 首轮含 back-off 恢复(phase5,部分缓解后未收敛);B/C 首轮评估未通过,不走到恢复(phase4 后直接回 Agent1)
+const TWO_ROUND_IDS = new Set(["B", "C", "E"]);
+type Seg = { dur: number; phase: number; round: 1 | 2 };
+const R1_COMMON: Seg[] = [
   { dur: 3, phase: 0, round: 1 },
   { dur: 4, phase: 1, round: 1 }, { dur: 4, phase: 2, round: 1 }, { dur: 3, phase: 3, round: 1 },
-  { dur: 6, phase: 4, round: 1 }, { dur: 4, phase: 5, round: 1 },
+  { dur: 6, phase: 4, round: 1 },
+];
+const R1_WITH_RECOV: Seg[] = [...R1_COMMON, { dur: 4, phase: 5, round: 1 }]; // E:首轮 back-off 恢复
+const R2_SEGS: Seg[] = [
   { dur: 4, phase: 1, round: 2 }, { dur: 4, phase: 2, round: 2 }, { dur: 3, phase: 3, round: 2 },
   { dur: 9, phase: 4, round: 2 }, { dur: 6, phase: 5, round: 2 },
   { dur: 5, phase: 6, round: 2 }, { dur: 13, phase: 7, round: 2 },
 ];
-const E_LOOP = E_SEGS.reduce((a, b) => a + b.dur, 0);
+function twoRoundSegs(id: string): Seg[] {
+  return id === "E" ? [...R1_WITH_RECOV, ...R2_SEGS] : [...R1_COMMON, ...R2_SEGS];
+}
+const TWO_ROUND_LOOP: Record<string, number> = {};
+for (const id of ["B", "C", "E"]) TWO_ROUND_LOOP[id] = twoRoundSegs(id).reduce((a, b) => a + b.dur, 0);
 
 export function loopDurationFor(s: Scenario): number {
-  return s.id === "E" ? E_LOOP : LOOP_DURATION;
+  return TWO_ROUND_IDS.has(s.id) ? (TWO_ROUND_LOOP[s.id] ?? LOOP_DURATION) : LOOP_DURATION;
 }
 
 function phaseAtForScenario(s: Scenario, t: number): { index: number; progress: number; round: 1 | 2 } {
-  if (s.id === "E") {
+  if (TWO_ROUND_IDS.has(s.id)) {
+    const segs = twoRoundSegs(s.id);
     let acc = 0;
-    for (let i = 0; i < E_SEGS.length; i++) {
-      if (t < acc + E_SEGS[i].dur || i === E_SEGS.length - 1) {
-        return { index: E_SEGS[i].phase, progress: clamp((t - acc) / E_SEGS[i].dur, 0, 1), round: E_SEGS[i].round };
+    for (let i = 0; i < segs.length; i++) {
+      if (t < acc + segs[i].dur || i === segs.length - 1) {
+        return { index: segs[i].phase, progress: clamp((t - acc) / segs[i].dur, 0, 1), round: segs[i].round };
       }
-      acc += E_SEGS[i].dur;
+      acc += segs[i].dur;
     }
     return { index: 7, progress: 1, round: 2 as const };
   }
@@ -200,6 +211,33 @@ function simTForE(phaseIndex: number, p: number, round: 1 | 2): number {
   }
 }
 
+/** B/C 两轮 simT 映射:首轮故障持续(评估未通过不恢复),二轮推进到 faultEnd 完成恢复
+ *  基于各场景 faultStart(fs)/faultEnd(fe) 自适应。 */
+function simTForTwoRound(s: Scenario, phaseIndex: number, p: number, round: 1 | 2): number {
+  const fs = s.fault.faultStart;
+  const fe = fs + s.fault.faultDuration;
+  if (round === 1) {
+    switch (phaseIndex) {
+      case 0: return Math.max(1, fs - 6);
+      case 1: return lerp(Math.max(1, fs - 6), fs - 2, p);
+      case 2: return lerp(fs - 2, fs, p);
+      case 3: return fs;
+      case 4: return lerp(fs, fs + 2, p); // 根因+评估,故障持续
+      case 5: return lerp(fs + 2, fs + 4, p); // 评估未通过,故障仍未恢复
+      default: return fs + 4;
+    }
+  }
+  switch (phaseIndex) {
+    case 1: return lerp(fs + 4, fs + 6, p);
+    case 2: return lerp(fs + 6, fs + 8, p);
+    case 3: return fs + 8;
+    case 4: return lerp(fs + 8, fe - 2, p); // 二轮根因
+    case 5: return lerp(fe - 2, fe, p); // 二轮恢复 → SR 回升
+    case 6: return lerp(fe, fe + 4, p);
+    default: return Math.min(60, fe + 4);
+  }
+}
+
 /** 仿真时间戳随阶段推进 */
 function simTFor(s: Scenario, phaseIndex: number, p: number): number {
   const fs = s.fault.faultStart;
@@ -222,6 +260,81 @@ function simTFor(s: Scenario, phaseIndex: number, p: number): number {
     default:
       return 58;
   }
+}
+
+// —— D/E 实时仿真数据(挪自 SIM 引擎):物联注册/会话请求率 + 全网 CPU,随 simT 波动 ——
+//   与 KPI 曲线共用 iotRegAt/sessIotAt,保证曲线与实时数值一致。
+
+/** D/E 物联注册请求数/s(按仿真时间,与 KPI 曲线一致) */
+export function iotRegAt(s: Scenario, t: number): number {
+  if (s.id === "E") {
+    if (t < 28) return 5;
+    if (t < 30) return 180;
+    if (t < 33) return lerp(180, 140, (t - 30) / 3); // back-off 部分缓解
+    if (t < 44) return 140; // 未收敛
+    if (t < 52) return lerp(140, 5, (t - 44) / 8); // NSSAI+APN 完全恢复
+    return 5;
+  }
+  const fs = s.fault.faultStart, fe = fs + s.fault.faultDuration;
+  if (t < fs) return 5;
+  if (t < fe) { const rs = fs + (fe - fs) * 0.6; return t < rs ? 180 : lerp(180, 5, (t - rs) / (fe - rs)); }
+  return 5;
+}
+
+/** D/E 物联 PDU 会话建立数/s */
+export function sessIotAt(s: Scenario, t: number): number {
+  if (s.id === "E") {
+    if (t < 28) return 40;
+    if (t < 30) return 400;
+    if (t < 33) return lerp(400, 300, (t - 30) / 3);
+    if (t < 44) return 300;
+    if (t < 52) return lerp(300, 40, (t - 44) / 8);
+    return 40;
+  }
+  const fs = s.fault.faultStart, fe = fs + s.fault.faultDuration;
+  if (t < fs) return 40;
+  if (t < fe) { const rs = fs + (fe - fs) * 0.6; return t < rs ? 400 : lerp(400, 40, (t - rs) / (fe - rs)); }
+  return 40;
+}
+
+/** 风暴强度 0..1(由物联注册率归一) */
+export function stormSi(s: Scenario, t: number): number {
+  return clamp((iotRegAt(s, t) - 5) / 175, 0, 1);
+}
+
+/** D/E 实时请求率 + CPU(随 simT 波动,挪自 SIM 引擎同款公式) */
+export function liveStormRates(s: Scenario, simT: number) {
+  const si = stormSi(s, simT);
+  const iotRegRate = iotRegAt(s, simT);
+  return {
+    amfCpu: 40 + si * 52,
+    smfCpu: 38 + si * 50,
+    regRate: 15 + iotRegRate,
+    iotRegRate,
+    sessionRate: sessIotAt(s, simT),
+    twoCThrottle: si * 0.35,
+  };
+}
+
+/** 全网 NE CPU%(AMF/SMF 来自风暴强度;其它估算 + 实例噪声,随 simT 波动) */
+export function liveNeCpu(s: Scenario, simT: number): Record<string, number> {
+  const graph = s.realGraph;
+  if (!graph) return {};
+  const si = stormSi(s, simT);
+  const out: Record<string, number> = {};
+  let seed = (Math.floor(simT * 5) + 1) | 0;
+  const noise = () => { seed = (Math.imul(seed, 9301) + 49297) % 233280; return seed / 233280; };
+  for (const n of graph.nodes) {
+    let cpu: number;
+    if (n.type === "AMF") cpu = 40 + si * 52;
+    else if (n.type === "SMF") cpu = 38 + si * 50;
+    else if (n.type === "gNB") cpu = 30 + si * 14;
+    else if (n.type === "UPF") cpu = 32 + si * 10;
+    else cpu = 26 + si * 4;
+    cpu += (noise() - 0.5) * 4;
+    out[n.id] = Math.max(5, Math.min(99, Math.round(cpu)));
+  }
+  return out;
 }
 
 const HEADLINES: Record<number, { h: string; s: string }> = {
@@ -345,12 +458,32 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   const phase = PHASES[phaseIndex];
   const p = prepare(s);
   const { neSet } = affectedEntities(s.fault);
-  const simT = clamp(s.id === "E" ? simTForE(phaseIndex, progress, eRound) : simTFor(s, phaseIndex, progress), 1, 60);
+  const simT = clamp(
+    s.id === "E" ? simTForE(phaseIndex, progress, eRound)
+      : TWO_ROUND_IDS.has(s.id) ? simTForTwoRound(s, phaseIndex, progress, eRound)
+        : simTFor(s, phaseIndex, progress),
+    1, 60,
+  );
 
-  // 推理步揭示(阶段4) — E 两轮:轮1揭示1-6,轮2揭示7-12
+  // D/E(iot_storm)实时仿真数据:CPU/请求率随 simT 波动(挪自 SIM 引擎,DEMO 内置)
+  const isStorm = s.fault.faultType === "iot_storm";
+  const simRates = isStorm ? liveStormRates(s, simT) : undefined;
+  const simNeCpu = isStorm ? liveNeCpu(s, simT) : undefined;
+
+  // 推理步揭示(阶段4) — 两轮场景(B/C/E):轮1揭示1-6,轮2揭示7-12
   const total = s.reasoning.length;
+  const isTwoRound = TWO_ROUND_IDS.has(s.id);
+  // 回路:B/C 首轮⑤评估未通过 → loop①(⑤ 回 Agent1,Agent2 内部,不走 Agent3)
+  //       E 首轮 back-off 未收敛 → loop②(经 Agent3,A3→A1);二轮回到 Agent1 瞬间(phase1)对应回路保持亮
+  const failBC = (s.id === "B" || s.id === "C") && phaseIndex === 4 && progress > 0.6;
+  const failE = s.id === "E" && phaseIndex >= 5;
+  const loopBackKind: "loop1" | "loop2" | null = isTwoRound
+    ? ((eRound === 1 && (failBC || failE)) || (eRound === 2 && phaseIndex <= 1)
+      ? (s.id === "E" ? "loop2" : "loop1")
+      : null)
+    : null;
   let revealedCount: number;
-  if (s.id === "E") {
+  if (isTwoRound) {
     if (phaseIndex < 4) revealedCount = eRound === 2 ? 6 : 0;
     else if (phaseIndex === 4) revealedCount = eRound === 1 ? Math.ceil(progress * 6) : 6 + Math.ceil(progress * (total - 6));
     else revealedCount = eRound === 1 ? 6 : total; // phase≥5:首轮仅 1-6 步,二轮才全部
@@ -358,7 +491,7 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     revealedCount = phaseIndex < 4 ? 0 : phaseIndex === 4 ? Math.ceil(progress * total) : total;
   }
   const reasoningSteps: ReasonStep[] = s.reasoning.slice(0, revealedCount);
-  const conclusionRevealed = (s.id === "E" ? eRound === 2 : phaseIndex > 4) || (phaseIndex === 4 && revealedCount >= total);
+  const conclusionRevealed = (isTwoRound ? eRound === 2 : phaseIndex > 4) || (phaseIndex === 4 && revealedCount >= total);
 
   // 聚焦 NE:阶段2-3=检测到的受影响集;阶段4=已揭示步骤的高亮;阶段5=隔离集
   let affectedNe: string[] = [];
@@ -381,16 +514,23 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // 生成校验揭示(阶段1)
   const generationChecksReveal = phaseIndex < 1 ? 0 : phaseIndex === 1 ? easeOut(progress) : 1;
 
-  // 恢复动作揭示(阶段5) — E 两轮:轮1=back-off(1条),轮2=NSSAI+APN(3条)
+  // 恢复动作揭示(阶段5) — 两轮场景:
+  //   E: 轮1=back-off(1条,部分缓解);轮2=NSSAI+APN 全部
+  //   B/C: 轮1 评估未通过→不执行恢复(空);轮2 渐进揭示
   const recoveryActive = phaseIndex === 5 || phaseIndex === 6;
   let recoveryActions: RecoveryAction[] = [];
   let rerouteEdges: string[] = [];
   let cordonedNe: string[] = [];
   if (phaseIndex === 5) {
     if (s.id === "E") {
-      // E: 4 条恢复动作(r1_backoff, r2_nssai, r2_apn, r2_ratio)
       const n = eRound === 1 ? Math.min(1, Math.ceil(progress * 1)) : p.recoveryActions.length;
       recoveryActions = p.recoveryActions.slice(0, n);
+    } else if (isTwoRound) {
+      // B/C:仅二轮执行恢复;轮1评估未通过,recoveryActions 保持空
+      if (eRound === 2) {
+        const n = Math.ceil(progress * p.recoveryActions.length);
+        recoveryActions = p.recoveryActions.slice(0, n);
+      }
     } else {
       const n = Math.ceil(progress * p.recoveryActions.length);
       recoveryActions = p.recoveryActions.slice(0, n);
@@ -464,6 +604,7 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   const cap = HEADLINES[phaseIndex];
   const subline = SCENARIO_SUB[s.id]?.[phaseIndex] ?? cap.s;
   return {
+    scenarioId: s.id,
     phaseIndex,
     phase,
     phaseProgress: progress,
@@ -471,6 +612,7 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     simT,
     loop,
     round: eRound,
+    loopBackKind,
     twinMode,
     showAnomaly,
     affectedNe,
@@ -505,5 +647,7 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     userLevel,
     userLevelActive,
     skillReveal,
+    simRates,
+    simNeCpu,
   };
 }

@@ -52,7 +52,7 @@ export const PIPELINE: PipelineStep[] = [
   { n: 1, cn: "数据预处理", en: "DATA PREP", icon: "🔧", skill: { id: "telemetry_aggregation", cn: "遥测聚合归一" } },
   { n: 2, cn: "拓扑分析", en: "TOPOLOGY", icon: "🗺", skill: { id: "topology_modeling", cn: "拓扑·业务流建模" } },
   { n: 3, cn: "异常检测", en: "ANOMALY", icon: "🔍", skill: { id: "anomaly_detection", cn: "iFFusion 融合检测" } },
-  { n: 4, cn: "根因定位", en: "ROOT CAUSE", icon: "🎯", skill: { id: "root_cause", cn: "故障聚合·均质化·CHR 降噪" } },
+  { n: 4, cn: "根因定位", en: "ROOT CAUSE", icon: "🎯", skill: { id: "root_cause", cn: "故障聚合·均质化" } },
   { n: 5, cn: "输出评估", en: "EVALUATION", icon: "📊", skill: { id: "trace_quality", cn: "推理链质析" } },
   { n: 6, cn: "恢复策略", en: "RECOVERY", icon: "🛡", skill: { id: "recovery_orchestration", cn: "恢复编排" } },
 ];

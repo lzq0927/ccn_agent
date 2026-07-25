@@ -170,10 +170,20 @@ const FAULT_B: FaultSpec = {
 };
 
 const REASONING_B: ReasonStep[] = [
-  { n: 1, type: "tool_call", text: "iFFusion 融合异常检测:KPI + CHR 多维时序统计，网络侧 SMF 方向成功率突降(本次突变)，终端原因值(鉴权/兼容性)呈周期性偏高。", result: "网络突变 + 终端周期性噪声 · 信号模糊", highlight: { nes: ["SMF_1"] } },
-  { n: 2, type: "tool_call", text: "网络/终端难分 → Agent Loop 迭代②:拉取终端原因值的持续周期性 CHR 历史，做多维时序对比。", highlight: { nes: ["SMF_1"] } },
-  { n: 3, type: "thinking", text: "CHR 降噪:终端原因值长期基线偏高(非突增)→ 既有噪声剔除;聚类收敛于网络侧 5GSM#37,与突降同步 → 锁定 SMF_1。", highlight: { nes: ["SMF_1"] } },
-  { n: 4, type: "conclusion", text: "排除终端噪声后，根因为 SMF_1，实施恢复。", result: "GUIDED · 命中", highlight: { nes: ["SMF_1"] } },
+  // ===== 第一轮(评估未通过 → 回 Agent1 补采 CHR) =====
+  { n: 1, type: "tool_call", text: "[轮1·①预处理] iFFusion 检测:SMF 方向会话成功率突降,终端原因值(鉴权/兼容)呈周期性偏高。", result: "网络突变 + 终端周期噪声 · 信号模糊", highlight: { nes: ["SMF_1"] } },
+  { n: 2, type: "tool_call", text: "[轮1·②拓扑] 拓扑分析:异常集中于 SMF_1 会话管理方向,终端侧原因值干扰严重。", highlight: { nes: ["SMF_1"] } },
+  { n: 3, type: "tool_call", text: "[轮1·③检测] iFFusion 融合检测确认异常,但终端噪声与网络根因难以区分。", result: "异常确认 · 终端/网络难分", highlight: { nes: ["SMF_1"] } },
+  { n: 4, type: "thinking", text: "[轮1·◇策略匹配→④根因] 初判根因 SMF_1,但终端原因值长期偏高可能掩盖真实网络根因。", highlight: { nes: ["SMF_1"] } },
+  { n: 5, type: "tool_call", text: "[轮1·⑤输出评估] 🤖 大模型评估:置信度 0.55 < 阈值,终端噪声未充分排除,需更多 CHR 历史。", result: "评估未通过 · 置信度不足" },
+  { n: 6, type: "tool_call", text: "[轮1·⑥] 评估未通过 → loop② 回 Agent1 拉取终端原因值持续/周期性 CHR 历史。", result: "回 Agent1 补采 CHR" },
+  // ===== 回到 Agent1 第二轮 =====
+  { n: 7, type: "thinking", text: "Agent3 判定置信不足 → loop② 回 Agent1 补采 CHR 历史 → Agent2 第二轮执行 6 步。" },
+  { n: 8, type: "tool_call", text: "[轮2·①②③] 二轮采集 + 拓扑 + 检测:拉取终端原因值多维时序历史,做降噪前后对比。", highlight: { nes: ["SMF_1"] } },
+  { n: 9, type: "tool_call", text: "[轮2·④根因] CHR 降噪排除终端既有噪声(长期基线偏高,非突增)→ 5GSM#37 与突降同步 → 锁定 SMF_1。", result: "CHR 降噪 → 锁定 SMF_1", highlight: { nes: ["SMF_1"] } },
+  { n: 10, type: "tool_call", text: "[轮2·⑤输出评估] 🤖 大模型评估通过,置信度达标,根因 SMF_1 确认。", result: "评估通过" },
+  { n: 11, type: "tool_call", text: "[轮2·⑥恢复] 隔离 SMF_1,会话切换至健康 SMF_2 接管,受影响 UE 重建会话。", result: "第二轮恢复执行中", highlight: { nes: ["SMF_1"] } },
+  { n: 12, type: "conclusion", text: "第二轮恢复策略执行后网络恢复。Agent3 评估:已恢复 → 沉淀 CHR 降噪 skill。", result: "GUIDED · 第二轮收敛" },
 ];
 
 const CONFIDENCE_B: ConfidenceBreakdown = {
@@ -229,11 +239,20 @@ const FAULT_C: FaultSpec = {
 };
 
 const REASONING_C: ReasonStep[] = [
-  { n: 1, type: "tool_call", text: "iFFusion 异常检测:总体微跌，KPI 无网元异常、CHR 原因分散。", result: "信号模糊 · 未收敛" },
-  { n: 2, type: "tool_call", text: "首轮未收敛 → Agent Loop 迭代②(自主探索):CHR 降噪去散点 + 聚类，原因值仍分散、无网络共因。", highlight: { nes: ["gNB_2"] } },
-  { n: 3, type: "tool_call", text: "仍无共因 → Agent Loop 迭代③:换角度做用户分群追踪，gNB_2 物联终端群体失败率 52%。", highlight: { nes: ["gNB_2"] } },
-  { n: 4, type: "thinking", text: "群体异常独立于网络 NE(全网健康)→ 信号收敛，网络无需隔离。", highlight: { nes: ["gNB_2"] } },
-  { n: 5, type: "conclusion", text: "物联终端群体异常，网络健康，下发用户侧恢复。", result: "AUTONOMOUS · 用户侧恢复" },
+  // ===== 第一轮(大模型初判 AMF_1,评估未通过 → 回 Agent1) =====
+  { n: 1, type: "tool_call", text: "[轮1·①预处理] iFFusion 检测:总体微跌,KPI 无网元异常,CHR 原因值分散。", result: "信号模糊 · 未收敛" },
+  { n: 2, type: "tool_call", text: "[轮1·②拓扑] 拓扑分析:无明显网元异常,异常信号来源不明。", highlight: { nes: [] } },
+  { n: 3, type: "tool_call", text: "[轮1·③检测] iFFusion 融合检测:信号模糊,未收敛到具体网元。", result: "信号模糊 · 未收敛" },
+  { n: 4, type: "thinking", text: "[轮1·◇策略匹配→④根因] 🤖 大模型探索:初步判断 AMF_1 问题(注册方向异常)。", highlight: { nes: ["AMF_1"] } },
+  { n: 5, type: "tool_call", text: "[轮1·⑤输出评估] 🤖 大模型评估:置信度 0.28 < 阈值,AMF_1 判断证据不足,需换角度补采。", result: "评估未通过 · 证据不足" },
+  { n: 6, type: "tool_call", text: "[轮1·⑥] 评估未通过 → loop② 回 Agent1 补采数据,换角度自主探索。", result: "回 Agent1 补采" },
+  // ===== 回到 Agent1 第二轮 =====
+  { n: 7, type: "thinking", text: "Agent3 判定置信不足 → loop② 回 Agent1 → Agent2 第二轮自主探索(换角度)。" },
+  { n: 8, type: "tool_call", text: "[轮2·①②③] 二轮采集:CHR 降噪去散点 + 聚类(原因值仍分散、无网络共因)+ 用户分群追踪。", highlight: { nes: ["gNB_2"] } },
+  { n: 9, type: "tool_call", text: "[轮2·④根因] 用户分群追踪:gNB_2 物联终端群体失败率 52%,群体异常独立于网络 NE(全网健康)。", result: "物联终端群体异常", highlight: { nes: ["gNB_2"] } },
+  { n: 10, type: "tool_call", text: "[轮2·⑤输出评估] 🤖 大模型评估通过:定位物联终端群体异常,网络健康,无需隔离网元。", result: "评估通过 · 网络健康" },
+  { n: 11, type: "tool_call", text: "[轮2·⑥恢复] 下发用户侧恢复:通知受影响 UE 换路/重选,引导至邻区健康 gNB。", result: "第二轮恢复执行中", highlight: { nes: ["gNB_2"] } },
+  { n: 12, type: "conclusion", text: "物联终端群体异常,网络健康,用户侧恢复。Agent3 评估:已恢复 → 沉淀用户分群追踪 skill。", result: "AUTONOMOUS · 第二轮收敛" },
 ];
 
 const CONFIDENCE_C: ConfidenceBreakdown = {

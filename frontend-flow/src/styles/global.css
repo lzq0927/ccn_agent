@@ -315,15 +315,15 @@ body {
   }
 }
 .flow-dash {
-  stroke-dasharray: 4 12;
+  stroke-dasharray: 9 4;
   animation: dashmove 1.6s linear infinite;
 }
 .flow-dash-rev {
-  stroke-dasharray: 4 12;
+  stroke-dasharray: 9 4;
   animation: dashmove-rev 1.6s linear infinite;
 }
 .flow-dash-fast {
-  stroke-dasharray: 3 9;
+  stroke-dasharray: 7 3;
   animation: dashmove 0.7s linear infinite;
 }
 

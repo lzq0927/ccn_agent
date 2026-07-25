@@ -3,7 +3,7 @@ import { PIPELINE, GATE } from "../../data/plan";
 import type { StoryState } from "../../story/types";
 
 const W = 780;
-const H = 880;
+const H = 740;
 
 const A1 = { x: 15, y: 120, w: 170, h: 80, cx: 100, color: "#38bdf8", cn: "Agent 1", sub: "数据采集" };
 const A2 = { x: 265, y: 120, w: 200, h: 80, cx: 365, color: "#2dd4bf", cn: "Agent 2", sub: "故障感知" };
@@ -38,19 +38,8 @@ const GRAY = "rgba(148,163,184,0.35)";
 
 type Status = "done" | "active" | "pending";
 
-function stepState(phase: number, p: number, round: 1 | 2): { doneUpTo: number; active: number | null; gate: Status } {
-  // 第二轮:第一轮 6 步基线为「已完成」,仅高亮当前重新执行的步(避免全灰闪烁,读作"二轮重跑")
-  if (round === 2) {
-    switch (phase) {
-      case 0: case 1: return { doneUpTo: 6, active: null, gate: "done" };
-      case 2: return p < 0.5 ? { doneUpTo: 6, active: 2, gate: "done" } : { doneUpTo: 6, active: 3, gate: "done" };
-      case 3: return { doneUpTo: 6, active: null, gate: "active" };
-      case 4: return p < 0.6 ? { doneUpTo: 6, active: 4, gate: "done" } : { doneUpTo: 6, active: 5, gate: "done" };
-      case 5: return { doneUpTo: 6, active: 6, gate: "done" };
-      case 6: return { doneUpTo: 6, active: null, gate: "done" };
-      default: return { doneUpTo: 6, active: null, gate: "done" };
-    }
-  }
+function stepState(phase: number, p: number): { doneUpTo: number; active: number | null; gate: Status } {
+  // 两轮共用同一套 pending/active/done 推进逻辑(二轮重跑时未执行到的步保持 pending 灰)
   switch (phase) {
     case 0: return { doneUpTo: 0, active: null, gate: "pending" };
     case 1: return { doneUpTo: 0, active: null, gate: "pending" };
@@ -73,20 +62,22 @@ export function AgentLoop({ state }: { state: StoryState }) {
   const p = state.phaseProgress;
   const round = state.round;
   const isR2 = round === 2;
-  const ss = stepState(phase, p, round);
+  const ss = stepState(phase, p);
   const doneUpTo = ss.doneUpTo;
   const active = ss.active;
   const gate = ss.gate;
-  // 第二轮:6 步基线保持「已完成」,仅高亮当前重跑的步;首轮维持原 pending/active/done 逻辑
-  const st = (n: number): Status => (n === active ? "active" : isR2 ? "done" : n <= doneUpTo ? "done" : "pending");
+  // 两轮共用:活动步=active,已执行≤doneUpTo=done,未执行=pending(灰)
+  const st = (n: number): Status => (n === active ? "active" : n <= doneUpTo ? "done" : "pending");
 
   // #4: phase6(Agent2恢复完成)即切换到 Agent3
   const activeAgent = phase === 1 ? 1 : phase >= 2 && phase <= 5 ? 2 : phase >= 6 ? 3 : 0;
-  // #1/#3: D(guided)恢复成功→loop③亮(phase7); E(autonomous)恢复后未恢复→loop②亮(phase5-6)
-  // E 第二轮全程亮 loop②(回 Agent1 重采→Agent2 二轮执行),恢复成功(phase7)后熄灭转 loop③
-  const l1 = false;
-  const l2 = state.route === "autonomous" && phase < 7 && (isR2 || phase === 5 || phase === 6);
-  const l3 = phase === 7;
+  // 回环弧语义(director 算 loopBackKind):
+  //   loop① (A2 ⑤ → A1):B/C 首轮⑤评估未通过 → 回 Agent1(走 Agent2 内部,不经 Agent3)
+  //   loop② (A3 → A1):E 首轮 back-off 未收敛 → 经 Agent3 回 Agent1
+  //   loop③ (A3 → A2):恢复成功 → 沉淀 skill(无回路 且 phase6+)
+  const l1 = state.loopBackKind === "loop1";
+  const l2 = state.loopBackKind === "loop2";
+  const l3 = state.loopBackKind === null && phase >= 6;
 
   // ◇→④ 的状态(#3: 使用 st(4) 正确三态)
   const gateTo4 = st(4);
@@ -119,7 +110,7 @@ export function AgentLoop({ state }: { state: StoryState }) {
 
       {/* A2 -> pipeline (dim when A2 not active) */}
       <line x1={A2.cx} y1={A2.y + A2.h} x2={A2.cx} y2={250} stroke={activeAgent === 2 ? "#7dd3fc" : GRAY} strokeWidth={activeAgent === 2 ? 2.2 : 1.4} strokeLinecap="round" markerEnd={activeAgent === 2 ? "url(#al-a)" : undefined} className={activeAgent === 2 ? "flow-dash" : undefined} />
-      <text x={28} y={246} fontSize={11} fontWeight={700} fill={activeAgent === 2 ? "#5eead4" : "var(--text-faint)"} fontFamily="var(--font-mono)" letterSpacing="0.05em">{"故障感知 Agent · 内部 6 步流程"}</text>
+      <text x={28} y={246} fontSize={13} fontWeight={700} fill={activeAgent === 2 ? "#5eead4" : "var(--text-faint)"} fontFamily="var(--font-mono)" letterSpacing="0.05em">{"故障感知 Agent · 内部 6 步流程"}</text>
 
       {/* E 两轮徽标:首轮 back-off 未收敛(青) / 二轮 NSSAI+APN 收敛(琥珀,呼应 loop②) */}
       {state.route === "autonomous" && (
@@ -133,32 +124,38 @@ export function AgentLoop({ state }: { state: StoryState }) {
       {/* pipeline frame */}
       <rect x={28} y={260} width={724} height={380} rx={12} fill="rgba(45,212,191,0.04)" stroke="rgba(45,212,191,0.28)" strokeWidth={1.3} strokeDasharray="3 7" />
 
-      {/* Row1: ①→②→③→◇ (#3: 全部使用 st() 三态,执行到哪亮到哪) */}
+      {/* nodes 先画(底层) */}
+      {TOPROW.map((item) => (<Step key={"s" + item.n} x={item.x} y={R1Y} n={item.n} status={st(item.n)} />))}
+      <Gate key="gate" x={GATE_X} y={R1Y} status={gate} />
+      {BOTROW.map((item) => (<Step key={"s" + item.n} x={item.x} y={R2Y} n={item.n} status={st(item.n)} />))}
+
+      {/* 连线 + 流动粒子画在节点之上(顶层,确保活动步连线+粒子不被遮挡) */}
+      {/* Row1: ①→②→③→◇ (执行到哪亮到哪) */}
       <Trunk x1={TOPROW[0].x + HW} x2={TOPROW[1].x - HW} y={R1Y} status={st(2)} />
       <Trunk x1={TOPROW[1].x + HW} x2={TOPROW[2].x - HW} y={R1Y} status={st(3)} />
       <Trunk x1={TOPROW[2].x + HW} x2={GATE_X - GHW} y={R1Y} status={gate} />
 
-      {/* #3: ◇→④ 直线下行,正确三态(pending=灰/done=绿/active=蓝) */}
+      {/* ◇→④ 直线下行,正确三态(pending=灰/done=绿/active=蓝) */}
       <line
         x1={GATE_X} y1={R1Y + GH} x2={BOTROW[0].x} y2={R2Y - NH}
-        stroke={statusColor(gateTo4)} strokeWidth={statusWidth(gateTo4, 2.4)} strokeLinecap="round"
+        stroke={statusColor(gateTo4)} strokeWidth={gateTo4 === "active" ? 4 : statusWidth(gateTo4, 2.4)} strokeLinecap="round"
         strokeOpacity={gateTo4 === "done" ? 0.8 : 1}
         className={gateTo4 !== "pending" ? "flow-dash" : undefined}
         markerEnd={statusMarker(gateTo4)}
         filter={gateTo4 === "active" ? "url(#al-glow)" : undefined}
       />
+      {gateTo4 === "active" && (
+        <circle r={3.6} fill="#bae6fd" filter="url(#al-glow)">
+          <animateMotion dur="1.1s" repeatCount="indefinite" path={`M ${GATE_X} ${R1Y + GH} L ${BOTROW[0].x} ${R2Y - NH}`} />
+        </circle>
+      )}
 
       {/* Row2 R→L: ④→⑤→⑥ */}
       <TrunkRev x1={BOTROW[0].x - HW} x2={BOTROW[1].x + HW} y={R2Y} status={st(5)} />
       <TrunkRev x1={BOTROW[1].x - HW} x2={BOTROW[2].x + HW} y={R2Y} status={st(6)} />
 
-      {/* nodes */}
-      {TOPROW.map((item) => (<Step key={"s" + item.n} x={item.x} y={R1Y} n={item.n} status={st(item.n)} />))}
-      <Gate key="gate" x={GATE_X} y={R1Y} status={gate} />
-      {BOTROW.map((item) => (<Step key={"s" + item.n} x={item.x} y={R2Y} n={item.n} status={st(item.n)} />))}
-
-      {/* #1: loop① 永不亮(D/E 的 ⑤始终通过),弧度加大 */}
-      <LoopLine d={"M " + BOTROW[1].x + " " + (R2Y + NH) + " C " + BOTROW[1].x + " 830, 5 830, 5 " + (A1.y + A1.h)} color={RETRY} marker={"url(#al-ar)"} on={l1} label={"① 策略探索 / 换策略补采数据"} lx={(BOTROW[1].x + 5) / 2} ly={822} />
+      {/* loop①:B/C 首轮⑤评估未通过 → 回 Agent1 补采(Agent2 内部回路) */}
+      <LoopLine d={"M " + BOTROW[1].x + " " + (R2Y + NH) + " C " + BOTROW[1].x + " 680, 5 680, 5 " + (A1.y + A1.h)} color={RETRY} marker={"url(#al-ar)"} on={l1} label={"① ⑤评估未通过 → 回 Agent1 补采"} lx={(BOTROW[1].x + 5) / 2} ly={672} />
     </svg>
   );
 }
@@ -169,8 +166,8 @@ function AgentBox({ a, on, icon }: { a: typeof A1; on: boolean; icon: string }) 
       {on && <rect x={-4} y={-4} width={a.w + 8} height={a.h + 8} rx={12} fill="none" stroke={a.color} strokeWidth="1.1" className="alert-ring" opacity={0.55} />}
       <rect x={0} y={0} width={a.w} height={a.h} rx={10} fill={on ? a.color + "1f" : "rgba(10,16,30,0.45)"} stroke={on ? a.color : "rgba(148,163,184,0.3)"} strokeWidth={on ? 2 : 1.4} filter={on ? "url(#al-glow)" : undefined} />
       <text x={14} y={36} fontSize={20}>{icon}</text>
-      <text x={40} y={35} fontSize={15} fontWeight={800} fill={on ? "var(--text-bright)" : "var(--text-soft)"} fontFamily="var(--font-sans)">{a.cn}</text>
-      <text x={40} y={55} fontSize={11.5} fontWeight={600} fill={on ? a.color : "var(--text-mid)"} fontFamily="var(--font-sans)">{a.sub}</text>
+      <text x={40} y={35} fontSize={16} fontWeight={800} fill={on ? "var(--text-bright)" : "var(--text-soft)"} fontFamily="var(--font-sans)">{a.cn}</text>
+      <text x={40} y={56} fontSize={13} fontWeight={600} fill={on ? a.color : "var(--text-mid)"} fontFamily="var(--font-sans)">{a.sub}</text>
       {on && <motion.circle cx={a.w - 14} cy={16} r={5} fill={a.color} animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1, repeat: Infinity }} />}
     </g>
   );
@@ -181,18 +178,40 @@ function FlowArrow({ x1, x2, y, label, active }: { x1: number; x2: number; y: nu
   return (
     <g opacity={active ? 1 : 0.4}>
       <line x1={x1} y1={y} x2={x2 - 8} y2={y} stroke={active ? "#7dd3fc" : GRAY} strokeWidth={active ? 2 : 1.3} strokeLinecap="round" className={active ? "flow-dash" : undefined} markerEnd={active ? "url(#al-a)" : undefined} />
-      <text x={(x1 + x2) / 2} y={y - 6} textAnchor="middle" fontSize={9.5} fill={active ? "var(--text-mid)" : "var(--text-faint)"} fontFamily="var(--font-mono)">{label}</text>
+      <text x={(x1 + x2) / 2} y={y - 6} textAnchor="middle" fontSize={11} fill={active ? "var(--text-mid)" : "var(--text-faint)"} fontFamily="var(--font-mono)">{label}</text>
     </g>
   );
 }
 
-/** #3: Trunk 正确三态:pending=灰 / active=蓝+脉冲 / done=绿 */
+/** #3: Trunk 正确三态:pending=灰 / active=蓝粗线+流动粒子+箭头 / done=绿虚线 */
 function Trunk({ x1, x2, y, status }: { x1: number; x2: number; y: number; status: Status }) {
-  return <line x1={x1} y1={y} x2={x2 - 8} y2={y} stroke={statusColor(status)} strokeWidth={statusWidth(status, 2.4)} strokeLinecap="round" strokeOpacity={status === "done" ? 0.8 : 1} className={status !== "pending" ? "flow-dash" : undefined} markerEnd={statusMarker(status)} filter={status === "active" ? "url(#al-glow)" : undefined} />;
+  const active = status === "active";
+  const ex = x2 - 8;
+  return (
+    <g>
+      <line x1={x1} y1={y} x2={ex} y2={y} stroke={statusColor(status)} strokeWidth={active ? 4 : statusWidth(status, 2.4)} strokeLinecap="round" strokeOpacity={status === "done" ? 0.8 : 1} className={status !== "pending" ? "flow-dash" : undefined} markerEnd={statusMarker(status)} filter={active ? "url(#al-glow)" : undefined} />
+      {active && (
+        <circle r={3.6} fill="#bae6fd" filter="url(#al-glow)">
+          <animateMotion dur="1.1s" repeatCount="indefinite" path={`M ${x1} ${y} L ${ex} ${y}`} />
+        </circle>
+      )}
+    </g>
+  );
 }
 
 function TrunkRev({ x1, x2, y, status }: { x1: number; x2: number; y: number; status: Status }) {
-  return <line x1={x1} y1={y} x2={x2 + 8} y2={y} stroke={statusColor(status)} strokeWidth={statusWidth(status, 2.4)} strokeLinecap="round" strokeOpacity={status === "done" ? 0.8 : 1} className={status !== "pending" ? "flow-dash" : undefined} markerEnd={statusMarker(status)} filter={status === "active" ? "url(#al-glow)" : undefined} />;
+  const active = status === "active";
+  const ex = x2 + 8;
+  return (
+    <g>
+      <line x1={x1} y1={y} x2={ex} y2={y} stroke={statusColor(status)} strokeWidth={active ? 4 : statusWidth(status, 2.4)} strokeLinecap="round" strokeOpacity={status === "done" ? 0.8 : 1} className={status !== "pending" ? "flow-dash" : undefined} markerEnd={statusMarker(status)} filter={active ? "url(#al-glow)" : undefined} />
+      {active && (
+        <circle r={3.6} fill="#bae6fd" filter="url(#al-glow)">
+          <animateMotion dur="1.1s" repeatCount="indefinite" path={`M ${x1} ${y} L ${ex} ${y}`} />
+        </circle>
+      )}
+    </g>
+  );
 }
 
 function Step({ x, y, n, status }: { x: number; y: number; n: number; status: Status }) {
@@ -207,7 +226,7 @@ function Step({ x, y, n, status }: { x: number; y: number; n: number; status: St
       <rect x={-HW} y={-NH} width={HW * 2} height={NH * 2} rx={9} fill={fill} stroke={stroke} strokeWidth={isActive ? 2.3 : 1.5} filter={isActive ? "url(#al-glow)" : undefined} />
       <text x={-HW + 12} y={-NH + 23} fontSize={20} fontWeight={800} fill={isActive ? "#04070f" : done ? DONE : "var(--text-mid)"} fontFamily="var(--font-mono)">{n}</text>
       <text x={6} y={-NH + 22} textAnchor="middle" fontSize={14} fontWeight={700} fill={isActive ? "#04070f" : done ? "var(--text-bright)" : "var(--text-soft)"} fontFamily="var(--font-sans)">{step.cn}</text>
-      <text x={0} y={NH - 9} textAnchor="middle" fontSize={9} fill={isActive ? "#04070f" : done ? DONE : "var(--text-mid)"} fontFamily="var(--font-mono)">{step.skill.cn}</text>
+      <text x={0} y={NH - 8} textAnchor="middle" fontSize={11} fill={isActive ? "#04070f" : done ? DONE : "var(--text-mid)"} fontFamily="var(--font-mono)">{step.skill.cn}</text>
     </g>
   );
 }
@@ -221,8 +240,8 @@ function Gate({ x, y, status }: { x: number; y: number; status: Status }) {
     <g transform={"translate(" + x + " " + y + ")"}>
       {isActive && <rect x={-GHW - 7} y={-GH - 7} width={(GHW + 7) * 2} height={(GH + 7) * 2} rx={9} fill="none" stroke="#f59e0b" strokeWidth="1.1" className="alert-ring" opacity={0.55} />}
       <motion.polygon points={"0," + (-GH) + " " + GHW + ",0 0," + GH + " " + (-GHW) + ",0"} fill={fill} stroke={color} strokeWidth={isActive ? 2.3 : 1.5} filter={isActive ? "url(#al-glow)" : undefined} animate={isActive ? { scale: [1, 1.06, 1] } : { scale: 1 }} transition={isActive ? { duration: 1.6, repeat: Infinity } : { duration: 0 }} style={{ transformOrigin: "center", transformBox: "fill-box" }} />
-      <text x={0} y={-3} textAnchor="middle" fontSize={11} fontWeight={800} fill={isActive ? "#04070f" : done ? "var(--text-bright)" : "var(--text-soft)"} fontFamily="var(--font-sans)">{GATE.cn}</text>
-      <text x={0} y={12} textAnchor="middle" fontSize={7.5} fill={isActive ? "#04070f" : "var(--text-mid)"} fontFamily="var(--font-mono)">{GATE.en}</text>
+      <text x={0} y={-3} textAnchor="middle" fontSize={12} fontWeight={800} fill={isActive ? "#04070f" : done ? "var(--text-bright)" : "var(--text-soft)"} fontFamily="var(--font-sans)">{GATE.cn}</text>
+      <text x={0} y={13} textAnchor="middle" fontSize={9} fill={isActive ? "#04070f" : "var(--text-mid)"} fontFamily="var(--font-mono)">{GATE.en}</text>
     </g>
   );
 }
