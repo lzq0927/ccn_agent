@@ -6,8 +6,11 @@ discover_plugins() 启动时 import 全部插件。
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Literal, Optional, Protocol, runtime_checkable
+
+logger = logging.getLogger(__name__)
 
 
 @runtime_checkable
@@ -80,6 +83,8 @@ REGISTRY: dict[str, ScenarioPlugin] = {}
 
 
 def register(plugin: ScenarioPlugin) -> None:
+    if plugin.id in REGISTRY:
+        logger.debug("overwriting plugin %s in REGISTRY", plugin.id)
     REGISTRY[plugin.id] = plugin
 
 
@@ -95,9 +100,12 @@ def discover_plugins(plugin_module_prefix: str = "agents.simulation.plugins") ->
     try:
         pkg = importlib.import_module(plugin_module_prefix)
     except ModuleNotFoundError:
+        logger.debug("no plugins package at %s", plugin_module_prefix)
         return
     for m in pkgutil.iter_modules(pkg.__path__):
         mod = importlib.import_module(f"{plugin_module_prefix}.{m.name}")
         plugin = getattr(mod, "PLUGIN", None)
         if plugin is not None:
             register(plugin)
+        else:
+            logger.debug("plugin module %s has no PLUGIN global", m.name)

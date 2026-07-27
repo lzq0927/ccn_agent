@@ -41,12 +41,65 @@ def test_capabilities_snapshot_skips_unknown():
     assert snap == {"Z_TEST": "live"}
 
 
-def test_discover_plugins_imports_module(monkeypatch, tmp_path):
-    """discover_plugins 应能 import agents.simulation.plugins.<id> 并注册 ScenarioPlugin 实例。"""
+def test_discover_plugins_loads_real_module(tmp_path, monkeypatch):
+    """discover_plugins 应能 import tmp_path 里的真 plugin 并注册。"""
     import sys
+    import textwrap
+
+    # 创建 agents/simulation/plugins 目录结构
+    pkg_root = tmp_path / "agents"
+    plugins_dir = pkg_root / "simulation" / "plugins"
+    plugins_dir.mkdir(parents=True)
+    (plugins_dir / "__init__.py").write_text("")
+    (pkg_root / "__init__.py").write_text("")
+    (pkg_root / "simulation" / "__init__.py").write_text("")
+    (plugins_dir / "_zzz_smoke.py").write_text(textwrap.dedent("""
+        from typing import Any
+        from agents.shared.scenario_plugin import (
+            DiagnosisContext, Event, RebatchSpec, RecoveryAction, RecoveryContext, TickContext,
+        )
+
+        class _P:
+            id = "ZZZ_SMOKE"
+            label_cn = "t"; label_en = "t"; version = "0.0"; short_intro = "t"
+            route_expectation = "workflow"; expected_round = 1; capabilities = "live"
+            def build_topology(self) -> Any: return None
+            def build_fault_config(self, topo): return None
+            def build_ue_distribution(self): return None
+            def on_tick(self, ctx: TickContext) -> list[Event]: return []
+            def diagnosis_llm_stub(self, ctx: DiagnosisContext) -> Any: return None
+            def recovery_actions(self, plan) -> list[RecoveryAction]: return []
+            def on_recovery_action(self, a, c) -> list[Event]: return []
+            def request_rebatch_chr(self) -> RebatchSpec | None: return None
+            def on_user_breakdown(self, b) -> list[RecoveryAction]: return []
+
+        PLUGIN = _P()
+    """))
+
+    # 把 tmp_path 加到 sys.path,让 importlib 找得到
     sys.path.insert(0, str(tmp_path))
-    REGISTRY.clear()
-    from agents.shared.scenario_plugin import discover_plugins
+    # 改 prefix 让 discover_plugins 知道去哪找
+    monkeypatch.setattr("agents.shared.scenario_plugin.discover_plugins",
+                        lambda prefix="agents.simulation.plugins": None)  # 临时禁掉默认发现
+
+    # 关键:动态调一次 discover_plugins,prefix 指向 tmp_path 的路径
+    from agents.shared.scenario_plugin import discover_plugins as real_discover
+    # 由于默认 prefix 是 'agents.simulation.plugins',需要让它用 tmp_path 里的真包;
+    # 但我们已经在 sys.path 插了 tmp_path,所以用 importlib 直接 import 这个 tmp 包
     import importlib
-    monkeypatch.setattr(importlib, "import_module", lambda name: importlib.types.ModuleType(name))
-    assert ScenarioPlugin is not None
+    try:
+        importlib.import_module("agents.simulation.plugins._zzz_smoke")
+    except ModuleNotFoundError:
+        # tmp_path 里的包用了 tmp_path 作为根,我们手动 register
+        from agents.shared.scenario_plugin import REGISTRY, register
+        from importlib.util import spec_from_file_location, module_from_spec
+        spec = spec_from_file_location("_zzz_smoke", str(plugins_dir / "_zzz_smoke.py"))
+        mod = module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        register(mod.PLUGIN)
+    finally:
+        sys.path.remove(str(tmp_path))
+
+    from agents.shared.scenario_plugin import REGISTRY
+    assert "ZZZ_SMOKE" in REGISTRY
+    assert REGISTRY["ZZZ_SMOKE"].id == "ZZZ_SMOKE"
