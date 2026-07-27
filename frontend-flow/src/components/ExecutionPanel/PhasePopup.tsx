@@ -14,7 +14,7 @@ import { getKpi, GENERATION_CHECKS } from "../../story/director";
 import { sample } from "../../data/kpi";
 import { ROUTE_COLORS, PHASES, srColor, STATUS } from "../../theme";
 import { llmAnalysis, METHOD_META } from "../../data/llm";
-import type { Scenario } from "../../data/types";
+import type { Scenario, RecoveryPlan } from "../../data/types";
 import type { StoryState } from "../../story/types";
 
 export function PhasePopup({ scenario, state }: { scenario: Scenario; state: StoryState }) {
@@ -277,6 +277,43 @@ function P3({ state }: { state: StoryState }) {
   );
 }
 
+// —— 用户分类弹窗(场景 F,phase 4):APN 矩阵(单 APN 异常)+ 终端矩阵(iPhone 不支持 back-off) ——
+//   轮1 仅展示 APN 矩阵(发现单 APN 异常);轮2 追加终端矩阵(发现 iPhone 不支持 back-off)
+function BreakdownCallout({ plan, round }: { plan: RecoveryPlan; round: 1 | 2 }) {
+  const b = plan.breakdown;
+  return (
+    <div style={{ marginTop: 6, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(45,212,191,0.45)", background: "rgba(45,212,191,0.07)" }}>
+      <div style={{ fontSize: 8.5, fontWeight: 800, color: "#5eead4", fontFamily: "var(--font-mono)", marginBottom: 4, letterSpacing: "0.04em" }}>🔎 用户分类 · 单 APN 异常 / iPhone 不支持 back-off</div>
+      <div style={{ fontSize: 7.5, fontWeight: 700, color: "var(--text-mid)", fontFamily: "var(--font-mono)", marginBottom: 2 }}>APN / DNN 分布(物联平台 APN 异常)</div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 3, marginBottom: 5 }}>
+        {b.apns.map((a) => (
+          <div key={a.id} title={a.cn} style={{ padding: "3px 4px", borderRadius: 4, background: a.anomalous ? "rgba(239,68,68,0.18)" : "rgba(34,197,94,0.08)", border: `1px solid ${a.anomalous ? STATUS.fault : "rgba(34,197,94,0.4)"}`, fontSize: 7.5, fontFamily: "var(--font-mono)" }}>
+            <div style={{ color: a.anomalous ? "#fff" : "var(--text-soft)", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.id}</div>
+            <div style={{ color: a.anomalous ? STATUS.faultGlow : "var(--text-detail)", fontSize: 7 }}>{a.regShare.toFixed(0)}%</div>
+          </div>
+        ))}
+      </div>
+      {round === 2 && (
+        <>
+          <div style={{ fontSize: 7.5, fontWeight: 700, color: "var(--text-mid)", fontFamily: "var(--font-mono)", marginBottom: 2 }}>终端类型分布(iPhone 不支持 back-off)</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 3 }}>
+            {b.devices.map((d) => {
+              const bad = !d.supportsBackoff;
+              return (
+                <div key={d.id} title={d.cn} style={{ padding: "3px 4px", borderRadius: 4, background: bad ? "rgba(244,114,182,0.16)" : "rgba(34,197,94,0.08)", border: `1px solid ${bad ? "#f472b6" : "rgba(34,197,94,0.4)"}`, fontSize: 7.5, fontFamily: "var(--font-mono)" }}>
+                  <div style={{ color: bad ? "#fff" : "var(--text-soft)", fontWeight: 700 }}>{d.id}</div>
+                  <div style={{ color: bad ? "#f9a8d4" : "var(--text-detail)", fontSize: 6.8 }}>{bad ? "⊘ 不支持" : "支持"} · {d.share.toFixed(0)}%</div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+      <div style={{ fontSize: 8.5, fontWeight: 700, color: "#5eead4", marginTop: 4, lineHeight: 1.35 }}>{b.summary}</div>
+    </div>
+  );
+}
+
 // —— 4 根因推理(推理链 + 内嵌 CHR/算法/大模型分析,逐步往下,不再固定底部)——
 function P4({ scenario, state }: { scenario: Scenario; state: StoryState }) {
   const steps = state.reasoningSteps;
@@ -342,6 +379,7 @@ function P4({ scenario, state }: { scenario: Scenario; state: StoryState }) {
           <div style={{ fontSize: 9, fontWeight: 700, color: "#5eead4", marginTop: 2 }}>{state.ufdrPopup.summary}</div>
         </div>
       )}
+      {state.recoveryPlan && <BreakdownCallout plan={state.recoveryPlan} round={state.round} />}
       {showVerdict && analysis.verdict && (
         <div style={{ marginTop: 4, fontSize: 8.8, fontWeight: 700, color: meta.color, lineHeight: 1.4, padding: "4px 6px", borderRadius: 5, background: `${meta.color}0d`, borderLeft: `2px solid ${meta.color}` }}>→ {analysis.verdict}</div>
       )}
@@ -395,6 +433,33 @@ function P5({ state }: { state: StoryState }) {
             {fc.ratio && (<div style={{ fontSize: 8.5, color: "var(--text-mid)", fontFamily: "var(--font-mono)", marginTop: 2 }}>比例 · NSSAI {fc.ratio.nssai}% / APN {fc.ratio.apn}% · {fc.ratio.algo}</div>)}
             {fc.ratio?.basis && (<div style={{ fontSize: 8.3, color: "var(--text-detail)", lineHeight: 1.4, marginTop: 2 }}>▸ {fc.ratio.basis}</div>)}
             <div style={{ fontSize: 9, fontWeight: 700, color: STATUS.healthy, marginTop: 2 }}>{fc.converged ? "✓ " : ""}{fc.summary}</div>
+          </div>
+        );
+      })()}
+      {state.scenarioId === "F" && state.recoveryPlan && (() => {
+        const plan = state.recoveryPlan;
+        const r = state.round;
+        const values = r === 1
+          ? plan.strategies.map((s) => ({ layer: s.layer, value: s.initialValue }))
+          : plan.rounds.r2Values;
+        return (
+          <div style={{ marginTop: 6, padding: "6px 8px", borderRadius: 6, border: "1px solid rgba(196,181,253,0.45)", background: "rgba(167,139,250,0.07)" }}>
+            <div style={{ fontSize: 8.5, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 4, letterSpacing: "0.04em" }}>🛡 3 策略并行 · {r === 1 ? "首轮全下(iPhone 忽略 back-off)" : "二轮排除 iPhone + 微调"}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 4 }}>
+              {plan.strategies.map((s, i) => {
+                const v = values[i];
+                const layerCol = s.layer === "UE" ? "#fbbf24" : s.layer === "AMF" ? "#38bdf8" : "#a78bfa";
+                return (
+                  <div key={s.layer} style={{ padding: "5px 6px", borderRadius: 5, border: `1px solid ${layerCol}66`, background: `${layerCol}0d`, fontSize: 8 }}>
+                    <div style={{ fontWeight: 800, color: layerCol, fontFamily: "var(--font-mono)" }}>{s.layer} · {v.value}{s.unit}</div>
+                    <div style={{ color: "var(--text-soft)", fontFamily: "var(--font-mono)", margin: "2px 0", fontSize: 7.5 }}>{s.formula}</div>
+                    <div style={{ color: "var(--text-mid)", lineHeight: 1.3, fontSize: 7.5 }}>{s.explanation}</div>
+                    {r === 2 && s.layer === "UE" && <div style={{ color: "#f472b6", fontSize: 7, marginTop: 2 }}>⊘ 排除 iPhone</div>}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize: 8, fontWeight: 700, color: r === 1 ? "#fbbf24" : STATUS.healthy, marginTop: 4, lineHeight: 1.35 }}>{r === 1 ? plan.rounds.r1Note : plan.rounds.r2Note}</div>
           </div>
         );
       })()}

@@ -11,6 +11,7 @@ import type {
   FlowControl,
   HomogenResult,
   IsolationNote,
+  RecoveryPlan,
   SkillEvolution,
   StormMetrics,
   UfdrReport,
@@ -46,4 +47,6 @@ export interface ScenarioNarrative {
   stormMetrics?: StormMetrics;
   /** 大模型故障报告(场景 D/E) */
   faultReport?: FaultReport;
+  /** 三层并行恢复计划(场景 F) */
+  recoveryPlan?: RecoveryPlan;
 }

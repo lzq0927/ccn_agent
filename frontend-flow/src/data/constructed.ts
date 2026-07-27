@@ -78,6 +78,7 @@ export function buildConstructedScenario(id: string, n: ScenarioNarrative, spec:
     flowControl: n.flowControl,
     stormMetrics: n.stormMetrics,
     faultReport: n.faultReport,
+    recoveryPlan: n.recoveryPlan,
     fault: spec.fault,
     truth: { elements: spec.fault.elements, links: spec.fault.links },
     predicted: spec.predicted,
@@ -433,6 +434,80 @@ export const SPEC_E: ConstructedSpec = {
   reasoning: REASONING_E,
   confidence: CONFIDENCE_E,
   evaluation: EVAL_E,
+  predicted: { elements: [], links: [] },
+  routeIterations: 11,
+  llmModel: "MiniMax-M3",
+};
+
+// ---------------------------------------------------------------------------
+// 场景 F —— 物联风暴 · 三层并行恢复(终端类型感知的两轮收敛)
+//   首轮盲目 3 策略全下(UE back-off + AMF NSSAI 限流 + SMF DNN 限流)→
+//   iPhone 不支持 back-off,收到 Reg Reject 立即重试,失败反升 →
+//   loop② 回 Agent1 溯源终端类型 → 二轮对 iPhone 不下发 back-off + 限流微调 → 收敛。
+// ---------------------------------------------------------------------------
+
+const FAULT_F: FaultSpec = {
+  faultType: "iot_storm",
+  faultMode: "business",
+  elements: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"],
+  links: [],
+  lossRate: 0.04,
+  faultStart: 28,
+  faultDuration: 14,
+  ueCount: 80,
+  difficulty: "hard",
+};
+
+const REASONING_F: ReasonStep[] = [
+  // ===== 第一轮(完整 6 步) =====
+  { n: 1, type: "tool_call", text: "[轮1·①预处理] 容器指标采集:AMF/SMF CPU 过载(92/88)+ 注册/会话突增,流控扩散影响 2C 手机。", result: "AMF/SMF 被冲击", highlight: { nes: ["AMF_1", "AMF_2", "AMF_3", "SMF_1", "SMF_2"] } },
+  { n: 2, type: "tool_call", text: "[轮1·②拓扑] UFDR 溯源 + 用户分类:注册请求集中于物联终端,APN 分类发现某物联平台 APN 异常(占 68%),终端类型分类发现 iPhone 占 35%。", highlight: { nes: ["UPF_1"] } },
+  { n: 3, type: "tool_call", text: "[轮1·③检测] iFFusion 融合检测:AMF 注册突增 + SMF 会话突增 → 物联终端风暴,多 APN 中单一物联 APN 异常。", result: "异常确认 · 单 APN 异常", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 4, type: "thinking", text: "[轮1·◇策略匹配→④根因] 置信度 0.32,信号模糊,决策首轮 3 策略并行:UE back-off + AMF 限 NSSAI + SMF 限 DNN(接纳限流分层)。", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 5, type: "tool_call", text: "[轮1·⑤输出评估] 评估通过,执行⑥首轮 3 策略:T_backoff=12s(全发)、ρ_AMF=75%、ρ_SMF=70%。", result: "首轮 3 策略下发", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 6, type: "tool_call", text: "[轮1·⑥首轮恢复] iPhone 不支持 back-off timer → 收到 Reg Reject 立即重试(放大 2.4×),失败数反升 → Agent3 评估:网络未恢复。", result: "首轮恢复失败 · 失败反升", highlight: { nes: ["AMF_1"] } },
+  // ===== 回到 Agent1 第二轮 =====
+  { n: 7, type: "thinking", text: "Agent3 判定未恢复 → loop② 回 Agent1 → 溯源终端类型 → 发现 iPhone 不支持 back-off(35% 终端放大风暴)→ Agent2 第二轮执行。", highlight: { nes: [] } },
+  { n: 8, type: "tool_call", text: "[轮2·①②③] 二轮采集 + 终端类型分群:确认仅 iPhone 不支持 back-off timer(其余终端均支持)。", result: "iPhone 不支持 back-off", highlight: { nes: ["UPF_1"] } },
+  { n: 9, type: "thinking", text: "[轮2·◇策略匹配→④根因] 二轮调整:对 iPhone 不下发 back-off(避免立即重试放大),UE 策略仅作用于 65% 支持终端;AMF/SMF 限流微调。", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 10, type: "tool_call", text: "[轮2·⑤输出评估] 评估通过,二轮 3 策略:T_backoff=14s(排除 iPhone)、ρ_AMF=57%、ρ_SMF=52%。", result: "二轮 3 策略 · 排除 iPhone", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 11, type: "tool_call", text: "[轮2·⑥二轮恢复] 排除 iPhone back-off + AMF/SMF 限流微调执行,iPhone 由 AMF NSSAI 限流直接拦截,失败数陡降 87%。", result: "第二轮执行中 · 收敛", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 12, type: "conclusion", text: "第二轮排除 iPhone back-off + 限流微调后收敛。Agent3 评估:已恢复 → 沉淀「终端类型感知的分层接纳控制」skill。", result: "AUTONOMOUS · 第二轮收敛" },
+];
+
+const CONFIDENCE_F: ConfidenceBreakdown = {
+  pattern: 0.36,
+  severity: 0.5,
+  temporal: 0.34,
+  spatial: 0.3,
+  ambiguity: 0.22,
+  score: 0.32,
+  route: "autonomous",
+  patternName: "iot_storm_layered_admission (分层接纳·终端类型感知)",
+  matchedSkills: ["core/ufdr_tracing", "core/admission_control", "core/user_segment_tracking"],
+  affectedNeCount: 2,
+};
+
+const EVAL_F: EvalMetrics = {
+  precision: 1,
+  recall: 1,
+  f1: 1,
+  exactMatch: true,
+  faultTypeMatch: true,
+  category: "SUCCESS",
+  traceAxes: { logicalCoherence: 0.89, toolEfficiency: 0.82, evidenceQuality: 0.88, missedSignals: 0.14, overall: 0.87 },
+  suggestions: [
+    { type: "SKILL_UPDATE", target: "skills/learned/terminal_aware_admission", content: "新增「终端类型感知的分层接纳控制」Skill:3 策略并行下发前先按终端类型分群,排除不支持 back-off 的终端,避免首轮放大风暴。", priority: 3 },
+  ],
+};
+
+export const SPEC_F: ConstructedSpec = {
+  topo: COMMON_TOPO,
+  fault: FAULT_F,
+  kpi: (graph) => buildKpiFor(graph, FAULT_F),
+  reasoning: REASONING_F,
+  confidence: CONFIDENCE_F,
+  evaluation: EVAL_F,
   predicted: { elements: [], links: [] },
   routeIterations: 11,
   llmModel: "MiniMax-M3",

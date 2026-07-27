@@ -2,7 +2,7 @@
 // 故事板类型 —— director 在每个时钟帧产出的派生状态，驱动所有视图
 // ============================================================================
 
-import type { ChrInsight, ConfidenceBreakdown, EvalMetrics, FlowControl, HomogenResult, IsolationNote, ReasonStep, RouteKey, UfdrReport, UserFault } from "../data/types";
+import type { ChrInsight, ConfidenceBreakdown, EvalMetrics, FlowControl, HomogenResult, IsolationNote, ReasonStep, RecoveryPlan, RouteKey, UfdrReport, UserFault } from "../data/types";
 import type { PhaseDef } from "../theme";
 
 export interface RecoveryAction {
@@ -63,6 +63,7 @@ export interface StoryState {
   cpuOverloadNe: string[]; // CPU 过载标注 NE(phase≥2,iot_storm 时为 AMF/SMF)
   ufdrPopup: UfdrReport | null; // UPF UFDR 溯源报表(phase 4)
   flowControlPopup: FlowControl | null; // 流控策略(phase 5)
+  recoveryPlan?: RecoveryPlan | null; // 三层并行恢复计划(场景 F,phase 4-5)
 
   // —— SIM 实时仿真专属(DEMO 模式 undefined)——
   simNeCpu?: Record<string, number>; // 全网 NE CPU%(SIM 模式)

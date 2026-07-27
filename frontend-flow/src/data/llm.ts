@@ -146,6 +146,19 @@ function phase4Analysis(s: Scenario, type: string, rootNe: string): LlmAnalysis 
       verdict: "算法:二轮溯源到 AMF/SMF · 决策策略2(待执行)。",
     };
   }
+  if (s.id === "F") {
+    return {
+      method: "algo",
+      title: "分层接纳溯源 + 用户分类算法",
+      principle: "UFDR 溯源 · APN/终端分类 · 分层接纳控制",
+      steps: [
+        { label: "🧮 UFDR + APN 分类", method: "algo", text: "CPU 过载 + UFDR 溯源 SST=3 + 物联平台 APN 异常(占 68%)→ 多 APN 中仅单一物联平台 APN 异常。" },
+        { label: "🧮 终端类型分群", method: "algo", text: "终端分类:iPhone 占 35% 且不支持 back-off timer,收到 Reg Reject 立即重试。" },
+        { label: "🤖 3 策略并行决策", method: "llm", text: "决策首轮 3 策略并行:UE back-off + AMF 限 NSSAI + SMF 限 DNN(接纳限流分层)。" },
+      ],
+      verdict: "算法:溯源到物联平台 APN + iPhone 终端异构 · 决策 3 策略并行(待执行)。",
+    };
+  }
   // A:确定性工作流 · 均质化比较 + 故障聚合算法(全程算法,无 LLM)
   if (s.id === "A") {
     return {
@@ -219,6 +232,17 @@ function phase5Analysis(s: Scenario, rootNe: string, type: string): LlmAnalysis 
       verdict: "规则:反压双通道限流收敛 · 正常用户上网恢复。",
     };
   }
+  if (s.id === "F") {
+    return {
+      method: "rule",
+      title: "流控策略 · 三层并行(终端类型感知)",
+      steps: [
+        { label: "首轮 3 策略全下", text: "UE back-off T=12s + AMF ρ_AMF=75% + SMF ρ_SMF=70% 并行下发;iPhone 忽略 back-off 立即重试,失败反升。" },
+        { label: "二轮排除 iPhone", text: "对 iPhone 不下发 back-off(由 AMF NSSAI 直接拦截)+ AMF ρ=57% / SMF ρ=52% 微调 → 失败陡降收敛。" },
+      ],
+      verdict: "规则:二轮终端类型感知调整 · 排除 iPhone back-off · 收敛。",
+    };
+  }
   return {
     method: "rule",
     title: "恢复策略编排规则",
@@ -241,6 +265,7 @@ function phase7Analysis(s: Scenario): LlmAnalysis {
     C: `Agent 2 信号模糊;首轮大模型初判存疑回 Agent1,二轮用户分群追踪定位 gNB_2 物联终端群体异常(52% 失败),网络健康。`,
     D: "Agent 2 检测 AMF/SMF CPU 过载 + 注册/会话突增,溯源到物联终端风暴;UE 侧 back-off(Reg Reject + back-off timer)。",
     E: "Agent 2 检测 AMF/SMF CPU 过载 + 注册/会话突增;首轮 UE back-off 未收敛,二轮 UFDR 溯源 SST=3 + 物联 DNN,AMF 限 NSSAI + SMF 限 APN(反压比例算法)。",
+    F: "Agent 2 检测 AMF/SMF CPU 过载 + 注册/会话突增;UFDR 溯源物联平台 APN + 终端分类发现 iPhone 不支持 back-off,决策首轮 3 策略并行。",
   };
   const recovery: Record<string, string> = {
     A: `隔离 ${rootNe},流量切至健康实例接管,受影响 UE 无感恢复。`,
@@ -248,9 +273,10 @@ function phase7Analysis(s: Scenario): LlmAnalysis {
     C: "群体异常独立于网络 NE,网络无需隔离;下发用户侧恢复(换路/重选)。",
     D: "冲击收敛,2C 用户上网恢复。",
     E: "反压双通道限流收敛,注册/会话请求下降,2C 用户上网恢复。",
+    F: "首轮 3 策略全下 iPhone back-off 失败反升;二轮排除 iPhone + 限流微调收敛,2C 用户上网恢复。",
   };
   const skill: Record<string, string> = {
-    A: "均质化比较", B: "CHR 降噪", C: "用户分群追踪", D: "UFDR 流控溯源", E: "NSSAI/APN 准入控制",
+    A: "均质化比较", B: "CHR 降噪", C: "用户分群追踪", D: "UFDR 流控溯源", E: "NSSAI/APN 准入控制", F: "终端类型感知的分层接纳控制",
   };
   return {
     method: "llm",

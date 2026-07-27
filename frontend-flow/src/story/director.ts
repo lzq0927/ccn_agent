@@ -91,6 +91,17 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
           { id: "r2_ratio", cn: "[轮2] 两限制比例 · 算法实时调节", en: "R2 RATIO CONTROL" },
         ];
       }
+      if (s.id === "F") {
+        // F:首轮 3 策略并行全下(UE/AMF/SMF);二轮 3 策略但 UE 层排除 iPhone
+        return [
+          { id: "r1_ue_backoff", cn: "[轮1] UE 层:back-off T=12s(全发,iPhone 忽略→放大)", en: "R1 UE BACKOFF" },
+          { id: "r1_amf_nssai", cn: "[轮1] AMF 层:限物联 NSSAI 接纳 ρ_AMF=75%", en: "R1 AMF NSSAI 75%" },
+          { id: "r1_smf_apn", cn: "[轮1] SMF 层:限物联 DNN 接纳 ρ_SMF=70%", en: "R1 SMF DNN 70%" },
+          { id: "r2_ue_backoff", cn: "[轮2] UE 层:back-off T=14s(排除 iPhone,仅 65% 终端)", en: "R2 UE BACKOFF (EXCL IPHONE)" },
+          { id: "r2_amf_nssai", cn: "[轮2] AMF 层:限 NSSAI ρ_AMF=57%(微调)", en: "R2 AMF NSSAI 57%" },
+          { id: "r2_smf_apn", cn: "[轮2] SMF 层:限 DNN ρ_SMF=52%(微调)", en: "R2 SMF DNN 52%" },
+        ];
+      }
       // D:首轮 back-off 即收敛
       return [
         { id: "reg_reject", cn: "AMF 对注册成功终端发 Registration Reject", en: "AMF REGISTRATION REJECT" },
@@ -147,7 +158,7 @@ export function phaseAt(t: number): { index: number; progress: number } {
 
 // —— 两轮场景时间线:B/C/E。首轮评估/恢复未通过 → loop② 回 Agent1 → 二轮重新执行 → 恢复成功 ——
 //   E 首轮含 back-off 恢复(phase5,部分缓解后未收敛);B/C 首轮评估未通过,不走到恢复(phase4 后直接回 Agent1)
-const TWO_ROUND_IDS = new Set(["B", "C", "E"]);
+const TWO_ROUND_IDS = new Set(["B", "C", "E", "F"]);
 type Seg = { dur: number; phase: number; round: 1 | 2 };
 const R1_COMMON: Seg[] = [
   { dur: 3, phase: 0, round: 1 },
@@ -161,10 +172,10 @@ const R2_SEGS: Seg[] = [
   { dur: 5, phase: 6, round: 2 }, { dur: 13, phase: 7, round: 2 },
 ];
 function twoRoundSegs(id: string): Seg[] {
-  return id === "E" ? [...R1_WITH_RECOV, ...R2_SEGS] : [...R1_COMMON, ...R2_SEGS];
+  return (id === "E" || id === "F") ? [...R1_WITH_RECOV, ...R2_SEGS] : [...R1_COMMON, ...R2_SEGS];
 }
 const TWO_ROUND_LOOP: Record<string, number> = {};
-for (const id of ["B", "C", "E"]) TWO_ROUND_LOOP[id] = twoRoundSegs(id).reduce((a, b) => a + b.dur, 0);
+for (const id of ["B", "C", "E", "F"]) TWO_ROUND_LOOP[id] = twoRoundSegs(id).reduce((a, b) => a + b.dur, 0);
 
 export function loopDurationFor(s: Scenario): number {
   return TWO_ROUND_IDS.has(s.id) ? (TWO_ROUND_LOOP[s.id] ?? LOOP_DURATION) : LOOP_DURATION;
@@ -208,6 +219,31 @@ function simTForE(phaseIndex: number, p: number, round: 1 | 2): number {
     case 5: return lerp(44, 52, p); // NSSAI+APN 完全恢复
     case 6: return lerp(52, 56, p);
     default: return 56;
+  }
+}
+
+/** F 场景 simT 映射:首轮 3 策略全下(iPhone 放大致失败反升,simT 32→36 ↔ iotReg 180→186),
+ *  二轮排除 iPhone 收敛(simT 44→54 ↔ iotReg 186→28)。连续递增,KPI 游标不倒走。 */
+function simTForF(phaseIndex: number, p: number, round: 1 | 2): number {
+  if (round === 1) {
+    switch (phaseIndex) {
+      case 0: return 6;
+      case 1: return lerp(6, 26, p);
+      case 2: return lerp(26, 30, p);    // 风暴起 fs=28
+      case 3: return 30;
+      case 4: return lerp(30, 32, p);    // 推理 + 用户分类
+      case 5: return lerp(32, 36, p);    // 首轮 3 策略:失败反升段
+      default: return 36;                // 首轮结束于失败峰
+    }
+  }
+  switch (phaseIndex) {
+    case 1: return lerp(36, 39, p);
+    case 2: return lerp(39, 42, p);
+    case 3: return 42;
+    case 4: return lerp(42, 44, p);      // 二轮溯源终端类型
+    case 5: return lerp(44, 54, p);      // 二轮收敛段
+    case 6: return lerp(54, 58, p);
+    default: return 58;
   }
 }
 
@@ -267,6 +303,14 @@ function simTFor(s: Scenario, phaseIndex: number, p: number): number {
 
 /** D/E 物联注册请求数/s(按仿真时间,与 KPI 曲线一致) */
 export function iotRegAt(s: Scenario, t: number): number {
+  if (s.id === "F") {
+    if (t < 28) return 5;
+    if (t < 32) return lerp(5, 180, (t - 28) / 4);    // 风暴起
+    if (t < 36) return lerp(180, 186, (t - 32) / 4);  // 首轮:iPhone 放大,反升
+    if (t < 44) return 186;                            // 首轮失败峰持续
+    if (t < 54) return lerp(186, 28, (t - 44) / 10);  // 二轮排除 iPhone,收敛
+    return 28;
+  }
   if (s.id === "E") {
     if (t < 28) return 5;
     if (t < 30) return 180;
@@ -283,6 +327,14 @@ export function iotRegAt(s: Scenario, t: number): number {
 
 /** D/E 物联 PDU 会话建立数/s */
 export function sessIotAt(s: Scenario, t: number): number {
+  if (s.id === "F") {
+    if (t < 28) return 40;
+    if (t < 32) return lerp(40, 400, (t - 28) / 4);
+    if (t < 36) return lerp(400, 405, (t - 32) / 4);  // 首轮微升
+    if (t < 44) return 405;
+    if (t < 54) return lerp(405, 95, (t - 44) / 10);  // 二轮收敛
+    return 95;
+  }
   if (s.id === "E") {
     if (t < 28) return 40;
     if (t < 30) return 400;
@@ -407,6 +459,14 @@ const ALGO_REASON: Record<string, { cn: string; en: string }[]> = {
     { cn: "策略2 AMF NSSAI + SMF APN 限流", en: "NET ADMISSION" },
     { cn: "比例算法实时调节", en: "RATIO CONTROL" },
   ],
+  F: [
+    { cn: "AMF/SMF 容器 CPU 过载检测", en: "CPU OVERLOAD DETECT" },
+    { cn: "UFDR + APN/终端类型分类溯源", en: "UFDR + APN/DEVICE TRACE" },
+    { cn: "首轮 3 策略并行下发", en: "R1 3-STRATEGY PARALLEL" },
+    { cn: "iPhone back-off 失败反升检测", en: "IPHONE BACKOFF FAIL" },
+    { cn: "二轮终端类型感知调整", en: "R2 DEVICE-AWARE ADJUST" },
+    { cn: "分层接纳限流收敛", en: "LAYERED ADMISSION CONVERGE" },
+  ],
 };
 
 /** 当前相位激活的算法标签 */
@@ -447,6 +507,12 @@ const SCENARIO_SUB: Record<string, Record<number, string>> = {
     4: "策略1(UE back-off)未收敛 → 二轮拉取 UFDR(SST=3 + 物联 DNN)→ 溯源 AMF/SMF · 决策策略2",
     5: "执行策略2:AMF 限 NSSAI + SMF 限 APN · 比例算法实时调节 → 待验证收敛",
   },
+  F: {
+    2: "AMF/SMF 容器 CPU 过载 + 注册/会话风暴冲击 · 单一物联平台 APN 异常",
+    3: "置信度 0.32 · 信号模糊 · 自主探索 · 决策首轮 3 策略并行",
+    4: "用户分类:10 APN 仅物联平台异常 / 6 终端仅 iPhone 不支持 back-off · 决策 3 策略并行(UE/AMF/SMF)",
+    5: "首轮 3 策略全下:iPhone back-off 失败反升 → 二轮排除 iPhone + AMF/SMF 限流微调收敛",
+  },
 };
 
 export function direct(s: Scenario, t: number, loop: number): StoryState {
@@ -460,8 +526,9 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   const { neSet } = affectedEntities(s.fault);
   const simT = clamp(
     s.id === "E" ? simTForE(phaseIndex, progress, eRound)
-      : TWO_ROUND_IDS.has(s.id) ? simTForTwoRound(s, phaseIndex, progress, eRound)
-        : simTFor(s, phaseIndex, progress),
+      : s.id === "F" ? simTForF(phaseIndex, progress, eRound)
+        : TWO_ROUND_IDS.has(s.id) ? simTForTwoRound(s, phaseIndex, progress, eRound)
+          : simTFor(s, phaseIndex, progress),
     1, 60,
   );
 
@@ -476,10 +543,10 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // 回路:B/C 首轮⑤评估未通过 → loop①(⑤ 回 Agent1,Agent2 内部,不走 Agent3)
   //       E 首轮 back-off 未收敛 → loop②(经 Agent3,A3→A1);二轮回到 Agent1 瞬间(phase1)对应回路保持亮
   const failBC = (s.id === "B" || s.id === "C") && phaseIndex === 4 && progress > 0.6;
-  const failE = s.id === "E" && phaseIndex >= 5;
+  const failEF = (s.id === "E" || s.id === "F") && phaseIndex >= 5;
   const loopBackKind: "loop1" | "loop2" | null = isTwoRound
-    ? ((eRound === 1 && (failBC || failE)) || (eRound === 2 && phaseIndex <= 1)
-      ? (s.id === "E" ? "loop2" : "loop1")
+    ? ((eRound === 1 && (failBC || failEF)) || (eRound === 2 && phaseIndex <= 1)
+      ? (s.id === "E" || s.id === "F" ? "loop2" : "loop1")
       : null)
     : null;
   let revealedCount: number;
@@ -525,6 +592,10 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     if (s.id === "E") {
       const n = eRound === 1 ? Math.min(1, Math.ceil(progress * 1)) : p.recoveryActions.length;
       recoveryActions = p.recoveryActions.slice(0, n);
+    } else if (s.id === "F") {
+      // F:轮1 揭示 r1_* 前 3 条,轮2 揭示 r2_* 后 3 条,各按 ceil(progress*3) 渐进
+      const n = Math.min(3, Math.ceil(progress * 3));
+      recoveryActions = eRound === 1 ? p.recoveryActions.slice(0, n) : p.recoveryActions.slice(3, 3 + n);
     } else if (isTwoRound) {
       // B/C:仅二轮执行恢复;轮1评估未通过,recoveryActions 保持空
       if (eRound === 2) {
@@ -585,6 +656,8 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // 流控溯源(场景 D/E):CPU 过载标注(phase≥2)、UFDR 溯源弹窗(phase 4)、流控策略弹窗(phase 5)
   const cpuOverloadNe = phaseIndex >= 2 && s.fault.faultType === "iot_storm" ? s.fault.elements : [];
   const flowControlPopup = s.flowControl && phaseIndex === 5 ? s.flowControl : null;
+  // 场景 F 三层并行恢复计划:phase 4 揭示用户分类(breakdown),phase 5 揭示策略(strategies,按 round 区分)
+  const recoveryPlan = s.recoveryPlan && (phaseIndex === 4 || phaseIndex === 5) ? s.recoveryPlan : null;
   // E 轮2 UFDR 弹窗(phase 4 第二轮才显示)
   const ufdrPopup = s.id === "E"
     ? (s.ufdr && phaseIndex === 4 && eRound === 2 ? s.ufdr : null)
@@ -642,6 +715,7 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
     cpuOverloadNe,
     ufdrPopup,
     flowControlPopup,
+    recoveryPlan,
     falseAlarmActive,
     falseAlarmIntercepted,
     userLevel,

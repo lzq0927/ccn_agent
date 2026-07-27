@@ -138,8 +138,8 @@ function KpiPanel({ scenario, state }: { scenario: Scenario; state: StoryState }
   // 注册/PDU 请求数曲线(物联 vs ToC)— 与实时数值共用 iotRegAt/sessIotAt(D/E iot_storm)
   //   y 映射基于 viewBox 高 24(旧 50 基准会让整条曲线落到画框之外被裁掉 → 完全看不见)
   const isStorm = scenario.fault.faultType === "iot_storm";
-  const yReg = (v: number) => 22 - (Math.min(v, 180) / 180) * 20;  // 0→底, 180→顶
-  const ySess = (v: number) => 22 - (Math.min(v, 400) / 400) * 20; // 0→底, 400→顶
+  const yReg = (v: number) => 22 - (Math.min(v, 200) / 200) * 20;  // 0→底, 200→顶(上界 200 让 F 首轮反升峰 186 可见)
+  const ySess = (v: number) => 22 - (Math.min(v, 450) / 450) * 20; // 0→底, 450→顶
   const regIotPts = Array.from({ length: 60 }, (_, i) =>
     xAt(i).toFixed(1) + "," + yReg(isStorm ? iotRegAt(scenario, i + 1) : 5).toFixed(1)).join(" ");
   const regTocPts = Array.from({ length: 60 }, (_, i) =>

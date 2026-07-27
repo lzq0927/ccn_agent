@@ -182,6 +182,69 @@ export interface FlowControl {
   summary: string;
 }
 
+/** 单个恢复策略(场景 F:UE/AMF/SMF 三层并行下发) */
+export interface RecoveryStrategy {
+  layer: "UE" | "AMF" | "SMF"; // 下发层
+  cn: string;
+  en: string;
+  initialValue: number; // 首轮初始值(秒 / %)
+  unit: "s" | "%"; // UE=back-off 秒;AMF/SMF=限流 %
+  /** 工程控制论式公式(展示用字符串,如 "T = clamp(T0 + k·ΔCPU, 8, 30)") */
+  formula: string;
+  /** 公式变量表(供卡片渲染「变量 + 单位 + 边界」) */
+  variables: {
+    symbol: string; // 如 "T0"、"k"、"ΔCPU"
+    meaning: string; // 中文含义
+    unit: string; // "s" / "%" / "req/s" / "—"
+    value: number | string; // 取值或表达式
+    lo?: number; // clamp 下界
+    hi?: number; // clamp 上界
+  }[];
+  explanation: string; // 一句话解释(为何这个值)
+}
+
+/** 一个 APN/DNN 的请求分布(场景 F 用户分类) */
+export interface ApnItem {
+  id: string; // APN/DNN 名,如 "iot-platform"
+  cn: string;
+  regShare: number; // 占注册请求 % (0-100)
+  sessShare: number; // 占会话请求 % (0-100)
+  anomalous: boolean; // 是否异常(风暴源)
+}
+
+/** 一种终端类型(场景 F 用户分类) */
+export interface DeviceItem {
+  id: string; // 如 "iphone"、"android"、"iot-cam"
+  cn: string;
+  share: number; // 占物联注册请求 % (0-100)
+  supportsBackoff: boolean; // 是否支持 back-off timer(iPhone=false)
+}
+
+/** 用户分类弹窗(场景 F,phase 4 推理发现:单 APN 异常 + iPhone 不支持 back-off) */
+export interface UserBreakdown {
+  anchorNe: string; // 锚定 NE(UPF_1,与 UFDR 同)
+  apns: ApnItem[]; // ~10 个 APN
+  devices: DeviceItem[]; // ~6 种终端
+  anomalousApn: string; // 异常 APN 的 id(物联平台)
+  unsupportedDevice: string; // 不支持 back-off 的终端 id(iPhone)
+  summary: string;
+}
+
+/** 两轮策略调整(场景 F 二轮相对首轮的差异) */
+export interface RoundAdjustment {
+  r1Note: string; // 首轮说明
+  r2Note: string; // 二轮说明
+  /** 二轮各层新值;首轮读 RecoveryStrategy.initialValue */
+  r2Values: { layer: "UE" | "AMF" | "SMF"; value: number; note: string }[];
+}
+
+/** 场景 F 三层并行恢复计划(挂 Scenario.recoveryPlan) */
+export interface RecoveryPlan {
+  strategies: RecoveryStrategy[]; // 3 个:UE / AMF / SMF
+  breakdown: UserBreakdown; // 用户分类(phase 4 揭示)
+  rounds: RoundAdjustment; // 两轮调整
+}
+
 /** 风暴冲击指标(场景 D/E,phase 2 过载告警 + 突增 KPI) */
 export interface StormMetrics {
   amfCpu: number; // AMF 容器 CPU%(0-100)
@@ -234,6 +297,8 @@ export interface Scenario {
   stormMetrics?: StormMetrics;
   /** 大模型故障报告(场景 D/E,phase 7) */
   faultReport?: FaultReport;
+  /** 三层并行恢复计划(场景 F:3 策略 × 2 轮 + 用户分类) */
+  recoveryPlan?: RecoveryPlan;
   fault: FaultSpec;
   truth: { elements: string[]; links: string[] };
   predicted: { elements: string[]; links: string[] };

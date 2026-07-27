@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { type ScenarioNarrative } from "./real";
-import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C, SPEC_D, SPEC_E } from "./constructed";
+import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C, SPEC_D, SPEC_E, SPEC_F } from "./constructed";
 import type { Scenario } from "./types";
 
 // 每个场景的叙事层(数据全真或合成，文案据诊断结果定稿)
@@ -241,15 +241,133 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       nextHitRate: 0.88,
     },
   },
+  F: {
+    cn: "流控溯源·物联网风暴(三层并行·终端类型感知)",
+    en: "IOT STORM · LAYERED ADMISSION",
+    tagline: "3 策略并行(UE back-off + AMF NSSAI + SMF DNN)· iPhone 不支持 back-off 致首轮失败反升 · 二轮排除 iPhone 收敛",
+    intro:
+      "物联网应用平台故障致物联终端反复上线,注册/会话风暴冲击 AMF/SMF,流控扩散影响正常 2C 手机。智能体决策首轮 3 策略并行(UE back-off + AMF 限 NSSAI + SMF 限 DNN),但 iPhone 终端不支持 back-off timer,收到 Reg Reject 后立即重试,反而放大风暴、失败数反升。二轮 loop② 回 Agent1 溯源终端类型,确认仅 iPhone 不支持 back-off,对 iPhone 不下发 back-off(由 AMF NSSAI 直接拦截)并微调 AMF/SMF 限流比例,失败陡降收敛。过程中用户分类展示:10 个 APN 中仅「物联网平台」APN 异常、6 种终端中仅 iPhone 不支持 back-off。",
+    objective: "3 策略并行下发 · 首轮 iPhone back-off 失败反升 · 二轮终端类型感知调整收敛",
+    pillars: { userLevel: true, autonomy: true },
+    comparison: {
+      naive: { title: "仅网元 KPI 视角", verdict: "误判 AMF/SMF 宕机/扩容", detail: "CPU 过载,朴素归因误指网元故障,且盲目下发 back-off 忽略终端异构", kind: "falsealarm" },
+      explored: { title: "分层接纳 + 终端类型感知", verdict: "3 策略并行 + 排除不支持终端", detail: "首轮发现 iPhone 不支持 back-off 放大风暴,二轮终端类型感知调整收敛", kind: "hit" },
+    },
+    ufdr: { nes: ["UPF_1"], sstSurge: 72, sstLabel: "SST=3(MIoT) 注册突增", dnnSurge: 76, dnnLabel: "物联平台 DNN 会话突增", summary: "UFDR 溯源:SST=3 + 物联平台 DNN → 定位 AMF(NSSAI)/SMF(DNN) 接入点" },
+    stormMetrics: { amfCpu: 93, smfCpu: 89, regSurge: 360, sessionSurge: 310, impact2c: "流控扩散至 2C 手机:首轮 iPhone 立即重试放大风暴,注册/会话被限流加剧" },
+    recoveryPlan: {
+      strategies: [
+        {
+          layer: "UE",
+          cn: "UE back-off timer",
+          en: "UE BACKOFF TIMER",
+          initialValue: 12,
+          unit: "s",
+          formula: "T = clamp(T0 + k·ΔCPU, T_min, T_max)",
+          variables: [
+            { symbol: "T0", meaning: "基线 back-off(轻度过载)", unit: "s", value: 8 },
+            { symbol: "k", meaning: "CPU 超阈放大系数", unit: "s/%", value: 0.6 },
+            { symbol: "ΔCPU", meaning: "AMF CPU 超阈值量", unit: "%", value: 7, lo: 0, hi: 15 },
+            { symbol: "T_min", meaning: "下界(防过短立即重试)", unit: "s", value: 8 },
+            { symbol: "T_max", meaning: "上界(防过长窒息)", unit: "s", value: 30 },
+          ],
+          explanation: "首轮 ΔCPU=7 → T=8+0.6×7≈12s,抑制支持终端反复上线;iPhone 忽略该定时器→立即重试,放大风暴。",
+        },
+        {
+          layer: "AMF",
+          cn: "AMF NSSAI 接纳限流",
+          en: "AMF NSSAI ADMISSION",
+          initialValue: 75,
+          unit: "%",
+          formula: "ρ_AMF = clamp(ρ_base + α·c − β·ΔCPU, 30, 80)",
+          variables: [
+            { symbol: "ρ_base", meaning: "基线限流比例", unit: "%", value: 40 },
+            { symbol: "α", meaning: "拥塞度系数", unit: "%", value: 35 },
+            { symbol: "c", meaning: "拥塞度 (R−R_norm)/(R_peak−R_norm)", unit: "—", value: "≈1(风暴)", lo: 0, hi: 1 },
+            { symbol: "β", meaning: "CPU 反压系数(首轮 0 / 二轮 1.2)", unit: "%/%", value: "0→1.2" },
+            { symbol: "ΔCPU", meaning: "AMF CPU 超阈值量", unit: "%", value: 7, lo: 0, hi: 15 },
+          ],
+          explanation: "首轮 c=1、β=0 → ρ=40+35=75%;对 SST=3(MIoT)切片注册做接纳控制,超额直接 reject。",
+        },
+        {
+          layer: "SMF",
+          cn: "SMF DNN 会话接纳限流",
+          en: "SMF DNN ADMISSION",
+          initialValue: 70,
+          unit: "%",
+          formula: "ρ_SMF = clamp(ρ_base + γ·c + δ·ΔCPU_sess, 25, 75)",
+          variables: [
+            { symbol: "ρ_base", meaning: "基线会话限流比例", unit: "%", value: 35 },
+            { symbol: "γ", meaning: "拥塞度系数", unit: "%", value: 30 },
+            { symbol: "c", meaning: "拥塞度", unit: "—", value: "1→0.5", lo: 0, hi: 1 },
+            { symbol: "δ", meaning: "SMF CPU 反压系数", unit: "%/%", value: 0.8 },
+            { symbol: "ΔCPU_sess", meaning: "SMF CPU 超阈值量", unit: "%", value: 6, lo: 0, hi: 15 },
+          ],
+          explanation: "首轮 c=1 → ρ=35+30+0.8×6≈70%;对物联 DNN 的 PDU 会话建立做接纳控制,与 AMF 双通道同步限流。",
+        },
+      ],
+      breakdown: {
+        anchorNe: "UPF_1",
+        apns: [
+          { id: "iot-platform", cn: "物联网平台", regShare: 68, sessShare: 64, anomalous: true },
+          { id: "internet", cn: "公众互联网", regShare: 8, sessShare: 9, anomalous: false },
+          { id: "cmnet", cn: "CMNET", regShare: 6, sessShare: 7, anomalous: false },
+          { id: "ims", cn: "IMS 语音", regShare: 5, sessShare: 6, anomalous: false },
+          { id: "iot-cam", cn: "物联摄像头", regShare: 3, sessShare: 5, anomalous: false },
+          { id: "enterprise", cn: "企业专线", regShare: 3, sessShare: 2, anomalous: false },
+          { id: "iot-meter", cn: "智能水表", regShare: 2, sessShare: 3, anomalous: false },
+          { id: "mms", cn: "彩信", regShare: 2, sessShare: 2, anomalous: false },
+          { id: "vowifi", cn: "VoWiFi", regShare: 2, sessShare: 1, anomalous: false },
+          { id: "other", cn: "其他", regShare: 1, sessShare: 1, anomalous: false },
+        ],
+        devices: [
+          { id: "iphone", cn: "iPhone", share: 35, supportsBackoff: false },
+          { id: "android", cn: "Android 手机", share: 22, supportsBackoff: true },
+          { id: "harmony", cn: "HarmonyOS", share: 18, supportsBackoff: true },
+          { id: "iot-cam", cn: "物联摄像头", share: 12, supportsBackoff: true },
+          { id: "iot-meter", cn: "智能水表", share: 8, supportsBackoff: true },
+          { id: "iot-sensor", cn: "物联传感", share: 5, supportsBackoff: true },
+        ],
+        anomalousApn: "iot-platform",
+        unsupportedDevice: "iphone",
+        summary: "10 个 APN 中仅「物联网平台」APN 注册/会话占比异常飙高(68%);6 种终端中仅 iPhone 不支持 back-off timer。",
+      },
+      rounds: {
+        r1Note: "首轮 3 策略全下:iPhone 不支持 back-off,收到 Reg Reject 立即重试(放大 2.4×),等效注册率 0.35×2.4+0.65×0.3=1.035 → 失败反升 3.5%。",
+        r2Note: "二轮对 iPhone 不下发 back-off(由 AMF NSSAI 直接 drop,不触发 retry),非 iPhone back-off 加深;等效注册率 0.35×0.4+0.65×0.2=0.27 → 下降 74%。",
+        r2Values: [
+          { layer: "UE", value: 14, note: "T=14s · 排除 iPhone,仅作用于 65% 支持终端 · 补偿性延长" },
+          { layer: "AMF", value: 57, note: "ρ=40+35×0.6−1.2×3≈57% · c 降至 0.6、CPU 反压开启" },
+          { layer: "SMF", value: 52, note: "ρ=35+30×0.5+0.8×2≈52% · 会话限流同步收敛" },
+        ],
+      },
+    },
+    faultReport: {
+      rootCause: "物联网应用平台故障 -> 物联终端反复注册上线 + 终端类型异构(iPhone 不支持 back-off)",
+      phenomenon: "Agent 1 采集:AMF/SMF CPU 过载 + 注册/会话突增 + 单一物联平台 APN 异常 + 流控扩散影响 2C 手机",
+      impact: "首轮 3 策略全下:iPhone 不支持 back-off 致失败反升,正常 2C 手机注册/会话被限流加剧",
+      action: "Agent 2 溯源物联终端 + 用户分类(单 APN 异常 / iPhone 不支持 back-off) -> 二轮对 iPhone 不下发 back-off + AMF/SMF 限流微调",
+      outcome: "二轮排除 iPhone back-off 后收敛,2C 用户上网恢复;沉淀「终端类型感知的分层接纳控制」skill",
+    },
+    skillEvolution: {
+      kind: "NEW",
+      skillId: "skills/learned/terminal_aware_admission",
+      skillCn: "终端类型感知的分层接纳控制",
+      insight: "3 策略并行下发前先按终端类型分群,排除不支持 back-off 的终端,避免首轮放大风暴",
+      after: "新增终端感知分层接纳 skill,命中率达 0.89",
+      nextHitRate: 0.89,
+    },
+  },
 };
 
-// 五场景:A(UPF·工作流)、B(SMF·技能引导)、C(gNB 物联终端群体·自主探索)、D/E(物联网风暴·流控溯源)
+// 六场景:A(UPF·工作流)、B(SMF·技能引导)、C(gNB 物联终端群体·自主探索)、D/E(物联网风暴·流控溯源)、F(三层并行·终端类型感知)
 export const SCENARIOS: Scenario[] = [
   buildConstructedScenario("A", NARRATIVES.A, SPEC_A),
   buildConstructedScenario("B", NARRATIVES.B, SPEC_B),
   buildConstructedScenario("C", NARRATIVES.C, SPEC_C),
   buildConstructedScenario("D", NARRATIVES.D, SPEC_D),
   buildConstructedScenario("E", NARRATIVES.E, SPEC_E),
+  buildConstructedScenario("F", NARRATIVES.F, SPEC_F),
 ];
 
 export const DEFAULT_SCENARIO_ID = "A";
