@@ -1,0 +1,16 @@
+{
+  "scenario_id": "F",
+  "reasoning": [
+    {"n": 1, "type": "thinking", "text": "[轮1] 3 策略并行下发(UE back-off + AMF NSSAI + SMF DNN)"},
+    {"n": 2, "type": "tool_call", "text": "iPhone 不支持 back-off timer,收到 Reg Reject 后立即重试,放大风暴"},
+    {"n": 3, "type": "conclusion", "text": "首轮失败反升,confidence 0.28 < 阈值,需回 Agent1 补采 CHR(终端类型)", "result": "confidence_low"}
+  ],
+  "round_2_reasoning": [
+    {"n": 4, "type": "thinking", "text": "[轮2] Agent1 补采 CHR(终端类型×APN×back-off 支持)"},
+    {"n": 5, "type": "tool_call", "text": "终端分群:仅 iPhone 不支持 back-off;APN 异常仅「物联网平台」"},
+    {"n": 6, "type": "conclusion", "text": "二轮:对 iPhone 不下发 back-off,改由 AMF NSSAI 拦截;微调 AMF/SMF 限流比例,收敛"}
+  ],
+  "fault_elements": ["AMF_1", "UPF_1"],
+  "confidence": 0.6,
+  "route": "workflow"
+}
