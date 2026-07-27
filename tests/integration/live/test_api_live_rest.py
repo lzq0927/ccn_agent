@@ -12,7 +12,10 @@ def client():
 def test_capabilities_returns_registry(client):
     r = client.get("/api/v1/live/capabilities")
     assert r.status_code == 200
-    assert isinstance(r.json(), dict)
+    data = r.json()
+    assert isinstance(data, dict)
+    assert data.get("F") == "live"
+    assert data.get("A") == "demo"
 
 
 def test_select_starts_session(client):
