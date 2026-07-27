@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 import httpx
 
@@ -23,6 +23,23 @@ class LLMConfig:
     max_tokens: int = 4096
     temperature: float = 0.1
     timeout: int = 120
+    mode: Literal["stub", "live", "auto"] = "auto"
+
+
+def _resolve_mode(config: LLMConfig) -> Literal["stub", "live"]:
+    """Resolve effective LLM mode.
+
+    Priority: env CC_LIVE_LLM_MODE > explicit config.mode > auto-detect.
+    `auto` returns "live" if OPENAI_API_KEY set, else "stub".
+    """
+    env_override = os.environ.get("CC_LIVE_LLM_MODE")
+    if env_override in ("stub", "live"):
+        return env_override  # type: ignore[return-value]
+    if config.mode in ("stub", "live"):
+        return config.mode  # type: ignore[return-value]
+    if os.environ.get(config.api_key_env):
+        return "live"
+    return "stub"
 
 
 @dataclass
