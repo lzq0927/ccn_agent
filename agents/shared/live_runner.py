@@ -116,6 +116,7 @@ class LiveRunner:
         engine.run_sync()
 
     async def _diagnose_phase(self) -> None:
+        from agents.fault_perception.live_diagnoser import LiveDiagnoser, ReasoningStep
         from agents.shared.scenario_plugin import DiagnosisContext
 
         self._set_state(RunnerState.DIAGNOSING)
@@ -130,10 +131,44 @@ class LiveRunner:
         self._last_plan = plan
         confidence = getattr(plan, "confidence", 0.0)
         route = getattr(plan, "route", "workflow")
-        self._publish(
-            "confidence_assessment",
-            {"score": confidence, "route": route},
-        )
+
+        # Stream plan reasoning steps via LiveDiagnoser so frontend / WS
+        # subscribers see a real reasoning chain (not just confidence_assessment).
+        raw_reasoning = getattr(plan, "reasoning", []) or []
+        steps = [
+            ReasoningStep(
+                n=i + 1,
+                type=str(step.get("type", "thinking")),
+                text=str(step.get("text", "")),
+            )
+            for i, step in enumerate(raw_reasoning)
+        ]
+        diagnoser = LiveDiagnoser(bus=self.bus, plugin_id=self.scenario_id)
+        diagnoser.emit_confidence(score=confidence, route=route)
+        if steps:
+            diagnoser.stream_steps(
+                steps=steps,
+                fault_elements=getattr(plan, "fault_elements", []),
+                fault_type="single_ne",
+                confidence=confidence,
+                fault_mode="link",
+                route=route,
+            )
+        else:
+            # No reasoning supplied by plugin: still emit diagnosis_complete
+            # so consumers see a consistent event chain.
+            diagnoser.bus.publish(
+                "diagnosis_complete",
+                {
+                    "fault_elements": getattr(plan, "fault_elements", []),
+                    "fault_type": "single_ne",
+                    "fault_mode": "link",
+                    "confidence": confidence,
+                    "route": route,
+                    "iterations": 1,
+                },
+            )
+
         if confidence < self.confidence_low_threshold:
             self._publish(
                 "confidence_low",
@@ -145,17 +180,6 @@ class LiveRunner:
             )
             self._set_state(RunnerState.RESTART)
             return
-        self._publish(
-            "diagnosis_complete",
-            {
-                "fault_elements": getattr(plan, "fault_elements", []),
-                "fault_type": "single_ne",
-                "fault_mode": "link",
-                "confidence": confidence,
-                "route": route,
-                "iterations": 1,
-            },
-        )
 
     async def _recover_phase(self) -> None:
         self._set_state(RunnerState.RECOVERING)
