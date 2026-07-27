@@ -1,6 +1,7 @@
 // ============================================================================
 // TopBar —— 顶栏:标识 · 实时叙事 · 时钟控件(播放/变速/主题)
 //   (场景选择已移至右栏 ExecutionPanel;frontend-flow 纯 DEMO 自动播放)
+//   新增:DEMO / LIVE 模式切换(不可用时降级 + title 提示)
 // ============================================================================
 
 import type { Scenario } from "../../data/types";
@@ -8,10 +9,22 @@ import type { ClockApi } from "../../story/useStoryClock";
 import type { StoryState } from "../../story/types";
 import { THEMES, THEME_LABELS, useTheme } from "./ThemeContext";
 
+/** 顶栏模式 —— DEMO 走确定性回放,LIVE 接真实后端事件流 */
+export type TopBarMode = "demo" | "live";
+
 interface Props {
   clock: ClockApi;
   state: StoryState;
   scenario: Scenario;
+  /** 当前模式。缺省 "demo"。T7.2 接入后由 App 显式传入。 */
+  mode?: TopBarMode;
+  /** 模式切换回调。缺省 noop(显示 toggle 但点击无效)。 */
+  onModeChange?: (next: TopBarMode) => void;
+  /**
+   * 场景级 LIVE 能力映射 —— key 为场景 id,value 为该场景支持的最高模式。
+   * 缺省 = 所有场景都不可切 LIVE(LIVE 按钮禁用)。
+   */
+  liveCapabilities?: Record<string, "live" | "demo">;
 }
 
 /** 双主题徽标(始终展示,按当前场景 pillars 点亮)—— 对齐收敛色板 */
@@ -20,8 +33,16 @@ const PILLARS = [
   { key: "autonomy" as const, cn: "网络自治", color: "#2dd4bf" },
 ];
 
-export function TopBar({ clock, state, scenario }: Props) {
+export function TopBar({
+  clock,
+  state,
+  scenario,
+  mode = "demo",
+  onModeChange = () => {},
+  liveCapabilities = {},
+}: Props) {
   const { theme, setTheme } = useTheme();
+  const canLive = liveCapabilities[scenario.id] === "live";
   return (
     <div className="hud" style={{ borderRadius: 10, padding: "8px 16px", display: "flex", alignItems: "center", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flex: 1, minWidth: 0 }}>
@@ -80,6 +101,29 @@ export function TopBar({ clock, state, scenario }: Props) {
               })}
             </div>
           )}
+          {/* DEMO / LIVE 模式切换 —— 不可用时降级 */}
+          <div style={{ display: "flex", gap: 4, marginLeft: 12 }}>
+            <button
+              className={mode === "demo" ? "btn active" : "btn"}
+              onClick={() => onModeChange("demo")}
+              data-testid="mode-demo"
+            >
+              DEMO
+            </button>
+            <button
+              className={mode === "live" ? "btn active" : "btn"}
+              onClick={() => onModeChange("live")}
+              data-testid="mode-live"
+              disabled={!canLive}
+              title={
+                canLive
+                  ? "切到 LIVE(后端实时)"
+                  : "该场景暂未支持 LIVE,使用 DEMO"
+              }
+            >
+              {canLive ? "切到 LIVE" : "LIVE 不可用"}
+            </button>
+          </div>
           <button className="btn" onClick={clock.toggle} title={clock.playing ? "暂停" : "播放"} style={{ minWidth: 36 }}>
             {clock.playing ? "❚❚" : "▶"}
           </button>
