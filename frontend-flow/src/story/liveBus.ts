@@ -127,6 +127,16 @@ export function getLiveState(sid: string): LiveState {
   return _store.get(sid) ?? _initial(sid, "unknown");
 }
 
+/** 确保 _store 里有 sid 的条目(供 useSyncExternalStore 稳定 snapshot),不触发通知。 */
+export function ensureLiveState(sid: string, scn: string): LiveState {
+  let st = _store.get(sid);
+  if (!st) {
+    st = _initial(sid, scn);
+    _store.set(sid, st);
+  }
+  return st;
+}
+
 export const liveBus = {
   subscribe(sid: string, cb: () => void): () => void {
     if (!_subs.has(sid)) _subs.set(sid, new Set());
