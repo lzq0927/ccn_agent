@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS loop_iterations (
     llm_mode TEXT
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_loop_sessions_session_id ON loop_iterations(session_id);
+CREATE INDEX IF NOT EXISTS idx_loop_sessions_session_id ON loop_iterations(session_id);
 
 CREATE INDEX IF NOT EXISTS idx_cases_fault_type ON cases(fault_type);
 CREATE INDEX IF NOT EXISTS idx_cases_difficulty ON cases(difficulty);
@@ -131,7 +131,34 @@ class Storage:
 
     def _init_db(self) -> None:
         with sqlite3.connect(self.db_path) as conn:
-            conn.executescript(SCHEMA_SQL)
+            # Initialize base tables first; old databases are migrated below.
+            base_schema = SCHEMA_SQL.replace(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_loop_sessions_session_id ON loop_iterations(session_id);",
+                "",
+            )
+            # The base schema includes the index in some historical revisions;
+            # strip any equivalent index statement before migrating old tables.
+            base_schema = base_schema.replace(
+                "CREATE INDEX IF NOT EXISTS idx_loop_sessions_session_id ON loop_iterations(session_id);",
+                "",
+            )
+            conn.executescript(base_schema)
+            columns = {
+                row[1] for row in conn.execute("PRAGMA table_info(loop_iterations)")
+            }
+            for name, definition in (
+                ("session_id", "TEXT"),
+                ("scenario_id", "TEXT"),
+                ("runner_state", "TEXT"),
+                ("restart_count", "INTEGER DEFAULT 0"),
+                ("llm_mode", "TEXT"),
+            ):
+                if name not in columns:
+                    conn.execute(f"ALTER TABLE loop_iterations ADD COLUMN {name} {definition}")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_loop_sessions_session_id "
+                "ON loop_iterations(session_id)"
+            )
         logger.info("Database initialized: %s", self.db_path)
 
     def _conn(self) -> sqlite3.Connection:
@@ -418,13 +445,13 @@ class Storage:
         """Upsert a live session row keyed by session_id."""
         with self._conn() as conn:
             conn.execute(
+                "DELETE FROM loop_iterations WHERE session_id = ?", (session_id,)
+            )
+            conn.execute(
                 """INSERT INTO loop_iterations
                    (session_id, scenario_id, runner_state, llm_mode,
                     loop_type, iteration_number, started_at, restart_count)
-                   VALUES (?, ?, ?, ?, 'live', 1, CURRENT_TIMESTAMP, 0)
-                   ON CONFLICT(session_id) DO UPDATE SET
-                     runner_state=excluded.runner_state,
-                     llm_mode=excluded.llm_mode""",
+                   VALUES (?, ?, ?, ?, 'live', 1, CURRENT_TIMESTAMP, 0)""",
                 (session_id, scenario_id, runner_state, llm_mode),
             )
 

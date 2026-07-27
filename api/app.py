@@ -7,7 +7,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import generation, perception, evaluation, websocket
+from api.routes import evaluation, generation, live, perception, websocket
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,8 @@ def create_app() -> FastAPI:
     app.include_router(perception.router, prefix="/api/v1/perception", tags=["perception"])
     app.include_router(evaluation.router, prefix="/api/v1/evaluation", tags=["evaluation"])
     app.include_router(websocket.router, prefix="/ws", tags=["websocket"])
+    app.include_router(live.router, prefix="/api/v1/live", tags=["live"])
+    app.add_api_websocket_route("/ws/live", live.ws_endpoint)
 
     @app.get("/api/v1/dashboard/summary")
     async def dashboard_summary():
