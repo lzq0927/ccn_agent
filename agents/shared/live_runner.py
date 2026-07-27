@@ -6,7 +6,15 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Protocol
 
+from agents.shared.scenario_plugin import discover_plugins
+
 logger = logging.getLogger(__name__)
+
+# 启动时扫描 plugins/ 目录;幂等(REGISTRY 已有则覆盖)
+try:
+    discover_plugins()
+except Exception:  # noqa: BLE001
+    logger.exception("discover_plugins failed at import time")
 
 
 class RunnerState(str, Enum):
