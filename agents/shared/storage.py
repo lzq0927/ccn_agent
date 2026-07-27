@@ -98,8 +98,16 @@ CREATE TABLE IF NOT EXISTS loop_iterations (
     cases_evaluated INTEGER DEFAULT 0,
     accuracy_before REAL,
     accuracy_after REAL,
-    summary TEXT
+    summary TEXT,
+    -- LIVE mode fields only apply to newly created databases; existing schemas are not migrated.
+    session_id TEXT,
+    scenario_id TEXT,
+    runner_state TEXT,
+    restart_count INTEGER DEFAULT 0,
+    llm_mode TEXT
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_loop_sessions_session_id ON loop_iterations(session_id);
 
 CREATE INDEX IF NOT EXISTS idx_cases_fault_type ON cases(fault_type);
 CREATE INDEX IF NOT EXISTS idx_cases_difficulty ON cases(difficulty);
@@ -397,8 +405,61 @@ class Storage:
             )
 
     # -----------------------------------------------------------------------
-    # Loop iterations
+    # Loop iterations and live sessions
     # -----------------------------------------------------------------------
+
+    def record_live_session(
+        self,
+        session_id: str,
+        scenario_id: str,
+        runner_state: str,
+        llm_mode: str,
+    ) -> None:
+        """Upsert a live session row keyed by session_id."""
+        with self._conn() as conn:
+            conn.execute(
+                """INSERT INTO loop_iterations
+                   (session_id, scenario_id, runner_state, llm_mode,
+                    loop_type, iteration_number, started_at, restart_count)
+                   VALUES (?, ?, ?, ?, 'live', 1, CURRENT_TIMESTAMP, 0)
+                   ON CONFLICT(session_id) DO UPDATE SET
+                     runner_state=excluded.runner_state,
+                     llm_mode=excluded.llm_mode""",
+                (session_id, scenario_id, runner_state, llm_mode),
+            )
+
+    def update_live_session_state(
+        self, session_id: str, runner_state: str, restart_count: int | None = None
+    ) -> None:
+        with self._conn() as conn:
+            if restart_count is None:
+                conn.execute(
+                    "UPDATE loop_iterations SET runner_state=? WHERE session_id=?",
+                    (runner_state, session_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE loop_iterations SET runner_state=?, restart_count=? WHERE session_id=?",
+                    (runner_state, restart_count, session_id),
+                )
+
+    def complete_live_session(self, session_id: str) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE loop_iterations SET completed_at=CURRENT_TIMESTAMP WHERE session_id=?",
+                (session_id,),
+            )
+
+    def list_live_sessions(self) -> list[dict]:
+        with self._conn() as conn:
+            rows = conn.execute(
+                """SELECT session_id, scenario_id, runner_state, llm_mode,
+                          restart_count, started_at, completed_at
+                   FROM loop_iterations
+                   WHERE session_id IS NOT NULL
+                   ORDER BY started_at DESC"""
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def start_loop_iteration(
         self, loop_type: str, iteration_number: int, accuracy_before: float = 0.0
