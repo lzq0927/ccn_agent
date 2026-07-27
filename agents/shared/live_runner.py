@@ -188,3 +188,24 @@ class LiveRunner:
                 "case_entry": {},
             },
         )
+
+
+class RunnerRegistry:
+    """进程级 LiveRunner 注册表;限制活跃 session 数。"""
+
+    def __init__(self, max_active: int = 10):
+        self.max_active = max_active
+        self._active: set[str] = set()
+
+    def add(self, session_id: str) -> None:
+        if len(self._active) >= self.max_active:
+            raise RuntimeError(
+                f"max active sessions reached ({self.max_active}); reject {session_id}"
+            )
+        self._active.add(session_id)
+
+    def remove(self, session_id: str) -> None:
+        self._active.discard(session_id)
+
+    def size(self) -> int:
+        return len(self._active)
