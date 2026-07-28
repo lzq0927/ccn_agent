@@ -37,11 +37,13 @@ class ScenarioPlugin(Protocol):
 
 @dataclass
 class TickContext:
-    sim_t: int
+    sim_t: int  # 本轮内时间(1..ticks_per_round)
     ne_cpu: dict[str, float]
     kpi_window: list[dict]
     chr_window: list[dict]
     active_ue: int
+    round: int = 1  # 当前诊断轮次(场景 F 双轮:首轮反升/二轮收敛,KPI 曲线不同)
+    global_t: int = 0  # 跨轮全局仿真时间(1..sim_window),plugin 按它合成风暴曲线
 
 
 @dataclass

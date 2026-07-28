@@ -121,6 +121,113 @@ def _on_ue_request(req: UeRequest) -> UeResponse:
     return UeResponse(verdict="ALLOW")
 
 
+# ---------------------------------------------------------------------------
+# 真实数据合成:on_tick 按 global_t 产出 KPI/CHR/告警
+#   时间轴与 DEMO simTForF 对齐:风暴起 28 / 反升峰 36 / 收敛 44-58 / 恢复 58+
+#   首轮(global_t 1-30):稳态 + 风暴初起 → confidence 低中止
+#   二轮(global_t 31-60):攀升 + 反升 + 收敛 + 恢复
+# ---------------------------------------------------------------------------
+_FS_START = 28  # 风暴起(物联注册突增)
+_FS_PEAK = 36   # 反升峰(首轮 iPhone 不支持 back-off,反复重试放大风暴)
+_FS_CONV = 44   # 收敛开始(二轮排除 iPhone,NSSAI+APN 准入控制生效)
+_FS_END = 58    # 收敛完成
+
+
+def _kpi_at(t: int) -> dict:
+    """按全局仿真时间合成流控风暴 KPI(与 DEMO 曲线对齐,便于落盘核对)。"""
+    if t < _FS_START:
+        return {"amf_cpu": 40.0, "smf_cpu": 38.0, "iot_reg": 5.0, "toc_reg": 15.0,
+                "iot_sess": 40.0, "toc_sess": 300.0, "amf_sr": 0.995, "smf_sr": 0.995}
+    if t < _FS_PEAK:
+        ramp = (t - _FS_START) / max(1, (_FS_PEAK - _FS_START))  # 0→1
+        return {"amf_cpu": 40 + 55 * ramp, "smf_cpu": 38 + 53 * ramp,
+                "iot_reg": 5 + 175 * ramp, "toc_reg": 15 + 7 * ramp,
+                "iot_sess": 40 + 280 * ramp, "toc_sess": 300 + 60 * ramp,
+                "amf_sr": 0.995 - 0.135 * ramp, "smf_sr": 0.995 - 0.12 * ramp}
+    if t < _FS_CONV:
+        # 反升段:首轮策略失败,维持高位
+        return {"amf_cpu": 95.0, "smf_cpu": 91.0, "iot_reg": 186.0, "toc_reg": 22.0,
+                "iot_sess": 320.0, "toc_sess": 360.0, "amf_sr": 0.86, "smf_sr": 0.875}
+    if t < _FS_END:
+        conv = (t - _FS_CONV) / max(1, (_FS_END - _FS_CONV))  # 0→1
+        return {"amf_cpu": 95 - 55 * conv, "smf_cpu": 91 - 53 * conv,
+                "iot_reg": 186 - 158 * conv, "toc_reg": 22 - 7 * conv,
+                "iot_sess": 320 - 280 * conv, "toc_sess": 360 - 60 * conv,
+                "amf_sr": 0.86 + 0.135 * conv, "smf_sr": 0.875 + 0.12 * conv}
+    return {"amf_cpu": 42.0, "smf_cpu": 40.0, "iot_reg": 8.0, "toc_reg": 15.0,
+            "iot_sess": 45.0, "toc_sess": 300.0, "amf_sr": 0.994, "smf_sr": 0.994}
+
+
+def _on_tick(ctx) -> list:
+    """每个仿真秒合成 KPI 快照 + CHR + 告警,并填 ctx.ne_cpu/active_ue。"""
+    t = ctx.global_t
+    kpi = _kpi_at(t)
+
+    # NE CPU(AMF/SMF 各实例分担,其余 NE 基线)
+    ctx.ne_cpu = {
+        "AMF_1": kpi["amf_cpu"], "AMF_2": kpi["amf_cpu"] * 0.96, "AMF_3": kpi["amf_cpu"] * 0.92,
+        "SMF_1": kpi["smf_cpu"], "SMF_2": kpi["smf_cpu"] * 0.95,
+        "UPF_1": 35.0, "UPF_2": 33.0, "UPF_3": 31.0,
+        "PCF_1": 24.0, "PCF_2": 22.0,
+        "UDM_1": 19.0, "UDM_2": 17.0,
+        "AUSF_1": 18.0, "AUSF_2": 16.0,
+        "NRF_1": 14.0, "NRF_2": 13.0,
+        "NSSF_1": 21.0, "NSSF_2": 20.0,
+    }
+    ctx.active_ue = int(kpi["iot_reg"] * 8 + kpi["toc_reg"] * 5)
+
+    events = [Event(
+        type="kpi_snapshot",
+        payload={"sim_t": t, "round": ctx.round,
+                 "amf_cpu": round(kpi["amf_cpu"], 2), "smf_cpu": round(kpi["smf_cpu"], 2),
+                 "iot_reg_rate": round(kpi["iot_reg"], 1), "toc_reg_rate": round(kpi["toc_reg"], 1),
+                 "iot_sess_rate": round(kpi["iot_sess"], 1), "toc_sess_rate": round(kpi["toc_sess"], 1),
+                 "amf_success_rate": round(kpi["amf_sr"], 4), "smf_success_rate": round(kpi["smf_sr"], 4)},
+    )]
+
+    # CHR(风暴期:物联终端会话失败 + 首轮 iPhone 反复重试)
+    if t >= _FS_START:
+        if ctx.round == 1 and t >= _FS_PEAK - 4:
+            events.append(Event(type="chr_record", payload={
+                "sim_t": t, "round": ctx.round, "ue_id": f"iphone-{t % 30:03d}",
+                "device_type": "iphone", "apn": "iot-platform", "procedure": "registration",
+                "cause_code": "5GMM:22", "cause_cn": "拥塞(iPhone 不支持 back-off,反复重试)",
+                "success": False,
+            }))
+        elif t < _FS_CONV:
+            events.append(Event(type="chr_record", payload={
+                "sim_t": t, "round": ctx.round, "ue_id": f"iot-{t % 80:03d}",
+                "device_type": "iot-meter", "apn": "iot-platform", "procedure": "pdu_create",
+                "cause_code": "5GSM:37", "cause_cn": "PDU 会话建立失败", "success": False,
+            }))
+
+    # 告警(风暴起 + CPU 过载 + 收敛生效)
+    if t == _FS_START:
+        events.append(Event(type="alarm", payload={
+            "sim_t": t, "ne_id": "AMF_1", "severity": "major",
+            "category": "registration_storm", "message": "物联终端注册请求突增,疑似注册风暴",
+        }))
+    if kpi["amf_cpu"] >= 85 and t in (_FS_PEAK, _FS_PEAK + 2, _FS_CONV):
+        events.append(Event(type="alarm", payload={
+            "sim_t": t, "ne_id": "AMF_1",
+            "severity": "critical" if kpi["amf_cpu"] >= 90 else "major",
+            "category": "cpu_overload", "message": f"AMF_1 CPU {kpi['amf_cpu']:.0f}% 过载",
+        }))
+    if kpi["smf_cpu"] >= 85 and t in (_FS_PEAK, _FS_PEAK + 2, _FS_CONV):
+        events.append(Event(type="alarm", payload={
+            "sim_t": t, "ne_id": "SMF_1",
+            "severity": "critical" if kpi["smf_cpu"] >= 90 else "major",
+            "category": "cpu_overload", "message": f"SMF_1 CPU {kpi['smf_cpu']:.0f}% 过载",
+        }))
+    if t == _FS_CONV:
+        events.append(Event(type="alarm", payload={
+            "sim_t": t, "ne_id": "AMF_1", "severity": "info",
+            "category": "admission_control", "message": "二轮 NSSAI+APN 准入控制生效,开始收敛",
+        }))
+
+    return events
+
+
 class FPlugin:
     id = "F"
     label_cn = "流控溯源·物联网风暴(三层并行·终端类型感知)"
@@ -134,7 +241,7 @@ class FPlugin:
     def build_topology(self): return _build_topology()
     def build_fault_config(self, topo): return _build_fault_config(topo)
     def build_ue_distribution(self): return _build_ue_distribution()
-    def on_tick(self, ctx: TickContext): return []
+    def on_tick(self, ctx: TickContext): return _on_tick(ctx)
     def diagnosis_llm_stub(self, ctx: DiagnosisContext): return _diagnosis_llm_stub(ctx)
     def recovery_actions(self, plan): return _recovery_actions(plan)
     def on_recovery_action(self, action, ctx): return _on_recovery_action(action, ctx)

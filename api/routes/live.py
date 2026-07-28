@@ -34,6 +34,7 @@ if "F" not in REGISTRY:
 
 class SelectRequest(BaseModel):
     scenario_id: str
+    tick_interval: Optional[float] = None  # 秒;None 用默认 0.15(演示节奏),0=最快
 
 
 class ControlRequest(BaseModel):
@@ -43,11 +44,17 @@ class ControlRequest(BaseModel):
 
 
 class _SessionBus:
-    """Per-session event buffer and subscriber list."""
+    """Per-session event buffer + subscriber queues.
+
+    publish() 只 put_nowait 到每个 subscriber 的有界 queue,由各自的
+    _sender_loop 逐条 await send_text —— 避免 create_task 风暴(高事件量时
+    会卡死 in-process TestClient WS),且慢客户端不会拖垮 publisher。
+    """
 
     def __init__(self, session_id: str):
         self.session_id = session_id
         self._subscribers: list[WebSocket] = []
+        self._queues: dict[WebSocket, asyncio.Queue] = {}
         self._buffer: list[dict] = []
 
     def publish(self, type_: str, payload: dict) -> None:
@@ -60,19 +67,33 @@ class _SessionBus:
         self._buffer.append(event)
         if len(self._buffer) > 1000:
             self._buffer = self._buffer[-500:]
-        for websocket in list(self._subscribers):
+        for q in list(self._queues.values()):
             try:
-                asyncio.create_task(websocket.send_text(json.dumps(event, default=str)))
-            except Exception:
-                self._subscribers.remove(websocket)
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                logger.warning("live bus queue full, dropping event (slow subscriber)")
 
     def attach(self, websocket: WebSocket) -> None:
         self._subscribers.append(websocket)
+        q: asyncio.Queue = asyncio.Queue(maxsize=500)
+        self._queues[websocket] = q
         for event in self._buffer[-200:]:
-            try:
-                asyncio.create_task(websocket.send_text(json.dumps(event, default=str)))
-            except Exception:
-                logger.exception("failed to replay live event")
+            q.put_nowait(event)
+        asyncio.create_task(self._sender_loop(websocket, q))
+
+    def detach(self, websocket: WebSocket) -> None:
+        self._subscribers = [s for s in self._subscribers if s is not websocket]
+        self._queues.pop(websocket, None)
+
+    async def _sender_loop(self, websocket: WebSocket, q: asyncio.Queue) -> None:
+        try:
+            while True:
+                event = await q.get()
+                await websocket.send_text(json.dumps(event, default=str))
+        except Exception:  # noqa: BLE001 — WS 关闭/客户端断开
+            logger.debug("live bus sender loop ended")
+        finally:
+            self.detach(websocket)
 
 
 @router.get("/capabilities")
@@ -104,14 +125,32 @@ async def select_scenario(req: SelectRequest):
     storage.record_live_session(
         session_id, req.scenario_id, RunnerState.INIT.value, llm_mode="auto"
     )
+
+    # 数据落盘记录器(L3);失败不影响 LIVE 运行
+    recorder = None
+    try:
+        from pathlib import Path
+
+        from agents.shared.live_data_recorder import LiveDataRecorder
+
+        recorder = LiveDataRecorder(
+            session_id=session_id,
+            scenario_id=req.scenario_id,
+            base_dir=str(Path(storage.db_path).parent),
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("LiveDataRecorder init failed; LIVE will run without recording")
+
+    tick_interval = 0.15 if req.tick_interval is None else req.tick_interval
     runner = LiveRunner(
         session_id=session_id,
         scenario_id=req.scenario_id,
         plugin=plugin,
         bus=bus,
         storage=storage,
+        recorder=recorder,
         sim_window=60,
-        tick_interval=0.0,
+        tick_interval=tick_interval,
     )
     _RUNNERS[session_id] = runner
     asyncio.create_task(runner.run())
@@ -119,6 +158,7 @@ async def select_scenario(req: SelectRequest):
         "session_id": session_id,
         "scenario_id": req.scenario_id,
         "capabilities": "live",
+        "tick_interval": tick_interval,
     }
 
 
@@ -174,3 +214,5 @@ async def ws_endpoint(websocket: WebSocket, session_id: str = ""):
                 await websocket.send_text("pong")
     except WebSocketDisconnect:
         pass
+    finally:
+        bus.detach(websocket)

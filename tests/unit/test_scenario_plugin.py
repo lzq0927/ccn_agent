@@ -1,9 +1,19 @@
+import pytest
 from agents.shared.scenario_plugin import (
     ScenarioPlugin,
     REGISTRY,
     discover_plugins,
     capabilities_snapshot,
 )
+
+
+@pytest.fixture(autouse=True)
+def _restore_registry():
+    """每个测试后恢复 REGISTRY(防止 clear/临时注册 污染其它测试的全局注册表)。"""
+    snapshot = dict(REGISTRY)
+    yield
+    REGISTRY.clear()
+    REGISTRY.update(snapshot)
 
 
 class _StubPlugin:

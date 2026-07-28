@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Literal, Protocol, runtime_checkable
+from typing import Callable, Literal
 
 from agents.simulation.engine_step import EngineStepper, EngineTickContext
 
@@ -35,9 +35,24 @@ class UeResponse:
 
 
 class LiveEngine:
-    def __init__(self, stepper: EngineStepper, plugin):
+    """EngineStepper + ScenarioPlugin 绑定。
+
+    tick_callback: 每 tick 推进后回调 (plugin_ctx, events),供 LiveRunner
+    把 KPI/CHR/告警事件 publish 到 WS + 落盘。None 时仅累积到 self.events。
+    current_round: 当前诊断轮次(场景 F 双轮),透传到 TickContext.round。
+    """
+
+    def __init__(
+        self,
+        stepper: EngineStepper,
+        plugin,
+        tick_callback: Callable | None = None,
+    ):
         self.stepper = stepper
         self.plugin = plugin
+        self.tick_callback = tick_callback
+        self.current_round: int = 1
+        self.round_offset: int = 0  # global_t = round_offset + sim_t(跨轮连续)
         self.events: list = []
 
     def run_sync(self) -> None:
@@ -58,9 +73,17 @@ class LiveEngine:
             kpi_window=[],
             chr_window=[],
             active_ue=0,
+            round=self.current_round,
+            global_t=self.round_offset + ctx.sim_t,
         )
-        events = self.plugin.on_tick(plugin_ctx)
+        events = self.plugin.on_tick(plugin_ctx) or []
         self.events.extend(events)
+        if self.tick_callback is not None:
+            try:
+                self.tick_callback(plugin_ctx, events)
+            except Exception:  # noqa: BLE001 — 回调失败不能拖垮仿真
+                import logging
+                logging.getLogger(__name__).exception("tick_callback failed")
         return ctx
 
     def admit_ue_request(self, req: UeRequest) -> UeResponse:
