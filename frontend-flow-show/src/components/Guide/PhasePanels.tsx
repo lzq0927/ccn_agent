@@ -11,44 +11,38 @@ import { useRef, useEffect } from "react";
 import type { Scenario } from "../../data/types";
 import type { StoryState } from "../../story/types";
 import { ROUTE_COLORS, STATUS, srColor } from "../../theme";
-import { getKpi } from "../../story/director";
+import { getKpi, iotRegAt, sessIotAt } from "../../story/director";
 import { sample } from "../../data/kpi";
 
 /* ————————————————————— ② 异常检测:画出异常图 ————————————————————— */
 export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
   const kpi = getKpi(scenario);
   const simT = state.simT;
-  const overall = kpi.overall;
-  const cur = sample(overall, simT);
   const isStorm = scenario.fault.faultType === "iot_storm";
-  // KPI 曲线点(0..100 x, SR 映射)
-  const W = 318, H = 56;
-  const xAt = (i: number) => (i / (overall.length - 1)) * W;
-  const yAt = (v: number) => H - 4 - ((v - 0.8) / 0.2) * (H - 8);
-  // 实时:只画到当前 simT(未来不展示)
-  const curI = Math.min(Math.max(Math.floor(simT) - 1, 0), overall.length - 1);
-  const pts = overall.slice(0, Math.max(2, curI + 2)).map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ");
-  const curX = xAt(curI);
-  const fs = kpi.faultStart, fe = kpi.faultEnd;
-  const winX0 = ((fs - 1) / 59) * W, winW = ((fe - fs) / 59) * W;
-  // CHR top causes(若有)
+  const graph = scenario.realGraph;
+  const curI = Math.min(Math.max(Math.floor(simT) - 1, 0), 58);
+  // AMF / SMF 聚合 SR
+  const agg = (type: string) => {
+    const ns = graph ? graph.nodes.filter((n) => n.type === type) : [];
+    if (!ns.length) return kpi.overall;
+    const acc = ns.reduce<number[]>((a, n) => { const s = kpi.nodes[n.id] ?? []; s.forEach((v, i) => { a[i] = (a[i] ?? 0) + v; }); return a; }, []);
+    return acc.map((v) => v / ns.length);
+  };
+  const amfSr = agg("AMF"), smfSr = agg("SMF");
+  const regRate = Array.from({ length: 60 }, (_, i) => iotRegAt(scenario, i + 1));
+  const sessRate = Array.from({ length: 60 }, (_, i) => sessIotAt(scenario, i + 1));
+  const maxReg = Math.max(...regRate, 200);
+  const maxSess = Math.max(...sessRate, 400);
+  const visN = Math.max(3, curI + 2);
+  // CHR
   const chr = scenario.chrInsight;
   const related = chr?.related ?? [];
-  // 过载 NE(storm:scenario.fault.elements)
   const overloadNEs = isStorm ? scenario.fault.elements : [];
 
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
-      <Row label="整网成功率" val={`${(cur * 100).toFixed(2)}%`} valC={srColor(cur)} />
-      <div style={{ marginTop: 6 }}>
-        <div style={{ fontSize: 10, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 2 }}>KPI 时序 · 逐链路成功率</div>
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H}>
-          <rect x={winX0} y={0} width={winW} height={H} fill="rgba(239,68,68,0.08)" />
-          <line x1={0} y1={yAt(kpi.threshold)} x2={W} y2={yAt(kpi.threshold)} stroke="rgba(245,158,11,0.6)" strokeWidth={0.8} strokeDasharray="3 3" />
-          <polyline points={pts} fill="none" stroke="#38bdf8" strokeWidth={1.6} />
-          <circle cx={curX} cy={yAt(cur)} r={2.4} fill={srColor(cur)} />
-        </svg>
-      </div>
+      <DualCurve sr={amfSr} rate={regRate} mx={maxReg} visN={visN} srC="#60a5fa" rateC="#f59e0b" title="AMF 注册 SR + 注册请求数/s" />
+      <DualCurve sr={smfSr} rate={sessRate} mx={maxSess} visN={visN} srC="#a78bfa" rateC="#f59e0b" title="SMF PDU 会话 SR + 会话请求数/s" />
 
       {isStorm && scenario.stormMetrics && (() => {
         const m = scenario.stormMetrics;
@@ -67,11 +61,53 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
 
       {chr && (
         <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.4)", background: "rgba(167,139,250,0.07)" }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 5 }}>CHR 原因值分布</div>
-          <Bar label={`${chr.causeCode} ${chr.causeCn}`} share={chr.share ?? 60} color="#a78bfa" />
-          {related.map((r) => <Bar key={r.code} label={`${r.code} ${r.cn}`} share={r.share ?? 8} color="#64748b" />)}
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 6 }}>CHR 占比分析</div>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color="#a78bfa" />
+            {related.length > 0 && <Donut share={related[0].share ?? 58} label={related[0].code} sub="会话" color="#64748b" />}
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** 双曲线(SR + 请求数),实时裁剪 */
+function DualCurve({ sr, rate, mx, visN, srC, rateC, title }: { sr: number[]; rate: number[]; mx: number; visN: number; srC: string; rateC: string; title: string }) {
+  const W = 280, H = 48;
+  const xAt = (i: number) => (i / 59) * W;
+  const ySr = (v: number) => H - 3 - ((v - 0.8) / 0.2) * (H - 6);
+  const yRate = (v: number) => H - 3 - (Math.min(v, mx) / mx) * (H - 6);
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ fontSize: 10, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 1, display: "flex", justifyContent: "space-between" }}>
+        <span>{title}</span>
+        <span><span style={{ color: srC }}>■SR</span> <span style={{ color: rateC }}>■请求</span></span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
+        <polyline points={sr.slice(0, visN).map((v, i) => `${xAt(i).toFixed(1)},${ySr(v).toFixed(1)}`).join(" ")} fill="none" stroke={srC} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        <polyline points={rate.slice(0, visN).map((v, i) => `${xAt(i).toFixed(1)},${yRate(v).toFixed(1)}`).join(" ")} fill="none" stroke={rateC} strokeWidth={1.3} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" opacity={0.8} />
+      </svg>
+    </div>
+  );
+}
+/** 小饼图 */
+function Donut({ share, label, sub, color }: { share: number; label: string; sub: string; color: string }) {
+  const r = 26, rIn = 16, cx = 30, cy = 30;
+  const a = (share / 100) * Math.PI * 2;
+  const pt = (rad: number, ang: number): [number, number] => [cx + rad * Math.sin(ang), cy - rad * Math.cos(ang)];
+  const [sx, sy] = pt(r, 0), [ex, ey] = pt(r, a), [sxi, syi] = pt(rIn, a), [exi, eyi] = pt(rIn, 0);
+  const large = a > Math.PI ? 1 : 0;
+  const path = `M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey} L ${sxi} ${syi} A ${rIn} ${rIn} 0 ${large} 0 ${exi} ${eyi} Z`;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <svg width={60} height={60} viewBox="0 0 60 60">
+        <circle cx={cx} cy={cy} r={(r + rIn) / 2} fill="none" stroke="rgba(148,163,184,0.12)" strokeWidth={r - rIn} />
+        <path d={path} fill={color} opacity={0.85} />
+        <text x={cx} y={cy + 1} textAnchor="middle" fontSize={12} fontWeight={800} fill="var(--text-bright)" fontFamily="var(--font-mono)">{share}%</text>
+        <text x={cx} y={cy + 13} textAnchor="middle" fontSize={6} fill="var(--text-dim)" fontFamily="var(--font-sans)">{sub}</text>
+      </svg>
+      <span style={{ fontSize: 9.5, fontWeight: 700, color, fontFamily: "var(--font-mono)", marginTop: 2 }}>{label}</span>
     </div>
   );
 }
@@ -191,6 +227,55 @@ export function DispatchPanel({ scenario, state }: { scenario: Scenario; state: 
       {actions.map((a, i) => (
         <div key={a.id} style={{ display: "flex", gap: 7, marginBottom: 4, fontSize: 12 }}><span style={{ color: "#5eead4", fontWeight: 800 }}>{i + 1}.</span><span>{a.cn}</span></div>
       ))}
+    </div>
+  );
+}
+
+/** Agent3 评估未通过(首轮 phase7 round1):具体写哪些指标未恢复 */
+export function EvalFailPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
+  const kpi = getKpi(scenario);
+  const sr = sample(kpi.overall, state.simT);
+  const isG = scenario.stormMetrics?.udmCpu != null;
+  const m = scenario.stormMetrics;
+  const cpus = state.simNeCpu ?? {};
+  const topCpu = (prefix: string) => Object.entries(cpus).filter(([id]) => id.startsWith(prefix)).map(([, v]) => v).sort((a, b) => b - a)[0] ?? 0;
+  const udmCpu = topCpu("UDM");
+  const amfCpu = topCpu("AMF");
+  const smfCpu = topCpu("SMF");
+  return (
+    <div style={{ fontSize: 13, color: "var(--text-soft)", lineHeight: 1.6 }}>
+      <div style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid ${STATUS.warning}88`, background: `${STATUS.warning}12`, marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: "#fbbf24", fontFamily: "var(--font-mono)", marginBottom: 8 }}>⚠ Agent3 评估 · 未通过</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {isG ? (
+            <>
+              <FailRow label="UDM CPU" val={`${udmCpu.toFixed(0)}%`} detail="过载告警未消除(>70%)" />
+              <FailRow label="AMF 注册 SR" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
+              <FailRow label="SMF PDU 会话 SR" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
+              {m?.msgToUdmSurge ? <FailRow label="AMF/SMF→UDM 消息" val={`仍偏高`} detail="未完全降下去" /> : null}
+            </>
+          ) : (
+            <>
+              <FailRow label="AMF CPU" val={`${amfCpu.toFixed(0)}%`} detail="过载告警未消除" />
+              <FailRow label="SMF CPU" val={`${smfCpu.toFixed(0)}%`} detail="过载告警未消除" />
+              <FailRow label="注册/会话 SR" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
+            </>
+          )}
+        </div>
+      </div>
+      <div style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(56,189,248,0.35)", background: "rgba(56,189,248,0.06)", fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
+        → Agent3 判定未恢复,<b style={{ color: "#7dd3fc" }}>回 Agent1 第二轮重新采集</b>,进一步分析终端类型 + 按差值重算参数。
+      </div>
+    </div>
+  );
+}
+
+function FailRow({ label, val, detail }: { label: string; val: string; detail: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 8, fontSize: 12 }}>
+      <span style={{ color: "var(--text-mid)", minWidth: 110, flexShrink: 0 }}>{label}</span>
+      <span style={{ color: STATUS.warning, fontWeight: 800, fontFamily: "var(--font-mono)", minWidth: 50 }}>{val}</span>
+      <span style={{ color: "var(--text-dim)", fontSize: 11 }}>{detail}</span>
     </div>
   );
 }

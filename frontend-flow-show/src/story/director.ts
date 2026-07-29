@@ -165,7 +165,7 @@ const R1_COMMON: Seg[] = [
   { dur: 4, phase: 1, round: 1 }, { dur: 4, phase: 2, round: 1 }, { dur: 3, phase: 3, round: 1 },
   { dur: 6, phase: 4, round: 1 },
 ];
-const R1_WITH_RECOV: Seg[] = [...R1_COMMON, { dur: 4, phase: 5, round: 1 }]; // E/F/G:首轮恢复(未收敛)
+const R1_WITH_RECOV: Seg[] = [...R1_COMMON, { dur: 4, phase: 5, round: 1 }, { dur: 4, phase: 7, round: 1 }]; // E/F/G:首轮恢复+Agent3评估未通过
 const R2_SEGS: Seg[] = [
   { dur: 4, phase: 1, round: 2 }, { dur: 4, phase: 2, round: 2 }, { dur: 3, phase: 3, round: 2 },
   { dur: 9, phase: 4, round: 2 }, { dur: 6, phase: 5, round: 2 },
@@ -578,10 +578,10 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // 回路:B/C 首轮⑤评估未通过 → loop①(⑤ 回 Agent1,Agent2 内部,不走 Agent3)
   //       E 首轮 back-off 未收敛 → loop②(经 Agent3,A3→A1);二轮回到 Agent1 瞬间(phase1)对应回路保持亮
   const failBC = (s.id === "B" || s.id === "C") && phaseIndex === 4 && progress > 0.6;
-  const failEF = (s.id === "E" || s.id === "F") && phaseIndex >= 5;
+  const failEF = (s.id === "E" || s.id === "F" || s.id === "G") && phaseIndex === 7;
   const loopBackKind: "loop1" | "loop2" | null = isTwoRound
-    ? ((eRound === 1 && (failBC || failEF)) || (eRound === 2 && phaseIndex <= 1)
-      ? (s.id === "E" || s.id === "F" ? "loop2" : "loop1")
+    ? ((eRound === 1 && (failBC || failEF))
+      ? (s.id === "E" || s.id === "F" || s.id === "G" ? "loop2" : "loop1")
       : null)
     : null;
   let revealedCount: number;

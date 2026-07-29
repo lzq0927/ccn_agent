@@ -10,7 +10,7 @@ import type { StoryState } from "../../story/types";
 import { guideCallout } from "../../guide/steps";
 import { getKpi } from "../../story/director";
 import { sample } from "../../data/kpi";
-import { AnomalyPanel, MatchPanel, ReasonPanel, DispatchPanel, EvalPanel } from "./PhasePanels";
+import { AnomalyPanel, MatchPanel, ReasonPanel, DispatchPanel, EvalPanel, EvalFailPanel } from "./PhasePanels";
 
 interface Props {
   scenario: Scenario;
@@ -34,15 +34,15 @@ export function InfoPanel({ scenario, state, round }: Props) {
           {round === 2 && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 3, color: "#fbbf24", border: "1px solid #f59e0b88", background: "rgba(245,158,11,0.12)", fontFamily: "var(--font-mono)", marginLeft: "auto" }}>第②轮</span>}
         </div>
         <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-bright)", lineHeight: 1.2 }}>{info.title}</div>
-        {state.loopBackKind && <EvalFailCard scenario={scenario} state={state} />}
       </div>
-      <div key={phase} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 14px", animation: "fpop-in 0.3s cubic-bezier(0.22,1,0.36,1)" }}>
+      <div key={`${phase}-${round}`} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 14px", animation: "fpop-in 0.3s cubic-bezier(0.22,1,0.36,1)" }}>
         {phase === 2 ? <AnomalyPanel scenario={scenario} state={state} />
           : phase === 3 ? <MatchPanel scenario={scenario} />
             : phase === 4 ? <ReasonPanel scenario={scenario} state={state} />
               : phase === 5 ? <DispatchPanel scenario={scenario} state={state} />
-                : phase === 7 ? <EvalPanel scenario={scenario} />
-                  : <GenericBody info={info} color={ph.color} />}
+                : phase === 7 && round === 1 ? <EvalFailPanel scenario={scenario} state={state} />
+                  : phase === 7 ? <EvalPanel scenario={scenario} />
+                    : <GenericBody info={info} color={ph.color} />}
       </div>
     </div>
   );
