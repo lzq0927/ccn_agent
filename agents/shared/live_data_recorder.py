@@ -44,6 +44,7 @@ class LiveDataRecorder:
         self.dir = Path(base_dir) / "live_sessions" / session_id
         self.dir.mkdir(parents=True, exist_ok=True)
         self._kpi_rows: list[dict] = []
+        self._kpi_columns: list[str] | None = None  # 首个 kpi_snapshot 决定(动态适配各场景 KPI 形态)
         self._recovery_actions: list[dict] = []
         self._meta: dict[str, Any] = {
             "session_id": session_id,
@@ -88,9 +89,12 @@ class LiveDataRecorder:
     def record_tick(self, ctx: Any, events: list) -> None:
         for ev in events or []:
             etype = getattr(ev, "type", None)
-            epayload = getattr(ev, "payload", None)
+            epayload = getattr(ev, "payload", None) or {}
             if etype == "kpi_snapshot":
-                self._kpi_rows.append({k: epayload.get(k) for k in _KPI_COLUMNS})
+                # 首个 snapshot 决定 CSV 列(不同场景 KPI 字段不同:F 流控 / G 级联)
+                if self._kpi_columns is None and epayload:
+                    self._kpi_columns = list(epayload.keys())
+                self._kpi_rows.append(dict(epayload))
             elif etype == "chr_record":
                 self._append_jsonl(self._chr_path, epayload)
             elif etype == "alarm":
@@ -133,12 +137,13 @@ class LiveDataRecorder:
     def _flush_kpi_csv(self) -> None:
         if not self._kpi_rows:
             return
+        columns = self._kpi_columns or _KPI_COLUMNS
         try:
             buf = io.StringIO()
-            writer = csv.DictWriter(buf, fieldnames=_KPI_COLUMNS)
+            writer = csv.DictWriter(buf, fieldnames=columns)
             writer.writeheader()
             for row in self._kpi_rows:
-                writer.writerow(row)
+                writer.writerow({k: row.get(k) for k in columns})
             (self.dir / "data.csv").write_text(buf.getvalue(), encoding="utf-8")
         except Exception:  # noqa: BLE001
             logger.exception("flush data.csv failed")

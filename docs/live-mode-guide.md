@@ -18,7 +18,7 @@ curl http://localhost:8000/health
 # {"status":"ok"}
 
 curl http://localhost:8000/api/v1/live/capabilities
-# {"A":"demo","B":"demo","C":"demo","D":"demo","E":"demo","F":"live"}
+# {"A":"demo","B":"demo","C":"demo","D":"demo","E":"demo","F":"live","G":"live"}
 ```
 
 ### 终端 2:前端(Vite,端口 5175)
@@ -128,10 +128,25 @@ CC_LIVE_LLM_MODE=stub py -m uvicorn api.app:app --port 8000
 | 2 | 31-60 | 终端类型感知:**仅 iPhone 不支持 back-off**;APN 异常仅「物联网平台」。二轮对 iPhone 不下发 back-off(改由 AMF NSSAI 拦截),微调 AMF/SMF 限流比例。**失败陡降收敛** | 0.6 |
 | — | — | Agent3 评估:已恢复 → 沉淀 `分层接纳 + 终端类型感知` Skill | — |
 
+### 场景 G:AI 平台故障 → UDM 过载 → AMF/SMF 协同限流(两轮)
+
+**根因**:AI 平台 1 故障 → 该平台终端频繁注册 → 消息冲击汇聚点 UDM(AMF/SMF 自身不过载)→ 注册/会话 SR 降。
+
+| 轮 | sim_t | 发生了什么 | confidence |
+|---|---|---|---|
+| 1 | 1-30 | 稳态 → AI 平台故障(28)→ UDM 过载(92%)。CHR(SST=3 占 55% / DNN=MIot.xx 占 58%)+ UFDR(SUPI→AI 平台 1 仅上行)溯源。线性推算 Δmsg≈135,向 AMF/SMF 下发限 SST/DNN + 回 T3346/T3396。但部分终端(legacy-sensor)不支持 T3346 → 立即重试,UDM CPU 仅降到 78%,**过载未消除** | 0.28 < 0.3 |
+| — | — | confidence 不足 → `loop②` 回 Agent1 补采终端类型 | — |
+| 2 | 31-60 | 终端类型感知:**legacy-sensor 不支持 T3346**。差值重算 Δmsg'≈50,对不支持终端 AMF/SMF 直接拦截(不回 Timer),支持终端加深 Timer,微调限流比例(AMF 48% / SMF 42%)。**UDM CPU 降到 68%,过载消除** | 0.8 |
+| — | — | Agent3 评估:已恢复;AI 平台 1 恢复后取消流控 → 沉淀 `UDM 过载→AMF/SMF 协同限流` Skill | — |
+
+**与 F 的区别**:F 根因在终端(UE 侧 back-off);G 根因在 AI 平台(外部),UDM 是被冲击的汇聚点,治理在 AMF/SMF 侧限流。data.csv 的 KPI 列也不同(F 流控列 / G 含 `udm_cpu`、`ai_platform_reg_share`、`msg_to_udm`)—— recorder 动态适配。
+
+> 叙事对齐 `frontend-flow-show` 现有场景 G(本前端 LIVE 实现,不改 frontend-flow-show)。
+
 ## 七、测试
 
 ```bash
-py -m pytest tests/ -q                              # 后端 112 测试
+py -m pytest tests/ -q                              # 后端 123 测试
 cd frontend-flow && npx vitest run                  # 前端 12 测试
 py -m pytest tests/integration/live/ -v             # LIVE 集成测试
 ```

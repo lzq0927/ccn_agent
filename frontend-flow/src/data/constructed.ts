@@ -513,3 +513,77 @@ export const SPEC_F: ConstructedSpec = {
   llmModel: "MiniMax-M3",
 };
 
+// ---------------------------------------------------------------------------
+// 场景 G —— AI 平台 1 故障 → UDM 过载 → AMF/SMF 协同限流(两轮收敛)
+//   AI 平台 1 故障 → 该平台终端频繁注册 → 消息冲击汇聚点 UDM(AMF/SMF 自身不过载)。
+//   智能体看全局拓扑+业务流:UDM CHR(SST=3 / DNN=MIot.xx)+ UFDR(SUPI→AI 平台 1)
+//   → 按 CPU/消息线性推算减量 → 向 AMF/SMF 下发限流(限 SST/DNN + 回 T3346/T3396)
+//   → 消除 UDM 过载。首轮部分终端不支持定时器 → 二轮按差值重算 → 收敛。
+// ---------------------------------------------------------------------------
+
+const FAULT_G: FaultSpec = {
+  faultType: "iot_storm",
+  faultMode: "business",
+  elements: ["UDM_1"],
+  links: [],
+  lossRate: 0.04,
+  faultStart: 28,
+  faultDuration: 14,
+  ueCount: 80,
+  difficulty: "hard",
+};
+
+const REASONING_G: ReasonStep[] = [
+  // ===== 第一轮(诊断 + 策略决策)=====
+  { n: 1, type: "tool_call", text: "[轮1·①预处理] UDM_1 容器 CPU 92% > 85% 触发过载告警;注册 SR、PDU 会话 SR 降;AMF/SMF CPU 正常(58/52)。", result: "UDM 过载告警", highlight: { nes: ["UDM_1"] } },
+  { n: 2, type: "tool_call", text: "[轮1·②拓扑] AMF→UDM 注册消息突增,CHR 显示 SST=3 占 55%;SMF→UDM 会话消息突增,DNN=MIot.xx 占 58%。", result: "SST=3 占 55% / DNN=MIot.xx 占 58%", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 3, type: "tool_call", text: "[轮1·③检测] UFDR 关联 UDM CHR 中终端 SUPI:这些终端流量均发往 AI 平台 1,且仅含上行、无下行 → 溯源 AI 平台 1 故障终端;上报 OSS。", result: "SUPI → AI 平台 1(仅上行)", highlight: { nes: ["UPF_1"] } },
+  { n: 4, type: "thinking", text: "[轮1·◇策略匹配→④根因] 根因:AI 平台 1 故障 → 终端频繁注册冲击汇聚点 UDM(AMF/SMF 自身不过载)。需在 AMF/SMF 侧限流以保护 UDM。", highlight: { nes: ["UDM_1"] } },
+  { n: 5, type: "tool_call", text: "[轮1·⑤输出评估] 线性推算减量 Δmsg≈135,按 AMF:SMF=55:45 分配;决策双策略:AMF/SMF 自身流控拒绝 + 返回 UE T3346/T3396(10min)。", result: "首轮双策略下发", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 6, type: "tool_call", text: "[轮1·⑥首轮恢复] 部分终端(legacy-sensor)不支持 T3346,收到 Reg Reject 立即重试 → UDM CPU 仅降到 78%,过载未消除 → Agent3 评估未通过。", result: "首轮未收敛", highlight: { nes: ["UDM_1"] } },
+  // ===== 回到 Agent1 第二轮 =====
+  { n: 7, type: "thinking", text: "Agent3 判定未恢复 → loop② 回 Agent1 → CHR 终端类型分析发现部分终端不支持 T3346 → Agent2 第二轮按差值重算。", highlight: { nes: [] } },
+  { n: 8, type: "tool_call", text: "[轮2·①②③] 二轮采集:UDM CPU 78%;CHR 终端类型分群确认 legacy-sensor 不支持 T3346。", result: "legacy-sensor 不支持 T3346", highlight: { nes: ["UDM_1"] } },
+  { n: 9, type: "thinking", text: "[轮2·◇策略匹配→④根因] 差值重算 Δmsg'≈50;对不支持终端由 AMF/SMF 直接拦截(不回 Timer),支持终端加深 Timer;微调限流比例。", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 10, type: "tool_call", text: "[轮2·⑤⑥恢复] 二轮:不支持终端 AMF/SMF 直接拦截 + 支持终端 T3346 加深 + AMF ρ=48% / SMF ρ=42% → UDM CPU 降到 68%,过载消除。", result: "第二轮收敛", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 11, type: "conclusion", text: "二轮协同限流(终端类型感知 + 差值重算)消除 UDM 过载。Agent3 评估:已恢复,AI 平台 1 恢复后取消流控 → 沉淀「UDM 过载→AMF/SMF 协同限流」skill。", result: "WORKFLOW · 第二轮收敛" },
+];
+
+const CONFIDENCE_G: ConfidenceBreakdown = {
+  pattern: 0.9,
+  severity: 0.82,
+  temporal: 0.8,
+  spatial: 0.76,
+  ambiguity: 0.16,
+  score: 0.8,
+  route: "workflow",
+  patternName: "udm_overload_tracing (UDM 过载·AMF/SMF 协同限流)",
+  matchedSkills: ["core/ufdr_tracing", "core/admission_control", "core/overload_workflow"],
+  affectedNeCount: 1,
+};
+
+const EVAL_G: EvalMetrics = {
+  precision: 1,
+  recall: 1,
+  f1: 1,
+  exactMatch: true,
+  faultTypeMatch: true,
+  category: "SUCCESS",
+  traceAxes: { logicalCoherence: 0.9, toolEfficiency: 0.84, evidenceQuality: 0.88, missedSignals: 0.12, overall: 0.87 },
+  suggestions: [
+    { type: "SKILL_UPDATE", target: "skills/learned/udm_overload_admission", content: "新增「UDM 过载 → AMF/SMF 协同限流」Skill:过载点在 UDM 时按 CPU/消息线性推算减量,在 AMF/SMF 侧限流并回 UE 定时器,二轮终端类型感知收敛。", priority: 3 },
+  ],
+};
+
+export const SPEC_G: ConstructedSpec = {
+  topo: COMMON_TOPO,
+  fault: FAULT_G,
+  kpi: (graph) => buildKpiFor(graph, FAULT_G),
+  reasoning: REASONING_G,
+  confidence: CONFIDENCE_G,
+  evaluation: EVAL_G,
+  predicted: { elements: ["UDM_1"], links: [] },
+  routeIterations: 11,
+  llmModel: "MiniMax-M3",
+};
+

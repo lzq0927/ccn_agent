@@ -1,0 +1,18 @@
+{
+  "scenario_id": "G",
+  "metrics": {"precision": 1.0, "recall": 1.0, "f1": 1.0, "exact_match": true},
+  "trace_axes": {
+    "logicalCoherence": 0.9,
+    "toolEfficiency": 0.84,
+    "evidenceQuality": 0.88,
+    "missedSignals": 0.12,
+    "overall": 0.87
+  },
+  "case_entry": {"category": "SUCCESS"},
+  "skill": {
+    "kind": "UPDATE",
+    "skill_id": "skills/learned/amf_sm_ue_admission",
+    "insight": "UDM 过载时按 CPU/消息线性推算减量,在 AMF/SMF 侧限流并回 UE 定时器;二轮通过 CHR 终端类型分析发现不支持定时器的终端并调整策略",
+    "next_hit_rate": 0.88
+  }
+}

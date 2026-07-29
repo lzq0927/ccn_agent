@@ -102,6 +102,17 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
           { id: "r2_smf_apn", cn: "[轮2] SMF 层:限 DNN ρ_SMF=52%(微调)", en: "R2 SMF DNN 52%" },
         ];
       }
+      if (s.id === "G") {
+        // G:AI 平台→UDM 过载,向 AMF/SMF 下发协同限流(首轮双策略 + 二轮终端类型感知微调)
+        return [
+          { id: "r1_amf_sst", cn: "[轮1] AMF 限 SST=3 注册 ρ=44%(线性推算)", en: "R1 AMF SST=3 44%" },
+          { id: "r1_smf_dnn", cn: "[轮1] SMF 限 DNN=MIot.xx 会话 ρ=41%", en: "R1 SMF DNN 41%" },
+          { id: "r1_ue_timer", cn: "[轮1] AMF/SMF 回 T3346/T3396(10min)", en: "R1 UE T3346/T3396" },
+          { id: "r2_block", cn: "[轮2] 不支持终端 AMF/SMF 直接拦截(不回 Timer)", en: "R2 BLOCK UNSUPPORTED" },
+          { id: "r2_amf_sst", cn: "[轮2] AMF 限 SST=3 ρ=48%(差值重算)", en: "R2 AMF SST=3 48%" },
+          { id: "r2_smf_dnn", cn: "[轮2] SMF 限 DNN=MIot.xx ρ=42%", en: "R2 SMF DNN 42%" },
+        ];
+      }
       // D:首轮 back-off 即收敛
       return [
         { id: "reg_reject", cn: "AMF 对注册成功终端发 Registration Reject", en: "AMF REGISTRATION REJECT" },
@@ -158,7 +169,7 @@ export function phaseAt(t: number): { index: number; progress: number } {
 
 // —— 两轮场景时间线:B/C/E。首轮评估/恢复未通过 → loop② 回 Agent1 → 二轮重新执行 → 恢复成功 ——
 //   E 首轮含 back-off 恢复(phase5,部分缓解后未收敛);B/C 首轮评估未通过,不走到恢复(phase4 后直接回 Agent1)
-const TWO_ROUND_IDS = new Set(["B", "C", "E", "F"]);
+const TWO_ROUND_IDS = new Set(["B", "C", "E", "F", "G"]);
 type Seg = { dur: number; phase: number; round: 1 | 2 };
 const R1_COMMON: Seg[] = [
   { dur: 3, phase: 0, round: 1 },

@@ -1,0 +1,18 @@
+{
+  "scenario_id": "G",
+  "reasoning": [
+    {"n": 1, "type": "tool_call", "text": "[轮1] UDM_1 容器 CPU 92% > 85% 触发过载流控告警;注册 SR、PDU 会话 SR 下降;AMF/SMF CPU 正常(58/52)。"},
+    {"n": 2, "type": "tool_call", "text": "[轮1] AMF→UDM 注册请求消息突增,UDM CHR 显示 SST=3 占 55%;SMF→UDM 会话消息突增,DNN=MIot.xx 占 58%。"},
+    {"n": 3, "type": "thinking", "text": "[轮1] UDM 为被冲击方,根因(冲击 UDM 的终端来源)待 UFDR 关联 SUPI 溯源,首轮证据不足。"},
+    {"n": 4, "type": "conclusion", "text": "[轮1] 置信度 0.28 < 阈值,需回 Agent1 补采 UFDR(SUPI→流量去向)+ 终端类型。", "result": "confidence_low"}
+  ],
+  "round_2_reasoning": [
+    {"n": 5, "type": "tool_call", "text": "[轮2] UFDR 关联 UDM CHR 中终端 SUPI:这些终端流量均发往 AI 平台 1,且仅含上行、无下行 → 溯源 AI 平台 1 故障终端;上报 OSS。"},
+    {"n": 6, "type": "tool_call", "text": "[轮2] CHR 终端类型分析:发现部分终端(legacy-sensor)不支持 T3346 定时器,首轮收到 Reg Reject 后立即重试,致未完全收敛。"},
+    {"n": 7, "type": "thinking", "text": "[轮2] 线性推算减量:Δmsg=(78−70)/(78−40)×240≈50 消息/s;按 AMF:SMF=55:45 分配。决策:对不支持终端由 AMF/SMF 直接拦截,支持终端加深 T3346/T3396。"},
+    {"n": 8, "type": "conclusion", "text": "根因 AI 平台 1 故障 → 终端频繁注册冲击 UDM;向 AMF/SMF 下发限 SST=3/DNN + 回 T3346/T3396,消除 UDM 过载。"}
+  ],
+  "fault_elements": ["UDM_1"],
+  "confidence": 0.8,
+  "route": "workflow"
+}

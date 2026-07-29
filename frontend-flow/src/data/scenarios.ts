@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { type ScenarioNarrative } from "./real";
-import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C, SPEC_D, SPEC_E, SPEC_F } from "./constructed";
+import { buildConstructedScenario, SPEC_A, SPEC_B, SPEC_C, SPEC_D, SPEC_E, SPEC_F, SPEC_G } from "./constructed";
 import type { Scenario } from "./types";
 
 // 每个场景的叙事层(数据全真或合成，文案据诊断结果定稿)
@@ -358,9 +358,56 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       nextHitRate: 0.89,
     },
   },
+  G: {
+    cn: "AI平台故障·UDM过载·AMF/SMF协同限流",
+    en: "AI PLATFORM FAIL · UDM OVERLOAD",
+    tagline: "AI平台1故障→终端频繁注册→UDM过载(AMF/SMF不过载)→CHR/UFDR溯源AI平台1→AMF/SMF协同限流消除UDM过载",
+    intro:
+      "AI 平台 1 故障(平台 2 正常),其终端频繁重复注册,注册/会话消息冲击汇聚点 UDM,导致 UDM 过载(AMF/SMF 自身不过载)。智能体看全局拓扑与业务流,判定治理点在 AMF/SMF 侧:UDM CHR 发现 AMF 注册 SST=3 占 >50%、SMF DNN=MIot.xx 占 >50%;UFDR 关联 SUPI 溯源到 AI 平台 1(仅上行)。按 CPU/消息线性推算减量,向 AMF/SMF 下发限 SST/DNN,流控拒绝回 T3346/T3396。首轮部分终端不支持定时器 → 二轮按差值重算 → UDM 过载消除 → AI 平台 1 恢复后取消流控。",
+    objective: "AI平台1故障致UDM过载 · 向AMF/SMF下发限流(限SST=3/DNN+T3346/T3396)消除UDM过载",
+    pillars: { userLevel: false, autonomy: true },
+    comparison: {
+      naive: { title: "仅网元 KPI 视角", verdict: "误判 UDM 宕机/扩容", detail: "UDM CPU 过载,朴素归因误指 UDM 故障或扩容,未溯源到 AI 平台与终端", kind: "falsealarm" },
+      explored: { title: "流控溯源+协同限流", verdict: "在 AMF/SMF 侧消除 UDM 过载", detail: "CHR(SST=3/DNN)+UFDR(SUPI→AI平台1)溯源,AMF/SMF 协同限流", kind: "hit" },
+    },
+    stormMetrics: { amfCpu: 58, smfCpu: 52, udmCpu: 92, regSurge: 280, sessionSurge: 240, msgToUdmSurge: 320, aiPlatform: "AI 平台 1", impact2c: "UDM 过载导致注册/会话处理延迟,正常 2C 手机注册与业务受影响" },
+    ufdr: { nes: ["UPF_1"], sstSurge: 55, sstLabel: "SST=3(MIoT) 注册占比 55%", dnnSurge: 58, dnnLabel: "DNN=MIot.xx 会话占比 58%", summary: "用 UDM CHR 中终端 SUPI 关联 UFDR:这些终端流量均发往 AI 平台 1,且仅含上行、无下行 → 溯源 AI 平台 1 故障终端;上报 OSS" },
+    recoveryPlan: {
+      strategies: [
+        { layer: "UE", cn: "AMF/SMF 回 T3346/T3396(10min)", en: "UE BACKOFF T3346/T3396", initialValue: 600, unit: "s", formula: "T = rand(T_min, T_max), T∈[600,660]s", variables: [{ symbol: "T_min", meaning: "下界", unit: "s", value: 600 }, { symbol: "T_max", meaning: "上界", unit: "s", value: 660 }], explanation: "AMF/SMF 流控拒绝注册时回 T3346/T3396 定时器(10min),抑制终端反复注册。" },
+        { layer: "AMF", cn: "限 SST=3 注册用户", en: "AMF SST=3 LIMIT", initialValue: 44, unit: "%", formula: "ρ_AMF = Δmsg_AMF / msg_AMF = 74/170 ≈ 44%", variables: [{ symbol: "Δmsg_AMF", meaning: "AMF 需减消息数", unit: "req/s", value: 74 }, { symbol: "msg_AMF", meaning: "AMF→UDM 当前消息", unit: "req/s", value: 170 }], explanation: "按 AMF:SMF=55:45 占比分配总减量 135 → AMF 减 74 消息/s → 限 SST=3 注册约 44%。" },
+        { layer: "SMF", cn: "限 DNN=MIot.xx 会话用户", en: "SMF DNN LIMIT", initialValue: 41, unit: "%", formula: "ρ_SMF = Δmsg_SMF / msg_SMF = 61/150 ≈ 41%", variables: [{ symbol: "Δmsg_SMF", meaning: "SMF 需减消息数", unit: "req/s", value: 61 }, { symbol: "msg_SMF", meaning: "SMF→UDM 当前消息", unit: "req/s", value: 150 }], explanation: "SMF 减 61 消息/s → 限 DNN=MIot.xx 会话约 41%;向 AMF/SMF 下发对应 SUPI 列表精准命中。" },
+      ],
+      breakdown: { anchorNe: "UDM_1", apns: [], devices: [], anomalousApn: "MIot.xx", unsupportedDevice: "legacy-sensor", summary: "AI 平台 1 终端(SST=3 / DNN=MIot.xx)频繁注册;部分终端(legacy-sensor)不支持 T3346 定时器。" },
+      rounds: {
+        r1Note: "首轮按 CPU 92% / 消息 320 线性推算 Δmsg≈135,AMF/SMF 双策略全下;部分终端不支持定时器 → UDM CPU 仅降到 78%。",
+        r2Note: "二轮按差值(92→78)重算 Δmsg'≈50,不支持终端 AMF/SMF 直接拦截 + 支持终端加深 Timer → UDM CPU 降到 68% 过载消除。",
+        r2Values: [
+          { layer: "UE", value: 660, note: "T3346 加深 + 扩大覆盖支持终端" },
+          { layer: "AMF", value: 48, note: "ρ_AMF 提至 48%" },
+          { layer: "SMF", value: 42, note: "ρ_SMF 提至 42%" },
+        ],
+      },
+    },
+    faultReport: {
+      rootCause: "AI 平台 1 故障 → 该平台终端频繁注册,冲击汇聚点 UDM(AMF/SMF 不过载)",
+      phenomenon: "Agent 1 采集:UDM CPU 92% 过载告警 + 注册/会话 SR 降 + AMF/SMF→UDM 消息 +320%",
+      impact: "UDM 过载致注册/会话处理延迟,影响正常用户接入",
+      action: "Agent 2 溯源 CHR(SST=3/DNN=MIot.xx)+UFDR(SUPI→AI平台1)→ 按 CPU/消息线性推算减量 → 向 AMF/SMF 下发限 SST/DNN,流控拒绝回 T3346/T3396",
+      outcome: "二轮按差值重算后 UDM 过载消除(CPU 68%);AI 平台 1 恢复,智能体取消终端流控;沉淀「UDM 过载→AMF/SMF 协同限流」skill",
+    },
+    skillEvolution: {
+      kind: "UPDATE",
+      skillId: "skills/learned/amf_sm_ue_admission",
+      skillCn: "AMF/SMF/UE 协同流控",
+      insight: "UDM 过载时按 CPU/消息线性推算减量,在 AMF/SMF 侧限流;二轮通过 CHR 终端类型分析发现不支持定时器的终端并调整策略",
+      after: "更新协同流控 skill:增加用户分群检测维度",
+      nextHitRate: 0.88,
+    },
+  },
 };
 
-// 六场景:A(UPF·工作流)、B(SMF·技能引导)、C(gNB 物联终端群体·自主探索)、D/E(物联网风暴·流控溯源)、F(三层并行·终端类型感知)
+// 七场景:A(UPF·工作流)、B(SMF·技能引导)、C(gNB 物联终端群体·自主探索)、D/E(物联网风暴·流控溯源)、F(三层并行·终端类型感知)、G(AI平台→UDM过载·AMF/SMF协同限流)
 export const SCENARIOS: Scenario[] = [
   buildConstructedScenario("A", NARRATIVES.A, SPEC_A),
   buildConstructedScenario("B", NARRATIVES.B, SPEC_B),
@@ -368,6 +415,7 @@ export const SCENARIOS: Scenario[] = [
   buildConstructedScenario("D", NARRATIVES.D, SPEC_D),
   buildConstructedScenario("E", NARRATIVES.E, SPEC_E),
   buildConstructedScenario("F", NARRATIVES.F, SPEC_F),
+  buildConstructedScenario("G", NARRATIVES.G, SPEC_G),
 ];
 
 export const DEFAULT_SCENARIO_ID = "A";

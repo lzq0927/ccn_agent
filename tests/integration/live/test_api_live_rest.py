@@ -15,6 +15,7 @@ def test_capabilities_returns_registry(client):
     data = r.json()
     assert isinstance(data, dict)
     assert data.get("F") == "live"
+    assert data.get("G") == "live"
     assert data.get("A") == "demo"
 
 

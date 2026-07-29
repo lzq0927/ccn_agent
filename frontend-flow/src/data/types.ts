@@ -245,13 +245,16 @@ export interface RecoveryPlan {
   rounds: RoundAdjustment; // 两轮调整
 }
 
-/** 风暴冲击指标(场景 D/E,phase 2 过载告警 + 突增 KPI) */
+/** 风暴冲击指标(场景 D/E/G,phase 2 过载告警 + 突增 KPI) */
 export interface StormMetrics {
   amfCpu: number; // AMF 容器 CPU%(0-100)
   smfCpu: number; // SMF 容器 CPU%(0-100)
   regSurge: number; // 注册请求突增%(相对基线)
   sessionSurge: number; // PDU 会话建立突增%(相对基线)
   impact2c: string; // 流控扩散对 2C 手机的影响描述
+  udmCpu?: number; // G:UDM 过载(AMF/SMF 不过载,过载点在 UDM)
+  aiPlatform?: string; // G:故障的 AI 平台标识
+  msgToUdmSurge?: number; // G:AMF/SMF→UDM 消息突增%(相对基线)
 }
 
 /** 大模型故障报告(场景 D/E,phase 7 评估总结) */
