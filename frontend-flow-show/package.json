@@ -1,0 +1,28 @@
+{
+  "name": "ccn-agent-flow-show",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "高稳智能体 · 引导式展会演示前端 (左方案步骤 + 右 PPT 式引导舞台 · 鼠标指引 + 采集/下发箭头)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 5176",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "framer-motion": "^11.3.19",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.1",
+    "vitest": "^2.1.9"
+  }
+}
