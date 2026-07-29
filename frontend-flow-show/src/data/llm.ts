@@ -61,7 +61,7 @@ export function llmAnalysis(s: Scenario, phase: number): LlmAnalysis {
         method: "rule",
         title: "稳态监测规则",
         steps: [
-          { label: "阈值规则", text: "逐链路成功率阈值 99.5% 基线,跌破即告警。" },
+          { label: "多维检测", text: "动态阈值 + 多维检测:逐链路 KPI、容器告警、CHR 原因值任一异常即触发。" },
           { label: "规则判定", text: "整网聚合 99.8%、CHR 分布平稳,规则判定全网健康。" },
         ],
         verdict: "规则:网络稳态 · 维持监测待命。",

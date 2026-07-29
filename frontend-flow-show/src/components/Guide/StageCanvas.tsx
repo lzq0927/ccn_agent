@@ -122,7 +122,7 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
           const A = TYPE_NODE_BY[a], B = TYPE_NODE_BY[b];
           if (!A || !B) return null;
           const t = trim(A.x, A.y, B.x, B.y, NR, NR);
-          return <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke="#6a83a6" strokeWidth={1.6} opacity={0.75} />;
+          return <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke="#566175" strokeWidth={1.5} opacity={0.7} />;
         })}
       </g>
 
@@ -130,14 +130,15 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
       <g>
         {TYPE_NODES.map((tn) => {
           const s = typeState(tn.type);
-          const ring = s.cordoned ? "var(--text-faint)" : (s.root || s.degraded || s.overload) ? STATUS.fault : s.focus ? "#7dd3fc" : "#c3d2e8";
-          const lw = (s.root || s.degraded || s.overload || s.focus) ? 2.8 : 2.2;
+          const ring = s.cordoned ? "var(--text-faint)" : (s.root || s.degraded || s.overload) ? STATUS.fault : s.focus ? "#7dd3fc" : "#b8c2d0";
+          const lw = (s.root || s.degraded || s.overload || s.focus) ? 2.8 : 2;
+          const fill = (s.root || s.degraded || s.overload) ? "rgba(60,18,28,0.55)" : "rgba(14,22,40,0.6)";
           return (
             <g key={tn.type} transform={`translate(${tn.x} ${tn.y})`}>
               {s.bad && <circle r={NR} fill="none" stroke={STATUS.fault} strokeWidth={1.6} className="alert-ring" opacity={0.7} />}
               {s.root && <circle r={NR + 9} fill="none" stroke={STATUS.fault} strokeWidth={1.4} strokeDasharray="14 6" className="spin-slow" opacity={0.85} />}
               {s.cordoned && <rect x={-NR - 8} y={-NR - 8} width={(NR + 8) * 2} height={(NR + 8) * 2} rx={7} fill="none" stroke="var(--text-faint)" strokeWidth={1.2} strokeDasharray="4 4" />}
-              <circle r={NR} fill="none" stroke={ring} strokeWidth={lw} filter={s.bad || s.focus ? "url(#sc-glow)" : undefined} />
+              <circle r={NR} fill={fill} stroke={ring} strokeWidth={lw} filter={s.bad || s.focus ? "url(#sc-glow)" : undefined} />
               <text y={5} textAnchor="middle" fontSize={16} fontWeight={800} fill={s.cordoned ? "var(--text-mid)" : "var(--text-bright)"} fontFamily="var(--font-mono)">{tn.type}</text>
               {/* 实例信息:正常=数量,故障=受影响实例 */}
               <text y={NR + 16} textAnchor="middle" fontSize={11} fontWeight={700} fill={s.bad ? STATUS.faultGlow : "var(--text-soft)"} fontFamily="var(--font-mono)">
@@ -317,8 +318,8 @@ function UeUsers({ gnbs }: { gnbs: { id: string; type: string }[] }) {
       <text x={20} y={350} fontSize={15} fontWeight={800} fill="var(--text-soft)" fontFamily="var(--font-sans)">128万</text>
       {ueYs.map((y, i) => (
         <g key={i}>
-          <circle cx={36} cy={y} r={6} fill="#8aa3c4" opacity={0.9} />
-          <line x1={42} y1={y} x2={gnbPos.x - NR} y2={gnbPos.y} stroke="#6a83a6" strokeWidth={1} opacity={0.55} />
+          <circle cx={36} cy={y} r={6} fill="#9aa7bd" opacity={0.85} />
+          <line x1={42} y1={y} x2={gnbPos.x - NR} y2={gnbPos.y} stroke="#566175" strokeWidth={1} opacity={0.5} />
         </g>
       ))}
     </g>

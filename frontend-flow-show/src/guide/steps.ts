@@ -223,7 +223,7 @@ export function guideCallout(scenario: Scenario, state: StoryState): GuideCallou
     case 0:
       return {
         step, title: "网络稳态运行", body: "5GC 全网健康,智能体逐链路监测待命。点击右上方圆圈可跳转任意步骤。",
-        bullets: ["整网成功率 99.8%", "9 类网元 · 21 实例在线", "阈值 99.5%(跌破即异常)"],
+        bullets: ["整网成功率 99.8%", "9 类网元 · 21 实例在线", "多维动态检测:KPI / 告警 / CHR 任一异常即触发"],
       };
     case 1:
       return {
