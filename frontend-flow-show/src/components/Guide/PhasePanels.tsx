@@ -7,6 +7,7 @@
 //   · EvalPanel(⑦评估):沉淀了什么 Skill / 优化什么(无真值对比)
 // ============================================================================
 
+import { useRef, useEffect } from "react";
 import type { Scenario } from "../../data/types";
 import type { StoryState } from "../../story/types";
 import { ROUTE_COLORS, STATUS, srColor } from "../../theme";
@@ -117,10 +118,12 @@ export function MatchPanel({ scenario }: { scenario: Scenario }) {
 export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
   const steps = state.reasoningSteps;
   const root = state.rootCause;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [steps.length]);
   return (
-    <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
-      <div style={{ fontSize: 10, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6 }}>推理链 · Agent Loop(共 {state.reasoningTotal} 步,已揭示 {steps.length})</div>
-      <div style={{ maxHeight: 230, overflowY: "auto", paddingRight: 3, display: "flex", flexDirection: "column", gap: 5 }}>
+    <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5, display: "flex", flexDirection: "column", height: "100%" }}>
+      <div style={{ fontSize: 10, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6, flexShrink: 0 }}>推理链 · Agent Loop(共 {state.reasoningTotal} 步,已揭示 {steps.length})</div>
+      <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 3, display: "flex", flexDirection: "column", gap: 5 }}>
         {steps.slice(-9).map((s) => {
           const concl = s.type === "conclusion";
           return (
@@ -242,7 +245,7 @@ function Bar({ label, share, color }: { label: string; share: number; color: str
   );
 }
 function RepRow({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
-  return <div style={{ fontSize: 11.5, color: accent ? "#5eead4" : "var(--text-soft)", lineHeight: 1.5, marginBottom: 2, display: "flex", gap: 5 }}><span style={{ color: "var(--text-dim)", flexShrink: 0, minWidth: 32 }}>{k}</span><span style={accent ? { fontWeight: 700 } : undefined}>{v}</span></div>;
+  return <div style={{ fontSize: 11.5, color: accent ? "#5eead4" : "var(--text-soft)", lineHeight: 1.5, marginBottom: 2, display: "flex", gap: 5, wordBreak: "break-all", overflowWrap: "anywhere" }}><span style={{ color: "var(--text-dim)", flexShrink: 0, minWidth: 30 }}>{k}</span><span style={accent ? { fontWeight: 700 } : undefined}>{v}</span></div>;
 }
 
 /** 为什么命中该策略(匹配逻辑)—— 按场景路由给出口语化解释 */

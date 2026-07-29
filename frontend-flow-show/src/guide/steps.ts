@@ -153,10 +153,12 @@ export function dispatchTargets(
     }
   }
 
-  // 3) UE 侧 back-off(D/E/F):策略下发到用户终端 —— 用 UE 接入簇位置代表
+  // 3) UE 侧 back-off(D/E/F):策略下发到用户终端 —— G 场景 UE Timer 由 AMF/SMF 返回,不单独指 UE
   const hasUeBackoff =
-    scenario.flowControl?.kind === "ue_backoff" ||
-    (scenario.recoveryPlan && scenario.recoveryPlan.strategies.some((s) => s.layer === "UE"));
+    scenario.stormMetrics?.udmCpu == null && (
+      scenario.flowControl?.kind === "ue_backoff" ||
+      (scenario.recoveryPlan && scenario.recoveryPlan.strategies.some((s) => s.layer === "UE"))
+    );
   if (hasUeBackoff) {
     // UE 簇在拓扑最左侧(x≈26,y≈250/392/540),取中间簇代表用户侧
     out.push({ id: "UE", label: "物联网终端(UE)", x: 30, y: 392, policy: "back-off timer 抑制反复上线", kind: "notify", color: KIND_COLOR.notify });

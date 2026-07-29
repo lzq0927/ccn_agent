@@ -538,19 +538,18 @@ const FAULT_G: FaultSpec = {
 };
 
 const REASONING_G: ReasonStep[] = [
-  // ===== 第一轮 =====
-  { n: 1, type: "tool_call", text: "[轮1·①预处理] 容器指标:UDM_1 CPU 92% > 85% 触发过载流控告警;AMF/SMF CPU 正常(58/52),未过载。注册成功率、PDU 会话建立成功率下降。", result: "UDM 过载 · AMF/SMF 正常", highlight: { nes: ["UDM_1"] } },
-  { n: 2, type: "tool_call", text: "[轮1·②拓扑] AMF/SMF → UDM 消息数突增 +320%;全局拓扑+业务流分析:UDM 为注册/会话消息的汇聚点(被冲击方),AMF/SMF 自身不过载 → 治理点在 AMF/SMF 侧(限流以保护 UDM)。", highlight: { nes: ["AMF_1", "SMF_1", "UDM_1"] } },
-  { n: 3, type: "tool_call", text: "[轮1·③检测] UDM CHR 分析:AMF 注册请求中切片 SST=3 占 55%(>50%);SMF 消息中 DNN=MIot.xx 占 58%(>50%)→ 异常集中于该切片/该 DNN 用户。", result: "SST=3 占 55% · DNN=MIot.xx 占 58%", highlight: { nes: ["UDM_1"] } },
-  { n: 4, type: "tool_call", text: "[轮1·④溯源] 用 UDM CHR 中终端 SUPI(注册消息携带)关联 UPF UFDR:这些终端流量均发往 AI 平台 1,且仅含上行、无下行 → 溯源到 AI 平台 1 故障终端;上报 OSS(AI 平台 1 地址)支撑故障修复。", result: "SUPI → AI 平台 1(仅上行)", highlight: { nes: ["UPF_1"] } },
-  { n: 5, type: "thinking", text: "[轮1·⑤计算&策略] 线性推算需减少的总消息数:Δmsg = (CPU−70)/(CPU−基线) × msg_total = (92−70)/(92−40) × 320 ≈ 135 消息/s。按 AMF:SMF = 55:45 消息占比分配 → AMF 减 74、SMF 减 61 消息/s。向切片内 AMF/SMF 下发对应 SUPI 列表 + 限 SST=3 / DNN=MIot.xx 用户;AMF/SMF 下次流控拒绝时回 T3346/T3396(10min 随机)。即 AMF/SMF 自身流控 + 返回 UE 流控 双策略并行。", result: "双策略下发 · 首轮参数", highlight: { nes: ["AMF_1", "SMF_1"] } },
-  { n: 6, type: "tool_call", text: "[轮1·⑥首轮恢复] 部分终端不支持 T3346 → 仍有 UDM 过载告警(CPU 78%)→ Agent3 评估:网络未恢复。", result: "首轮未恢复 · CPU 仍 78%", highlight: { nes: ["UDM_1"] } },
-  // ===== 第二轮 =====
-  { n: 7, type: "thinking", text: "Agent3 判定未恢复 → loop② 回 Agent1:观察当前消息数与 CPU(78%),按与首轮(92%)的差值重新计算参数(流量已有变化)。", highlight: { nes: [] } },
-  { n: 8, type: "tool_call", text: "[轮2·①②③] 二轮采集:UDM CPU 由 92%→78%,消息数下降;CHR/UFDR 复核仍指向 AI 平台 1。", result: "差值重算依据", highlight: { nes: ["UDM_1"] } },
-  { n: 9, type: "thinking", text: "[轮2·④⑤计算&策略] 按差值再算:Δmsg' = (78−70)/(78−40) × 240 ≈ 50 消息/s;微调 AMF/SMF 限流比例 + 更新 SUPI 列表(加深支持终端 back-off、扩大 SST=3/DNN 限流)。", result: "二轮参数 · 按差值微调", highlight: { nes: ["AMF_1", "SMF_1"] } },
-  { n: 10, type: "tool_call", text: "[轮2·⑥AI 平台恢复] 二轮执行后 UDM CPU 降至 68%(< 70%)过载消除;此时 AI 平台 1 恢复 → 智能体检测到 AI 平台 1 下行流量稳定恢复 → 取消对终端的流控策略 → 网元流控告警均消失。", result: "UDM 68% · 取消流控", highlight: { nes: ["UDM_1"] } },
-  { n: 11, type: "conclusion", text: "网络恢复正常。根因为 AI 平台 1 故障致终端频繁注册冲击 UDM;智能体在 AMF/SMF 侧协同限流 + SUPI 精准流控消除 UDM 过载,平台恢复后自动取消流控。", result: "WORKFLOW · 第二轮收敛" },
+  // ===== 第一轮(诊断 + 策略决策,逐步分析各 NE 数据)=====
+  { n: 1, type: "tool_call", text: "UDM_1 容器 CPU 92% > 85%,触发过载流控告警。注册 SR、PDU 会话 SR 开始下降。AMF/SMF CPU 正常(58/52)。", result: "UDM 过载告警", highlight: { nes: ["UDM_1"] } },
+  { n: 2, type: "tool_call", text: "AMF 侧分析:AMF → UDM 的注册请求消息数突增。UDM CHR 显示 AMF 注册请求中切片类型 SST=3 的消息占 55%。", result: "AMF 注册消息 SST=3 占 55%", highlight: { nes: ["AMF_1"] } },
+  { n: 3, type: "tool_call", text: "SMF 侧分析:SMF → UDM 的会话消息数突增。UDM CHR 显示 SMF 消息中 DNN=MIot.xx 占 58%。", result: "SMF 会话 DNN=MIot.xx 占 58%", highlight: { nes: ["SMF_1"] } },
+  { n: 4, type: "tool_call", text: "UPF UFDR 溯源:用 UDM CHR 中的终端 SUPI(注册消息携带)关联 UPF UFDR,发现这些终端流量均发往 AI 平台 1,且仅含上行、无下行。上报 OSS(AI 平台 1 地址)。", result: "SUPI → AI 平台 1(仅上行)", highlight: { nes: ["UPF_1"] } },
+  { n: 5, type: "conclusion", text: "根因确定:AI 平台 1 故障 → 该平台终端频繁注册 → 消息冲击汇聚点 UDM(AMF/SMF 自身不过载)。需在 AMF/SMF 侧限流以保护 UDM。", result: "UDM 过载根因 · AI 平台 1", highlight: { nes: ["UDM_1"] } },
+  { n: 6, type: "thinking", text: "线性推算需减少的消息数:Δmsg = (CPU−70)/(CPU−基线) × msg_total = (92−70)/(92−40) × 320 ≈ 135 消息/s。按 AMF:SMF = 55:45 分配 → AMF 减 74、SMF 减 61。决策双策略:AMF/SMF 自身流控拒绝 + 返回 UE T3346/T3396 定时器(10min)。", result: "首轮参数 · 双策略决策", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  // ===== 第二轮(参数调整,不含恢复结论)=====
+  { n: 7, type: "thinking", text: "[轮2] Agent3 评估未通过,回 Agent1 重新采集。UDM CPU 78%(首轮策略后部分缓解但未消除);AMF/SMF 出现流控告警(首轮策略已生效)。", highlight: { nes: ["UDM_1"] } },
+  { n: 8, type: "tool_call", text: "额外 CHR 分析终端类型:发现部分终端不支持 T3346 定时器,收到 Reg Reject 后立即重试,导致首轮未完全收敛。", result: "部分终端不支持 T3346", highlight: { nes: ["UDM_1"] } },
+  { n: 9, type: "thinking", text: "根据当前流量差值重算:Δmsg' = (78−70)/(78−40) × 240 ≈ 50 消息/s。调整:对不支持终端改由 AMF/SMF 直接拦截(不回 Timer),支持终端加深 Timer;微调 AMF/SMF 限流比例 + 更新 SUPI 列表。", result: "二轮参数 · 终端类型感知调整", highlight: { nes: ["AMF_1", "SMF_1"] } },
+  { n: 10, type: "conclusion", text: "二轮策略确定:终端类型感知 + 差值重算参数。AMF/SMF 协同限流(自身拒绝 + 返回 UE Timer)精准命中不支持终端。", result: "二轮参数确定", highlight: { nes: ["AMF_1", "SMF_1"] } },
 ];
 
 const CONFIDENCE_G: ConfidenceBreakdown = {

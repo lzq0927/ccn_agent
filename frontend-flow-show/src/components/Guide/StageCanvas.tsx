@@ -44,12 +44,12 @@ const TYPE_EDGES: [string, string][] = [
 /** 7 个故事圆圈(避开拓扑节点位置;标号与左侧方案流程一致:1采集 2检测 3匹配 4根因 5下发 6恢复 7评估) */
 const CIRCLES = [
   { n: 1, phase: 1, x: 388, y: 80, cn: "数据采集", desc: "Agent 1 采集 KPI / CHR / 3GPP 信令 / 容器 CPU → 智能体" },
-  { n: 2, phase: 2, x: 195, y: 560, cn: "异常检测", desc: "KPI/CHR/容器 CPU 多维检测,任一链路跌破阈值即触发" },
-  { n: 3, phase: 3, x: 520, y: 168, cn: "策略匹配", desc: "多维特征加权评分 → 置信度路由分流(工作流/技能引导/自主探索)" },
-  { n: 4, phase: 4, x: 870, y: 355, cn: "根因推理", desc: "Agent 2 推理链收敛,定位根因网元(防误报/漏报)" },
-  { n: 5, phase: 5, x: 652, y: 80, cn: "策略下发", desc: "向 AMF/SMF 下发恢复策略(通知 UE / 限流),脑 → 目标网元" },
-  { n: 6, phase: 6, x: 870, y: 545, cn: "网络恢复", desc: "恢复策略生效,成功率回升,闭环验证通过" },
-  { n: 7, phase: 7, x: 760, y: 168, cn: "评估优化", desc: "Agent 3 比对、沉淀 Skill,优化建议回流 Agent 1/2" },
+  { n: 2, phase: 2, x: 660, y: 270, cn: "异常检测", desc: "KPI/CHR/容器 CPU 多维检测,任一异常即触发" },
+  { n: 3, phase: 3, x: 520, y: 185, cn: "策略匹配", desc: "多维特征加权评分 → 置信度路由分流(工作流/技能引导/自主探索)" },
+  { n: 4, phase: 4, x: 820, y: 270, cn: "根因推理", desc: "Agent 2 推理链收敛,定位根因网元(防误报/漏报)" },
+  { n: 5, phase: 5, x: 652, y: 80, cn: "策略下发", desc: "向 AMF/SMF 下发恢复策略(限流+返回 UE Timer),脑 → AMF/SMF" },
+  { n: 6, phase: 6, x: 740, y: 360, cn: "网络恢复", desc: "恢复策略生效,成功率回升,闭环验证通过" },
+  { n: 7, phase: 7, x: 820, y: 50, cn: "评估优化", desc: "Agent 3 评估恢复结果:通过→沉淀 Skill;未通过→回 Agent1 重采" },
 ];
 
 interface Props {
@@ -77,13 +77,16 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
   const nodes = graph?.nodes ?? [];
   const typeOf = (id: string) => id.replace(/_\d+$/, "");
   const instances = (type: string) => nodes.filter((n) => n.type === type);
-  /** 圆圈位置:②检测→首个受影响 NE 旁;④推理→根因 NE 旁;其余用静态位 */
+  /** 圆圈位置:②检测→受影响 NE 左侧;④推理→根因 NE 右侧;⑥恢复→下方;其余静态 */
   const circlePos = (c: { phase: number; x: number; y: number }): { x: number; y: number } => {
-    const anchorId = c.phase === 2 ? state.affectedNe[0] : c.phase === 4 ? state.rootCause.nes[0] : null;
+    const anchorId = c.phase === 2 ? state.affectedNe[0] : (c.phase === 4 || c.phase === 6) ? (state.rootCause.nes[0] || state.affectedNe[0]) : null;
     const anchorType = anchorId ? typeOf(anchorId) : null;
     const anchor = anchorType ? TYPE_NODE_BY[anchorType] : null;
     if (!anchor) return { x: c.x, y: c.y };
-    return { x: Math.max(60, Math.min(VW - 60, anchor.x + 56)), y: Math.max(300, Math.min(VH - 70, anchor.y + 56)) };
+    if (c.phase === 2) return { x: Math.max(60, anchor.x - 80), y: anchor.y };
+    if (c.phase === 4) return { x: Math.min(VW - 60, anchor.x + 80), y: anchor.y };
+    if (c.phase === 6) return { x: anchor.x, y: Math.min(VH - 60, anchor.y + 90) };
+    return { x: c.x, y: c.y };
   };
   const typeState = (type: string) => {
     const ins = instances(type);
@@ -155,8 +158,8 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
         })}
       </g>
 
-      {/* 采集线(相位1):所有网元 → 智能体(细箭头,不遮脑;数据类别见 InfoPanel) */}
-      {phase === 1 && TYPE_NODES.map((tn, i) => {
+      {/* 采集线(相位1):网元(不含 gNB) → 智能体 */}
+      {phase === 1 && TYPE_NODES.filter((tn) => tn.type !== "gNB").map((tn, i) => {
         const t = trim(tn.x, tn.y, BRAIN.x, BRAIN.y + 32, NR + 2, 34);
         const id = `cin-${tn.type}`;
         return (

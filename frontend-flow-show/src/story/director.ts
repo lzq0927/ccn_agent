@@ -404,11 +404,20 @@ export function liveNeCpu(s: Scenario, simT: number): Record<string, number> {
   const noise = () => { seed = (Math.imul(seed, 9301) + 49297) % 233280; return seed / 233280; };
   for (const n of graph.nodes) {
     let cpu: number;
-    if (n.type === "AMF") cpu = 40 + si * 52;
-    else if (n.type === "SMF") cpu = 38 + si * 50;
-    else if (n.type === "gNB") cpu = 30 + si * 14;
-    else if (n.type === "UPF") cpu = 32 + si * 10;
-    else cpu = 26 + si * 4;
+    if (s.stormMetrics?.udmCpu != null) {
+      // G 场景:过载在 UDM(AMF/SMF 仅因消息增多略升,不过载)
+      if (n.type === "UDM") cpu = 40 + si * 55;
+      else if (n.type === "AMF") cpu = 42 + si * 12;
+      else if (n.type === "SMF") cpu = 40 + si * 10;
+      else if (n.type === "UPF") cpu = 32 + si * 6;
+      else cpu = 28 + si * 3;
+    } else {
+      if (n.type === "AMF") cpu = 40 + si * 52;
+      else if (n.type === "SMF") cpu = 38 + si * 50;
+      else if (n.type === "gNB") cpu = 30 + si * 14;
+      else if (n.type === "UPF") cpu = 32 + si * 10;
+      else cpu = 26 + si * 4;
+    }
     cpu += (noise() - 0.5) * 4;
     out[n.id] = Math.max(5, Math.min(99, Math.round(cpu)));
   }
