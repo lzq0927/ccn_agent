@@ -33,7 +33,7 @@ export function InfoPanel({ scenario, state, round }: Props) {
           </div>
           {round === 2 && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 3, color: "#fbbf24", border: "1px solid #f59e0b88", background: "rgba(245,158,11,0.12)", fontFamily: "var(--font-mono)", marginLeft: "auto" }}>第②轮</span>}
         </div>
-        <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text-bright)", lineHeight: 1.15 }}>{info.title}</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text-bright)", lineHeight: 1.2 }}>{info.title}</div>
         {state.loopBackKind && <EvalFailCard scenario={scenario} state={state} />}
       </div>
       <div key={phase} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 14px", animation: "fpop-in 0.3s cubic-bezier(0.22,1,0.36,1)" }}>

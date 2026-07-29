@@ -89,11 +89,11 @@ export function MatchPanel({ scenario }: { scenario: Scenario }) {
   const why = whyMatched(scenario);
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
-        <span style={{ fontSize: 30, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)" }}>{c.score.toFixed(2)}</span>
-        <span style={{ fontSize: 15, fontWeight: 800, color: rc.base }}>→ {rc.cn}</span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
+        <span style={{ fontSize: 22, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)" }}>{c.score.toFixed(2)}</span>
+        <span style={{ fontSize: 14, fontWeight: 800, color: rc.base }}>→ {rc.cn}</span>
       </div>
-      <div style={{ fontSize: 11, color: "var(--text-mid)", marginBottom: 8 }}>{c.patternName}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-soft)", marginBottom: 8 }}>{c.patternName}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 9 }}>
         {dims.map((d) => (
           <div key={d.k}>
@@ -106,7 +106,7 @@ export function MatchPanel({ scenario }: { scenario: Scenario }) {
         ))}
       </div>
       <div style={{ padding: "8px 10px", borderRadius: 7, border: `1px solid ${rc.base}55`, background: `${rc.base}0d` }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)", marginBottom: 3 }}>为什么命中该策略</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)", marginBottom: 3 }}>匹配逻辑</div>
         <div style={{ fontSize: 12, color: "var(--text-soft)", lineHeight: 1.55 }}>{why}</div>
       </div>
     </div>
@@ -213,11 +213,7 @@ export function EvalPanel({ scenario }: { scenario: Scenario }) {
             <span style={{ fontSize: 14, fontWeight: 800, color: "var(--text-bright)" }}>{sk.skillCn}</span>
           </div>
           <div style={{ fontSize: 11, color: "var(--text-mid)", marginBottom: 5 }}>沉淀经验 · 回流 Agent 1/2</div>
-          <div style={{ fontSize: 12, color: "var(--text-soft)", lineHeight: 1.55, marginBottom: 5 }}>{sk.insight ?? sk.after}</div>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, padding: "5px 8px", borderRadius: 5, background: "rgba(45,212,191,0.08)", border: "1px solid rgba(45,212,191,0.25)" }}>
-            <span style={{ color: "var(--text-mid)" }}>优化效果</span>
-            <span style={{ color: "#2dd4bf", fontWeight: 800, fontFamily: "var(--font-mono)" }}>下次命中率 → {(sk.nextHitRate * 100).toFixed(0)}%</span>
-          </div>
+          <div style={{ fontSize: 12, color: "var(--text-soft)", lineHeight: 1.55 }}>{sk.insight ?? sk.after}</div>
         </div>
       )}
     </div>

@@ -39,15 +39,11 @@ const TYPE_EDGES: [string, string][] = [
   ["gNB", "AMF"], ["AMF", "SMF"], ["SMF", "UPF"], ["SMF", "UDM"], ["SMF", "PCF"], ["AMF", "NRF"], ["SMF", "AUSF"], ["AMF", "NSSF"],
 ];
 
-/** 采集的数据源(gNB 不采集;AMF 注册、SMF PDU 会话建立、UPF 用户面流量) */
-const COLLECT: Record<string, string> = {
-  AMF: "注册 SR", SMF: "PDU 会话建立", UPF: "用户面流量",
-};
-const COLLECTORS = ["AMF", "SMF", "UPF"];
+/** 采集的数据类别(相位1,所有网元上报) */
 
 /** 7 个故事圆圈(避开拓扑节点位置;标号与左侧方案流程一致:1采集 2检测 3匹配 4根因 5下发 6恢复 7评估) */
 const CIRCLES = [
-  { n: 1, phase: 1, x: 388, y: 80, cn: "数据采集", desc: "Agent 1 从 AMF(注册)/SMF(PDU 会话建立)/UPF(用户面)采集遥测 → 智能体" },
+  { n: 1, phase: 1, x: 388, y: 80, cn: "数据采集", desc: "Agent 1 采集 KPI / CHR / 3GPP 信令 / 容器 CPU → 智能体" },
   { n: 2, phase: 2, x: 195, y: 560, cn: "异常检测", desc: "KPI/CHR/容器 CPU 多维检测,任一链路跌破阈值即触发" },
   { n: 3, phase: 3, x: 520, y: 168, cn: "策略匹配", desc: "多维特征加权评分 → 置信度路由分流(工作流/技能引导/自主探索)" },
   { n: 4, phase: 4, x: 870, y: 355, cn: "根因推理", desc: "Agent 2 推理链收敛,定位根因网元(防误报/漏报)" },
@@ -81,6 +77,14 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
   const nodes = graph?.nodes ?? [];
   const typeOf = (id: string) => id.replace(/_\d+$/, "");
   const instances = (type: string) => nodes.filter((n) => n.type === type);
+  /** 圆圈位置:②检测→首个受影响 NE 旁;④推理→根因 NE 旁;其余用静态位 */
+  const circlePos = (c: { phase: number; x: number; y: number }): { x: number; y: number } => {
+    const anchorId = c.phase === 2 ? state.affectedNe[0] : c.phase === 4 ? state.rootCause.nes[0] : null;
+    const anchorType = anchorId ? typeOf(anchorId) : null;
+    const anchor = anchorType ? TYPE_NODE_BY[anchorType] : null;
+    if (!anchor) return { x: c.x, y: c.y };
+    return { x: Math.max(60, Math.min(VW - 60, anchor.x + 56)), y: Math.max(300, Math.min(VH - 70, anchor.y + 56)) };
+  };
   const typeState = (type: string) => {
     const ins = instances(type);
     const faultIds = ins.filter((n) => scenario.fault.elements.includes(n.id)).map((n) => n.id);
@@ -151,26 +155,17 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
         })}
       </g>
 
-      {/* 采集线(相位1):采集源(AMF/SMF/UPF) → 智能体,标注数据类型 */}
-      {phase === 1 && COLLECTORS.map((type, i) => {
-        const tn = TYPE_NODE_BY[type];
-        if (!tn) return null;
-        const t = trim(tn.x, tn.y, BRAIN.x, BRAIN.y + 30, NR + 3, 6);
-        const id = `cin-${type}`;
-        // 标签放在源节点外侧(背离枢纽)
-        const lx = tn.x + (tn.x < BRAIN.x ? -44 : tn.x > BRAIN.x ? 44 : 0);
-        const ly = tn.y - 30;
+      {/* 采集线(相位1):所有网元 → 智能体(细箭头,不遮脑;数据类别见 InfoPanel) */}
+      {phase === 1 && TYPE_NODES.map((tn, i) => {
+        const t = trim(tn.x, tn.y, BRAIN.x, BRAIN.y + 32, NR + 2, 34);
+        const id = `cin-${tn.type}`;
         return (
           <g key={id}>
             <path id={id} d={`M ${t.x1} ${t.y1} L ${t.x2} ${t.y2}`} fill="none" stroke="none" />
-            <path d={`M ${t.x1} ${t.y1} L ${t.x2} ${t.y2}`} fill="none" stroke="#7dd3fc" strokeWidth={2.6} strokeLinecap="round" strokeDasharray="8 5" className="flow-dash" opacity={0.95} markerEnd="url(#sc-arr-in)" filter="url(#sc-glow)" />
-            <circle r={3.4} fill="#bae6fd" filter="url(#sc-glow)">
+            <path d={`M ${t.x1} ${t.y1} L ${t.x2} ${t.y2}`} fill="none" stroke="#7dd3fc" strokeWidth={1.6} strokeLinecap="round" strokeDasharray="6 5" className="flow-dash" opacity={0.85} markerEnd="url(#sc-arr-in)" />
+            <circle r={2.6} fill="#bae6fd">
               <animateMotion dur={`${1.1 + (i % 4) * 0.18}s`} repeatCount="indefinite" rotate="auto"><mpath href={`#${id}`} /></animateMotion>
             </circle>
-            <g transform={`translate(${lx} ${ly})`}>
-              <rect x={-30} y={-10} width={60} height={19} rx={6} fill="var(--twin-callout-bg)" stroke="#7dd3fc" strokeWidth={1.1} opacity={0.96} />
-              <text y={4} textAnchor="middle" fontSize={11.5} fontWeight={700} fill="#7dd3fc" fontFamily="var(--font-sans)">{COLLECT[type]}</text>
-            </g>
           </g>
         );
       })}
@@ -208,23 +203,21 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
       {/* 🧠 高稳智能体 */}
       <AgentBrain active={phase === 1 || phase === 5} round={cur?.round ?? 1} />
 
-      {/* 7 个故事圆圈(统一配色:进行中/引导=青,已完成=青绿,未到=灰) */}
+      {/* 7 个故事圆圈 —— 只有「下一个要点」的亮,已完成的=✓,未到的=灰(避免不知点谁) */}
       {CIRCLES.map((c) => {
-        const isDone = stops.findIndex((s) => s.phase === c.phase) < curIdx && !stops.slice(curIdx).some((s) => s.phase === c.phase);
-        const isActive = c.phase === phase;
-        const isNext = nextStop && nextStop.phase === c.phase && nextStop.round !== (cur?.round ?? 1);
-        const isNextSame = nextStop && nextStop.phase === c.phase && nextStop.round === (cur?.round ?? 1);
-        const guided = isNext || isNextSame;
-        const far = !isActive && !guided && !isDone;
-        // 当前步(刚点)=青绿实心;下一个待点=青色脉冲;两者颜色明显区分
-        const col = isActive ? "#2dd4bf" : guided ? "#38bdf8" : "#7e8aa3";
+        const nextPhase = nextStop?.phase ?? 99;
+        const guided = c.phase === nextPhase;          // 下一个要点:青色脉冲
+        const done = !guided && c.phase < nextPhase;    // 已完成:青绿 ✓
+        const far = !guided && !done;                   // 未到:灰
+        const col = guided ? "#38bdf8" : done ? "#2dd4bf" : "#7e8aa3";
         const isHover = hover === c.phase;
+        const pos = circlePos(c);
         return (
-          <g key={c.n} transform={`translate(${c.x} ${c.y})`} style={{ cursor: "pointer" }} onClick={() => onGoToPhase(c.phase)} onMouseEnter={() => setHover(c.phase)} onMouseLeave={() => setHover(null)}>
-            {(isActive || guided) && <circle r={23} fill="none" stroke={col} strokeWidth={1.4} className="alert-ring" opacity={0.5} />}
-            <circle r={17} fill={far ? "rgba(100,116,139,0.1)" : isDone ? "rgba(126,138,163,0.18)" : col} stroke={isHover && far ? "#aab8cc" : col} strokeWidth={far ? 1.5 : 2} filter={isActive || guided ? "url(#sc-glow)" : undefined} opacity={far ? 0.6 : 1} />
-            <text y={isDone ? 5 : 4} textAnchor="middle" fontSize={isDone ? 15 : 14} fontWeight={800} fill={isDone ? "#7e8aa3" : far ? "var(--text-faint)" : "#04070f"} fontFamily="var(--font-mono)">{isDone ? "✓" : c.n}</text>
-            <text y={30} textAnchor="middle" fontSize={11} fontWeight={700} fill={isDone ? "var(--text-soft)" : far ? "var(--text-faint)" : "var(--text-bright)"} fontFamily="var(--font-sans)">{c.cn}</text>
+          <g key={c.n} transform={`translate(${pos.x} ${pos.y})`} style={{ cursor: "pointer" }} onClick={() => onGoToPhase(c.phase)} onMouseEnter={() => setHover(c.phase)} onMouseLeave={() => setHover(null)}>
+            {guided && <circle r={26} fill="none" stroke={col} strokeWidth={1.5} className="alert-ring" opacity={0.5} />}
+            <circle r={19} fill={far ? "rgba(100,116,139,0.1)" : done ? "rgba(45,212,191,0.16)" : col} stroke={isHover && far ? "#aab8cc" : col} strokeWidth={far ? 1.5 : 2.2} filter={guided ? "url(#sc-glow)" : undefined} opacity={far ? 0.6 : 1} />
+            <text y={5} textAnchor="middle" fontSize={done ? 16 : 15} fontWeight={800} fill={done ? "#2dd4bf" : far ? "var(--text-faint)" : "#04070f"} fontFamily="var(--font-mono)">{done ? "✓" : c.n}</text>
+            <text y={34} textAnchor="middle" fontSize={12.5} fontWeight={700} fill={done ? "var(--text-soft)" : far ? "var(--text-faint)" : "var(--text-bright)"} fontFamily="var(--font-sans)">{c.cn}</text>
           </g>
         );
       })}
@@ -234,10 +227,11 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
         const c = CIRCLES.find((x) => x.phase === hover);
         if (!c) return null;
         const ph = PHASES[c.phase];
-        const placeLeft = c.x > VW * 0.5;
+        const cp = circlePos(c);
+        const placeLeft = cp.x > VW * 0.5;
         const W = 226;
-        const x = Math.max(8, Math.min(VW - W - 8, placeLeft ? c.x - 24 - W : c.x + 24));
-        const y = Math.max(36, Math.min(VH - 90, c.y - 14));
+        const x = Math.max(8, Math.min(VW - W - 8, placeLeft ? cp.x - 24 - W : cp.x + 24));
+        const y = Math.max(36, Math.min(VH - 90, cp.y - 14));
         return (
           <g style={{ pointerEvents: "none" }}>
             <foreignObject x={x} y={y} width={W} height={86} style={{ overflow: "visible" }}>
@@ -260,8 +254,9 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
         const c = CIRCLES.find((x) => x.phase === nextStop.phase);
         if (!c) return null;
         const newRound = nextStop.round !== (cur?.round ?? 1);
+        const gp = circlePos(c);
         return (
-          <g transform={`translate(${c.x + 26} ${c.y - 30})`} style={{ pointerEvents: "none" }}>
+          <g transform={`translate(${gp.x + 26} ${gp.y - 30})`} style={{ pointerEvents: "none" }}>
             <g style={{ animation: "ptr-bob 1.2s ease-in-out infinite" }}><text y={6} fontSize={18}>👇</text></g>
             {newRound && (
               <g transform="translate(8 18)">
@@ -302,8 +297,8 @@ function AgentBrain({ active, round }: { active: boolean; round: number }) {
         <path d="M-9,4 C-5,6 -5,10 -8,11" />
         <path d="M9,4 C5,6 5,10 8,11" />
       </g>
-      <text y={54} textAnchor="middle" fontSize={14} fontWeight={800} fill={col} fontFamily="var(--font-sans)">高稳智能体</text>
-      <text y={68} textAnchor="middle" fontSize={9.5} fill="var(--text-mid)" fontFamily="var(--font-mono)" letterSpacing="0.08em">HIGH-STABILITY AGENT{round === 2 ? " · R2" : ""}</text>
+      <text y={54} textAnchor="middle" fontSize={16} fontWeight={800} fill={col} fontFamily="var(--font-sans)">高稳智能体</text>
+      <text y={70} textAnchor="middle" fontSize={10} fill="var(--text-mid)" fontFamily="var(--font-mono)" letterSpacing="0.08em">HIGH-STABILITY AGENT{round === 2 ? " · R2" : ""}</text>
     </g>
   );
 }

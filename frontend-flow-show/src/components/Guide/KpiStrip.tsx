@@ -60,19 +60,10 @@ export function KpiStrip({ scenario, state }: { scenario: Scenario; state: Story
 
   return (
     <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-panel-solid)", padding: "6px 12px", display: "flex", gap: 10, alignItems: "stretch" }}>
-      <span style={{ fontSize: 9, letterSpacing: "0.1em", color: "var(--text-faint)", fontFamily: "var(--font-mono)", writingMode: "vertical-rl", transform: "rotate(180deg)", alignSelf: "center" }}>实时 KPI · T{simT.toFixed(0)}</span>
-      {/* 整网 SR */}
-      <KpiCard title="整网成功率" value={`${(curOverall * 100).toFixed(2)}%`} color={srColor(curOverall)}>
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
-          <rect x={winX0} y={0} width={winW} height={H} fill="rgba(239,68,68,0.08)" />
-          <polyline points={visiblePts(overall)} fill="none" stroke="#38bdf8" strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
-          <circle cx={curX} cy={ySr(curOverall)} r={1.8} fill={srColor(curOverall)} />
-          <line x1={curX} y1={0} x2={curX} y2={H} stroke="var(--text-bright)" strokeWidth={0.5} opacity={0.5} />
-        </svg>
-      </KpiCard>
-      {/* AMF / SMF SR */}
-      <KpiCard title="AMF 注册 SR" value={`${(sample(agg("AMF"), simT) * 100).toFixed(2)}%`} color="#60a5fa">{spark(agg("AMF"), "#60a5fa")}</KpiCard>
-      <KpiCard title="SMF 会话 SR" value={`${(sample(agg("SMF"), simT) * 100).toFixed(2)}%`} color="#a78bfa">{spark(agg("SMF"), "#a78bfa")}</KpiCard>
+      <span style={{ fontSize: 10, letterSpacing: "0.08em", color: "var(--text-soft)", fontFamily: "var(--font-mono)", alignSelf: "center", whiteSpace: "nowrap" }}>KPI T{simT.toFixed(0)}</span>
+      {/* AMF 注册 / SMF PDU 会话建立 */}
+      <KpiCard title="AMF 注册" value={`${(sample(agg("AMF"), simT) * 100).toFixed(2)}%`} color="#60a5fa">{spark(agg("AMF"), "#60a5fa")}</KpiCard>
+      <KpiCard title="SMF PDU会话建立" value={`${(sample(agg("SMF"), simT) * 100).toFixed(2)}%`} color="#a78bfa">{spark(agg("SMF"), "#a78bfa")}</KpiCard>
       {/* NE CPU —— G 场景过载点在 UDM(AMF/SMF 正常);其余展示 AMF/SMF/UPF */}
       <div style={{ flex: "1 1 20%", display: "flex", flexDirection: "column", padding: "3px 6px", borderLeft: "1px solid var(--border)" }}>
         <span style={{ fontSize: 8.5, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700 }}>NE CPU{isStorm ? "(过载)" : ""}</span>
@@ -94,7 +85,7 @@ export function KpiStrip({ scenario, state }: { scenario: Scenario; state: Story
       {isStorm ? (
         <KpiCard title="注册·会话请求/s" value={`${regRate.toFixed(0)} / ${sessRate.toFixed(0)}`} color={regRate > 50 ? STATUS.fault : "#f59e0b"} wide>
           <div style={{ fontSize: 8.5, color: "var(--text-mid)", lineHeight: 1.5, marginTop: 2 }}>
-            注册 <b style={{ color: regRate > 50 ? STATUS.fault : "#f59e0b" }}>{regRate.toFixed(0)}</b> · 会话 <b style={{ color: sessRate > 60 ? STATUS.fault : "#a78bfa" }}>{sessRate.toFixed(0)}</b>{regRate > 50 ? " · 风暴" : ""}
+            注册 <b style={{ color: regRate > 50 ? STATUS.fault : "#f59e0b" }}>{regRate.toFixed(0)}</b> · 会话 <b style={{ color: sessRate > 60 ? STATUS.fault : "#a78bfa" }}>{sessRate.toFixed(0)}</b>
           </div>
         </KpiCard>
       ) : null}
