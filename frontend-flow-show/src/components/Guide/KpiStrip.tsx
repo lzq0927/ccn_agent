@@ -61,9 +61,9 @@ export function KpiStrip({ scenario, state }: { scenario: Scenario; state: Story
   return (
     <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-panel-solid)", padding: "6px 12px", display: "flex", gap: 10, alignItems: "stretch" }}>
       <span style={{ fontSize: 10, letterSpacing: "0.08em", color: "var(--text-soft)", fontFamily: "var(--font-mono)", alignSelf: "center", whiteSpace: "nowrap" }}>KPI T{simT.toFixed(0)}</span>
-      {/* AMF 注册 / SMF PDU 会话建立 */}
-      <KpiCard title="AMF 注册" value={`${(sample(agg("AMF"), simT) * 100).toFixed(2)}%`} color="#60a5fa">{spark(agg("AMF"), "#60a5fa")}</KpiCard>
-      <KpiCard title="SMF PDU会话建立" value={`${(sample(agg("SMF"), simT) * 100).toFixed(2)}%`} color="#a78bfa">{spark(agg("SMF"), "#a78bfa")}</KpiCard>
+      {/* AMF注册成功率 / PDU会话建立成功率 */}
+      <KpiCard title="AMF注册成功率" value={`${(sample(agg("AMF"), simT) * 100).toFixed(2)}%`} color="#60a5fa">{spark(agg("AMF"), "#60a5fa")}</KpiCard>
+      <KpiCard title="PDU会话建立成功率" value={`${(sample(agg("SMF"), simT) * 100).toFixed(2)}%`} color="#a78bfa">{spark(agg("SMF"), "#a78bfa")}</KpiCard>
       {/* NE CPU —— G 场景过载点在 UDM(AMF/SMF 正常);其余展示 AMF/SMF/UPF */}
       <div style={{ flex: "1 1 20%", display: "flex", flexDirection: "column", padding: "3px 6px", borderLeft: "1px solid var(--border)" }}>
         <span style={{ fontSize: 8.5, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700 }}>NE CPU{isStorm ? "(过载)" : ""}</span>

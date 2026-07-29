@@ -34,6 +34,18 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
   const maxReg = Math.max(...regRate, 200);
   const maxSess = Math.max(...sessRate, 400);
   const visN = Math.max(3, curI + 2);
+  // 风暴场景:故障窗口内 SR 合成下降(让曲线可见跌落)
+  const dipSr = (arr: number[]) => {
+    if (!isStorm) return arr;
+    const fs = kpi.faultStart, fe = kpi.faultEnd;
+    return arr.map((v, i) => {
+      const t = i + 1;
+      if (t < fs || t > fe) return v;
+      const mid = (fs + fe) / 2;
+      const dist = Math.abs(t - mid) / Math.max(1, (fe - fs) / 2);
+      return Math.max(0.82, v - (1 - dist * 0.35) * 0.07);
+    });
+  };
   // CHR
   const chr = scenario.chrInsight;
   const related = chr?.related ?? [];
@@ -41,8 +53,8 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
 
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
-      <DualCurve sr={amfSr} rate={regRate} mx={maxReg} visN={visN} srC="#60a5fa" rateC="#f59e0b" title="AMF 注册 SR + 注册请求数/s" />
-      <DualCurve sr={smfSr} rate={sessRate} mx={maxSess} visN={visN} srC="#a78bfa" rateC="#f59e0b" title="SMF PDU 会话 SR + 会话请求数/s" />
+      <DualCurve sr={dipSr(amfSr)} rate={regRate} mx={maxReg} visN={visN} srC="#60a5fa" rateC="#f59e0b" title="AMF注册成功率 + 注册请求数/s" />
+      <DualCurve sr={dipSr(smfSr)} rate={sessRate} mx={maxSess} visN={visN} srC="#a78bfa" rateC="#f59e0b" title="PDU会话建立成功率 + 会话请求数/s" />
 
       {isStorm && scenario.stormMetrics && (() => {
         const m = scenario.stormMetrics;
@@ -173,12 +185,15 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
       {scenario.chrInsight && (() => {
         const chr = scenario.chrInsight;
         const rel = chr.related ?? [];
+        const showSst = steps.some((s) => /SST/.test(s.text));
+        const showDnn = steps.some((s) => /DNN/.test(s.text));
+        if (!showSst && !showDnn) return null;
         return (
           <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.4)", background: "rgba(167,139,250,0.07)", flexShrink: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 6 }}>CHR 占比分析</div>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color="#a78bfa" />
-              {rel.length > 0 && <Donut share={rel[0].share ?? 58} label={rel[0].code} sub="会话" color="#64748b" />}
+              {showSst && <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color="#a78bfa" />}
+              {showDnn && rel.length > 0 && <Donut share={rel[0].share ?? 58} label={rel[0].code} sub="会话" color="#64748b" />}
             </div>
           </div>
         );

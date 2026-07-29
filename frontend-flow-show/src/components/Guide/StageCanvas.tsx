@@ -45,11 +45,11 @@ const TYPE_EDGES: [string, string][] = [
 const CIRCLES = [
   { n: 1, phase: 1, x: 388, y: 80, cn: "数据采集", desc: "Agent 1 采集 KPI / CHR / 3GPP 信令 / 容器 CPU → 智能体" },
   { n: 2, phase: 2, x: 660, y: 270, cn: "异常检测", desc: "KPI/CHR/容器 CPU 多维检测,任一异常即触发" },
-  { n: 3, phase: 3, x: 580, y: 185, cn: "策略匹配", desc: "多维特征加权评分 → 置信度路由分流(工作流/技能引导/自主探索)" },
+  { n: 3, phase: 3, x: 490, y: 180, cn: "策略匹配", desc: "多维特征加权评分 → 置信度路由分流(工作流/技能引导/自主探索)" },
   { n: 4, phase: 4, x: 820, y: 270, cn: "根因推理", desc: "Agent 2 推理链收敛,定位根因网元(防误报/漏报)" },
   { n: 5, phase: 5, x: 652, y: 80, cn: "策略下发", desc: "向 AMF/SMF 下发恢复策略(限流+返回 UE Timer),脑 → AMF/SMF" },
   { n: 6, phase: 6, x: 740, y: 360, cn: "网络恢复", desc: "恢复策略生效,成功率回升,闭环验证通过" },
-  { n: 7, phase: 7, x: 520, y: 28, cn: "评估优化", desc: "Agent 3 评估恢复结果:通过→沉淀 Skill;未通过→回 Agent1 重采" },
+  { n: 7, phase: 7, x: 520, y: 25, cn: "评估优化", desc: "Agent 3 评估恢复结果:通过→沉淀 Skill;未通过→回 Agent1 重采" },
 ];
 
 interface Props {
@@ -110,14 +110,14 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
       <defs>
         <filter id="sc-glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2.8" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         <marker id="sc-arr-in" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M0,0 L9,5.5 L0,11 Z" fill="#7dd3fc" /></marker>
-        <marker id="sc-arr-out" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M0,0 L9,5.5 L0,11 Z" fill="#5eead4" /></marker>
+        <marker id="sc-arr-out" markerWidth="11" markerHeight="11" refX="8" refY="5.5" orient="auto"><path d="M0,0 L9,5.5 L0,11 Z" fill="#a78bfa" /></marker>
         <radialGradient id="sc-node-ok" cx="50%" cy="40%" r="70%"><stop offset="0%" stopColor="#3a5180" /><stop offset="100%" stopColor="#1d2d50" /></radialGradient>
         <radialGradient id="sc-node-fault" cx="50%" cy="40%" r="70%"><stop offset="0%" stopColor="#5a2030" /><stop offset="100%" stopColor="#2a0e16" /></radialGradient>
       </defs>
 
       {/* 区域标签 + 分隔 */}
-      <text x={20} y={26} fontSize={12} fill="var(--text-soft)" fontFamily="var(--font-mono)" letterSpacing="0.12em">智能体 · AGENT</text>
-      <text x={20} y={236} fontSize={12} fill="var(--text-soft)" fontFamily="var(--font-mono)" letterSpacing="0.12em">5GC 现网拓扑(按类型)· NETWORK</text>
+      <text x={20} y={16} fontSize={12} fill="#2dd4bf" fontFamily="var(--font-mono)" letterSpacing="0.12em">智能体 · AGENT</text>
+      <text x={20} y={228} fontSize={12} fill="#7dd3fc" fontFamily="var(--font-mono)" letterSpacing="0.12em">5GC 现网拓扑(按类型)· NETWORK</text>
       <line x1={20} y1={244} x2={VW - 20} y2={244} stroke="var(--border)" strokeDasharray="3 5" />
 
       {/* 在网用户(UE 簇,左) */}
