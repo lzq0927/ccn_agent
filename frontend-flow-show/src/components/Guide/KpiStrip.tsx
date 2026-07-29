@@ -69,7 +69,7 @@ export function KpiStrip({ scenario, state }: { scenario: Scenario; state: Story
         <span style={{ fontSize: 8.5, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700 }}>NE CPU{isStorm ? "(过载)" : ""}</span>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1.5, justifyContent: "center" }}>
           {(scenario.stormMetrics?.udmCpu != null ? ["UDM", "AMF", "SMF"] : ["AMF", "SMF", "UPF"]).map((t) => {
-            const v = t === "UDM" && scenario.stormMetrics?.udmCpu != null ? scenario.stormMetrics.udmCpu : cpuOf(t);
+            const v = cpuOf(t);
             const c = v >= 85 ? STATUS.fault : v >= 70 ? STATUS.warning : STATUS.healthy;
             return (
               <div key={t} style={{ display: "flex", alignItems: "center", gap: 4, height: 11 }}>

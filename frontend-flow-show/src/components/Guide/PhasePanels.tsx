@@ -58,16 +58,6 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
           </div>
         );
       })()}
-
-      {chr && (
-        <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.4)", background: "rgba(167,139,250,0.07)" }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 6 }}>CHR 占比分析</div>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color="#a78bfa" />
-            {related.length > 0 && <Donut share={related[0].share ?? 58} label={related[0].code} sub="会话" color="#64748b" />}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -174,12 +164,25 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
         })}
       </div>
       {root.nes.length > 0 && (
-        <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", textAlign: "center" }}>
+        <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", textAlign: "center", flexShrink: 0 }}>
           <div style={{ fontSize: 10, color: STATUS.faultGlow, fontFamily: "var(--font-mono)" }}>🎯 根因定位</div>
           <div style={{ fontSize: 18, fontWeight: 800, color: STATUS.faultGlow, fontFamily: "var(--font-mono)", margin: "3px 0" }}>{root.nes.join(" · ")}</div>
           {root.links.length > 0 && <div style={{ fontSize: 10.5, color: "var(--text-mid)" }}>{root.links.join(" · ")}</div>}
         </div>
       )}
+      {scenario.chrInsight && (() => {
+        const chr = scenario.chrInsight;
+        const rel = chr.related ?? [];
+        return (
+          <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.4)", background: "rgba(167,139,250,0.07)", flexShrink: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 6 }}>CHR 占比分析</div>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color="#a78bfa" />
+              {rel.length > 0 && <Donut share={rel[0].share ?? 58} label={rel[0].code} sub="会话" color="#64748b" />}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
