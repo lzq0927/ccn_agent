@@ -28,7 +28,7 @@
   .topo-svg{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
   .topo-svg svg{width:100%;height:auto;}
 
-  .t-node-label{font-size:36px;font-weight:760;fill:var(--t1);}
+  .t-node-label{font-size:44px;font-weight:760;fill:var(--t1);}
   .t-sn-name{font-size:34px;font-weight:760;}
   .t-el-type{font-size:36px;font-weight:750;}
   .edge{fill:none;stroke:var(--line);stroke-width:3.5;}
@@ -59,13 +59,13 @@
   .dot.ok{background:var(--ok);}
 
   .trend-head{display:flex;align-items:center;justify-content:space-between;margin:2px 2px -4px;}
-  .trend-head .t{font-size:32px;font-weight:700;color:var(--t1);}
+  .trend-head .t{font-size:38px;font-weight:700;color:var(--t1);}
   .pop-tw{display:inline-flex;background:#f1f4fb;border-radius:9px;padding:3px;gap:2px;}
   .pop-tw button{border:none;background:transparent;font:inherit;font-size:22px;font-weight:660;color:var(--t2);padding:6px 16px;border-radius:7px;cursor:pointer;}
   .pop-tw button.on{background:#fff;color:var(--primary);box-shadow:0 1px 2px rgba(16,24,40,.06);}
 
   .metric{display:grid;grid-template-columns:1fr auto;gap:2px 14px;align-items:center;}
-  .m-label{font-size:30px;color:var(--t1);font-weight:680;}
+  .m-label{font-size:36px;color:var(--t1);font-weight:680;}
   .m-value{font-size:48px;font-weight:800;line-height:1;text-align:right;}
   .m-value small{font-size:32px;color:var(--t2);font-weight:750;margin-left:2px;}
   .m-value.ok{color:var(--ok);}
@@ -150,7 +150,7 @@ const taken=new Set(["AMF-1","SMF-2"]);
 
 function defs(){
   const d=el("defs",{});
-  const mk=(id,c)=>{const m=el("marker",{id,viewBox:"0 0 10 10",refX:"8.5",refY:"5",markerWidth:"6",markerHeight:"6",orient:"auto"});m.appendChild(el("path",{d:"M0,0 L10,5 L0,10 z",fill:c}));return m;};
+  const mk=(id,c)=>{const m=el("marker",{id,viewBox:"0 0 10 10",refX:"8.5",refY:"5",markerWidth:"5",markerHeight:"5",orient:"auto"});m.appendChild(el("path",{d:"M0,0 L10,5 L0,10 z",fill:c}));return m;};
   d.appendChild(mk("arrow","#8a96a8")); d.appendChild(mk("arrowB","#2563eb"));
   topo.appendChild(d);
 }
@@ -185,7 +185,7 @@ function coreNode(box,title,fill,soft,icon){
   g.appendChild(el("rect",{x:box.x,y:box.y,width:box.w,height:box.h,rx:18,fill:soft,stroke:fill,"stroke-width":3.5}));
   g.appendChild(el("circle",{cx:box.x+60,cy:box.cy,r:32,fill}));
   drawIcon(icon,box.x+60,box.cy,g);
-  const t=el("text",{x:box.x+108,y:box.cy+11,class:"t-node-label"});t.textContent=title;g.appendChild(t);
+  const t=el("text",{x:box.x+108,y:box.cy+15,class:"t-node-label"});t.textContent=title;g.appendChild(t);
   return g;
 }
 function drawIcon(kind,cx,cy,g){
