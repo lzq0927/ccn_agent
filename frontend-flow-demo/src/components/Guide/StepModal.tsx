@@ -27,14 +27,21 @@ export function StepModal({ scenario, state, round, circlePos, circleN, onClose 
   const info = guideCallout(scenario, state);
   const VW = 1040, VH = 646;
 
-  // 弹窗在 SVG 坐标系中的位置:圆圈右上方,如靠右边缘则翻到左侧
-  const W = 320;
-  const placeLeft = circlePos.x > VW * 0.5;
-  const modalX = placeLeft ? Math.max(10, circlePos.x - W - 40) : Math.min(VW - W - 10, circlePos.x + 40);
-  const modalY = Math.max(10, Math.min(VH - 200, circlePos.y - 40));
-  // 连接线起点(弹窗靠近圆圈的一侧)
+  // 弹窗尺寸 + 智能定位:避开下一个圆圈和故障节点(AI平台1)
+  const W = 280;
+  const maxH = VH * 0.55; // 最大高度=画布55%
+  // 故障点位置(AI平台1 在 960,220);下一个圆圈位置由 nextStop 决定
+  const faultPoint = { x: 960, y: 220 };
+  const circleRight = circlePos.x > VW * 0.45;
+  // 默认放圆圈右侧;若右侧靠近故障点或右边缘,翻到左侧
+  const rightBlocked = circleRight && (circlePos.x + 40 + W > VW - 20 || Math.abs(circlePos.x + 40 - faultPoint.x) < W);
+  const placeLeft = !circleRight || rightBlocked;
+  const modalX = placeLeft ? Math.max(10, circlePos.x - W - 35) : Math.min(VW - W - 10, circlePos.x + 35);
+  // 垂直:默认偏上;如果圆圈在上半区则往下偏
+  const modalY = circlePos.y < VH * 0.35 ? Math.max(10, circlePos.y + 20) : Math.max(10, circlePos.y - maxH * 0.4);
+  // 连接线起点
   const lineFromX = placeLeft ? modalX + W : modalX;
-  const lineFromY = modalY + 30;
+  const lineFromY = modalY + 25;
 
   return (
     <g style={{ pointerEvents: "none" }}>
@@ -43,12 +50,12 @@ export function StepModal({ scenario, state, round, circlePos, circleN, onClose 
         d={`M ${lineFromX} ${lineFromY} Q ${(lineFromX + circlePos.x) / 2} ${lineFromY + 20} ${circlePos.x + (placeLeft ? 20 : -20)} ${circlePos.y}`}
         fill="none" stroke="#7B68EE" strokeWidth={1.2} strokeDasharray="4 4" opacity={0.5}
       />
-      <foreignObject x={modalX} y={modalY} width={W} height={VH - modalY - 10} style={{ overflow: "visible" }}>
+      <foreignObject x={modalX} y={modalY} width={W} height={maxH} style={{ overflow: "visible" }}>
         <div // eslint-disable-line
           className="step-modal"
           style={{
             width: W,
-            maxHeight: "calc(100% - 4px)",
+            maxHeight: "100%",
             background: "rgba(10,14,26,0.96)",
             border: "1.5px solid #7B68EE",
             borderRadius: 12,

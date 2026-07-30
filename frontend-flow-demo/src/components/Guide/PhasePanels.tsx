@@ -118,13 +118,7 @@ function Donut({ share, label, sub, color }: { share: number; label: string; sub
 export function MatchPanel({ scenario }: { scenario: Scenario }) {
   const c = scenario.confidence;
   const rc = ROUTE_COLORS[c.route];
-  const dims = [
-    { k: "模式强度", v: c.pattern, w: 0.4 },
-    { k: "异常严重", v: c.severity, w: 0.2 },
-    { k: "时序清晰", v: c.temporal, w: 0.15 },
-    { k: "空间清晰", v: c.spatial, w: 0.15 },
-    { k: "模糊度", v: c.ambiguity, w: 0.1 },
-  ];
+  // 维度条已移除(太细节)
   const why = whyMatched(scenario);
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
@@ -133,17 +127,7 @@ export function MatchPanel({ scenario }: { scenario: Scenario }) {
         <span style={{ fontSize: 14, fontWeight: 800, color: rc.base }}>→ {rc.cn}</span>
       </div>
       <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-soft)", marginBottom: 8 }}>{c.patternName}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 9 }}>
-        {dims.map((d) => (
-          <div key={d.k}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-mid)", marginBottom: 2 }}>
-              <span>{d.k} <span style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>×{d.w}</span></span>
-              <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-bright)" }}>{d.v.toFixed(2)}</span>
-            </div>
-            <div style={{ height: 5, borderRadius: 3, background: "rgba(148,163,184,0.15)", overflow: "hidden" }}><div style={{ height: "100%", width: `${d.v * 100}%`, background: rc.base }} /></div>
-          </div>
-        ))}
-      </div>
+
       <div style={{ padding: "8px 10px", borderRadius: 7, border: `1px solid ${rc.base}55`, background: `${rc.base}0d` }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)", marginBottom: 3 }}>匹配逻辑</div>
         <div style={{ fontSize: 12, color: "var(--text-soft)", lineHeight: 1.55 }}>{why}</div>
@@ -215,7 +199,7 @@ export function DispatchPanel({ scenario, state }: { scenario: Scenario; state: 
         <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
           {plan.strategies.map((s, i) => {
             const v = values[i];
-            const col = s.layer === "UE" ? "#fbbf24" : s.layer === "AMF" ? "#38bdf8" : "#a78bfa";
+            const col = "#a78bfa"; // 统一紫色系
             const isG = scenario.stormMetrics?.udmCpu != null;
             // 策略语义:F=1 AMF+SMF通知UE / 2 AMF限流 / 3 SMF限流;G=1 回T3346/T3396 / 2 限SST=3 / 3 限DNN=MIot.xx
             const label = isG
