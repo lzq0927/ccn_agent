@@ -163,12 +163,12 @@ type Seg = { dur: number; phase: number; round: 1 | 2 };
 const R1_COMMON: Seg[] = [
   { dur: 3, phase: 0, round: 1 },
   { dur: 4, phase: 1, round: 1 }, { dur: 4, phase: 2, round: 1 }, { dur: 3, phase: 3, round: 1 },
-  { dur: 6, phase: 4, round: 1 },
+  { dur: 12, phase: 4, round: 1 },
 ];
-const R1_WITH_RECOV: Seg[] = [...R1_COMMON, { dur: 4, phase: 5, round: 1 }, { dur: 4, phase: 7, round: 1 }]; // E/F/G:首轮恢复+Agent3评估未通过
+const R1_WITH_RECOV: Seg[] = [...R1_COMMON, { dur: 4, phase: 5, round: 1 }, { dur: 4, phase: 7, round: 1 }];
 const R2_SEGS: Seg[] = [
   { dur: 4, phase: 1, round: 2 }, { dur: 4, phase: 2, round: 2 }, { dur: 3, phase: 3, round: 2 },
-  { dur: 9, phase: 4, round: 2 }, { dur: 6, phase: 5, round: 2 },
+  { dur: 15, phase: 4, round: 2 }, { dur: 6, phase: 5, round: 2 },
   { dur: 5, phase: 6, round: 2 }, { dur: 13, phase: 7, round: 2 },
 ];
 function twoRoundSegs(id: string): Seg[] {

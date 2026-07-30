@@ -191,10 +191,14 @@ function StageCanvasBase({ scenario, state, graph, stops, curIdx, onGoToPhase }:
           if (!pos) return null;
           const t = trim(BRAIN.x, BRAIN.y + 30, pos.x, pos.y, 6, NR + 4);
           const id = `cout-${o.type}-${i}`;
+          // 曲线:控制点右偏40,让箭头弧形展开(不被脑/圆圈遮挡)
+          const cx = (t.x1 + t.x2) / 2 + 40;
+          const cy = (t.y1 + t.y2) / 2;
+          const d = `M ${t.x1} ${t.y1} Q ${cx} ${cy} ${t.x2} ${t.y2}`;
           return (
             <g key={id}>
-              <path id={id} d={`M ${t.x1} ${t.y1} L ${t.x2} ${t.y2}`} fill="none" stroke="none" />
-              <path d={`M ${t.x1} ${t.y1} L ${t.x2} ${t.y2}`} fill="none" stroke={o.color} strokeWidth={3} strokeLinecap="round" className="flow-dash-fast" opacity={0.97} markerEnd="url(#sc-arr-out)" filter="url(#sc-glow)" />
+              <path id={id} d={d} fill="none" stroke="none" />
+              <path d={d} fill="none" stroke={o.color} strokeWidth={3} strokeLinecap="round" className="flow-dash-fast" opacity={0.97} markerEnd="url(#sc-arr-out)" filter="url(#sc-glow)" />
               <circle r={3.8} fill={o.color} filter="url(#sc-glow)">
                 <animateMotion dur={`${0.7 + (i % 3) * 0.16}s`} repeatCount="indefinite" rotate="auto"><mpath href={`#${id}`} /></animateMotion>
               </circle>
