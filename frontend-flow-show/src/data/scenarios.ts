@@ -370,7 +370,7 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       naive: { title: "仅网元 KPI 视角", verdict: "误判 UDM 宕机/扩容", detail: "UDM CPU 过载,朴素归因误指 UDM 故障或扩容,未溯源到 AI 平台与终端", kind: "falsealarm" },
       explored: { title: "流控溯源+协同限流", verdict: "在 AMF/SMF 侧消除 UDM 过载", detail: "CHR(SST=3/DNN)+UFDR(SUPI→AI平台1)溯源,AMF/SMF 协同限流", kind: "hit" },
     },
-    stormMetrics: { amfCpu: 58, smfCpu: 52, udmCpu: 92, regSurge: 280, sessionSurge: 240, msgToUdmSurge: 320, impact2c: "UDM 过载导致注册/会话处理延迟,正常 2C 手机注册与业务受影响", aiPlatform: "AI 平台 1" },
+    stormMetrics: { amfCpu: 88, smfCpu: 85, udmCpu: 92, regSurge: 280, sessionSurge: 240, msgToUdmSurge: 320, impact2c: "AMF/SMF/UDM 过载导致注册/会话处理延迟,正常 2C 手机注册与业务受影响", aiPlatform: "AI 平台 1" },
     chrInsight: {
       nes: ["UDM_1"],
       causeCode: "SST=3 / DNN=MIot.xx",
@@ -435,8 +435,8 @@ const NARRATIVES: Record<string, ScenarioNarrative> = {
       },
     },
     faultReport: {
-      rootCause: "AI 平台 1 故障 → 该平台终端频繁注册,冲击汇聚点 UDM(AMF/SMF 不过载)",
-      phenomenon: "Agent 1 采集:UDM CPU 92% 过载告警 + 注册/会话 SR 降 + AMF/SMF→UDM 消息 +320%",
+      rootCause: "AI 平台 1 故障 → 该平台终端(对接 AMF_1/AMF_2)频繁注册 → AMF/SMF/UDM 三点过载",
+      phenomenon: "Agent 1 采集:AMF(88%)/SMF(85%)/UDM(92%) CPU 均过载 + 注册/会话 SR 降 + 消息突增",
       impact: "UDM 过载致注册/会话处理延迟,影响正常用户接入",
       action: "Agent 2 溯源 CHR(SST=3/DNN=MIot.xx)+UFDR(SUPI→AI平台1)→ 按 CPU/消息线性推算减量 → 向 AMF/SMF 下发 SUPI 列表 + 限 SST/DNN,流控拒绝回 T3346/T3396",
       outcome: "二轮按差值重算后 UDM 过载消除(CPU 68%);AI 平台 1 恢复,智能体取消终端流控,告警消失,网络恢复;沉淀「UDM 过载→AMF/SMF 协同限流」skill",

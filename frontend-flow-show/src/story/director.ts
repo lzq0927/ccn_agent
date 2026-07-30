@@ -405,10 +405,10 @@ export function liveNeCpu(s: Scenario, simT: number): Record<string, number> {
   for (const n of graph.nodes) {
     let cpu: number;
     if (s.stormMetrics?.udmCpu != null) {
-      // G 场景:过载在 UDM(AMF/SMF 仅因消息增多略升,不过载)
+      // G 场景:AMF/SMF/UDM 都过载(有问题的 UE 对接在这两个 AMF 上)
       if (n.type === "UDM") cpu = 40 + si * 55;
-      else if (n.type === "AMF") cpu = 42 + si * 12;
-      else if (n.type === "SMF") cpu = 40 + si * 10;
+      else if (n.type === "AMF") cpu = 40 + si * 50;
+      else if (n.type === "SMF") cpu = 38 + si * 48;
       else if (n.type === "UPF") cpu = 32 + si * 6;
       else cpu = 28 + si * 3;
     } else {

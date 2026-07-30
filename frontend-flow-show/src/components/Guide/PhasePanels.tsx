@@ -60,11 +60,11 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
         const m = scenario.stormMetrics;
         const isG = m.udmCpu != null;
         const bars = isG
-          ? [{ id: "UDM_1", cpu: m.udmCpu as number }, { id: "AMF(正常)", cpu: m.amfCpu }, { id: "SMF(正常)", cpu: m.smfCpu }]
+          ? [{ id: "UDM_1", cpu: m.udmCpu as number }, { id: "AMF", cpu: m.amfCpu }, { id: "SMF", cpu: m.smfCpu }]
           : overloadNEs.map((id) => ({ id, cpu: id.replace(/_\d+$/, "") === "AMF" ? m.amfCpu : m.smfCpu }));
         return (
           <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(245,158,11,0.4)", background: "rgba(245,158,11,0.07)" }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#fbbf24", fontFamily: "var(--font-mono)", marginBottom: 5 }}>⚠ 容器过载告警{isG ? "(UDM · AMF/SMF 不过载)" : ""}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#fbbf24", fontFamily: "var(--font-mono)", marginBottom: 5 }}>⚠ 容器过载告警{isG ? "(AMF/SMF/UDM)" : ""}</div>
             {bars.map((b) => <CpuBar key={b.id} id={b.id} cpu={b.cpu} />)}
             <div style={{ fontSize: 10.5, color: "#fbbf24", marginTop: 5 }}>注册请求 +{m.regSurge}% · PDU 会话 +{m.sessionSurge}%{isG && m.msgToUdmSurge ? ` · AMF/SMF→UDM 消息 +${m.msgToUdmSurge}%` : ""}</div>
           </div>
@@ -356,7 +356,7 @@ function whyMatched(s: Scenario): string {
   const c = s.confidence;
   if (c.route === "workflow") {
     if (s.fault.faultType === "iot_storm" && s.stormMetrics?.udmCpu != null) {
-      return `检测到 UDM 容器 CPU 过载告警(>85%)+ AMF/SMF→UDM 消息突增 + 注册/会话 SR 下降 = 典型「UDM 过载」模式,且 AMF/SMF 自身不过载。模式清晰,置信度 ${c.score.toFixed(2)} > 0.7 → 命中确定性工作流:看全局拓扑判定治理点在 AMF/SMF 侧,不走 LLM Loop。`;
+      return `检测到 AMF/SMF/UDM 容器 CPU 过载告警(均>85%)+ AMF/SMF→UDM 消息突增 + 注册/会话 SR 下降 = 典型「过载」模式。模式清晰,置信度 ${c.score.toFixed(2)} > 0.7 → 命中确定性工作流:在 AMF/SMF 侧限流消除过载,不走 LLM Loop。`;
     }
     if (s.fault.faultType === "iot_storm") {
       return `检测到 AMF/SMF 容器 CPU 过载告警 + 大片 NE 同时异常 = 典型「过载风暴」模式。模式强度高、信号清晰,置信度 ${c.score.toFixed(2)} > 0.7 → 命中确定性工作流:直达根因(物联终端风暴),不走 LLM Loop。`;

@@ -528,7 +528,7 @@ export const SPEC_F: ConstructedSpec = {
 const FAULT_G: FaultSpec = {
   faultType: "iot_storm",
   faultMode: "business",
-  elements: ["UDM_1"],
+  elements: ["AMF_1", "AMF_2", "SMF_1", "SMF_2", "UDM_1"],
   links: [],
   lossRate: 0.04,
   faultStart: 28,
@@ -539,11 +539,11 @@ const FAULT_G: FaultSpec = {
 
 const REASONING_G: ReasonStep[] = [
   // ===== 第一轮(诊断 + 策略决策,逐步分析各 NE 数据)=====
-  { n: 1, type: "tool_call", text: "UDM_1 容器 CPU 92% > 85%,触发过载流控告警。注册 SR、PDU 会话 SR 开始下降。AMF/SMF CPU 正常(58/52)。", result: "UDM 过载告警", highlight: { nes: ["UDM_1"] } },
-  { n: 2, type: "tool_call", text: "AMF 侧分析:AMF → UDM 的注册请求消息数突增。UDM CHR 显示 AMF 注册请求中切片类型 SST=3 的消息占 55%。", result: "AMF 注册消息 SST=3 占 55%", highlight: { nes: ["AMF_1"] } },
-  { n: 3, type: "tool_call", text: "SMF 侧分析:SMF → UDM 的会话消息数突增。UDM CHR 显示 SMF 消息中 DNN=MIot.xx 占 58%。", result: "SMF 会话 DNN=MIot.xx 占 58%", highlight: { nes: ["SMF_1"] } },
-  { n: 4, type: "tool_call", text: "UPF UFDR 溯源:用 UDM CHR 中的终端 SUPI(注册消息携带)关联 UPF UFDR,发现这些终端流量均发往 AI 平台 1,且仅含上行、无下行。上报 OSS(AI 平台 1 地址)。", result: "SUPI → AI 平台 1(仅上行)", highlight: { nes: ["UPF_1"] } },
-  { n: 5, type: "conclusion", text: "根因确定:AI 平台 1 故障 → 该平台终端频繁注册 → 消息冲击汇聚点 UDM(AMF/SMF 自身不过载)。需在 AMF/SMF 侧限流以保护 UDM。", result: "UDM 过载根因 · AI 平台 1", highlight: { nes: ["UDM_1"] } },
+  { n: 1, type: "tool_call", text: "容器指标:AMF_1/AMF_2 CPU 88%、SMF_1/SMF_2 CPU 85%、UDM_1 CPU 92% 均超 85%,触发过载流控告警。注册 SR、PDU 会话 SR 下降。", result: "AMF/SMF/UDM 三点过载", highlight: { nes: ["UDM_1"] } },
+  { n: 2, type: "tool_call", text: "AMF 侧分析:有问题的 UE 对接在 AMF_1/AMF_2 上,AMF → UDM 注册请求消息数突增。CHR 显示 AMF 注册请求中切片类型 SST=3 的消息占 55%。", result: "AMF 注册消息 SST=3 占 55%", highlight: { nes: ["AMF_1"] } },
+  { n: 3, type: "tool_call", text: "SMF 侧分析:SMF_1/SMF_2 → UDM 会话消息数突增。CHR 显示 SMF 消息中 DNN=MIot.xx 占 58%。", result: "SMF 会话 DNN=MIot.xx 占 58%", highlight: { nes: ["SMF_1"] } },
+  { n: 4, type: "tool_call", text: "UPF UFDR 溯源:用 CHR 中的终端 SUPI 关联 UPF UFDR,发现这些终端流量均发往 AI 平台 1,且仅含上行、无下行。上报 OSS(AI 平台 1 地址)。", result: "SUPI → AI 平台 1(仅上行)", highlight: { nes: ["UPF_1"] } },
+  { n: 5, type: "conclusion", text: "根因确定:AI 平台 1 故障 → 该平台终端(对接 AMF_1/AMF_2)频繁注册 → AMF/SMF/UDM 三点过载。需在 AMF/SMF 侧限流消除过载。", result: "三点过载根因 · AI 平台 1", highlight: { nes: ["UDM_1"] } },
   { n: 6, type: "thinking", text: "线性推算需减少的消息数:Δmsg = (CPU−70)/(CPU−基线) × msg_total = (92−70)/(92−40) × 320 ≈ 135 消息/s。按 AMF:SMF = 55:45 分配 → AMF 减 74、SMF 减 61。决策双策略:AMF/SMF 自身流控拒绝 + 返回 UE T3346/T3396 定时器(10min)。", result: "首轮参数 · 双策略决策", highlight: { nes: ["AMF_1", "SMF_1"] } },
   // ===== 第二轮(参数调整,不含恢复结论)=====
   { n: 7, type: "thinking", text: "[轮2] Agent3 评估未通过,回 Agent1 重新采集。UDM CPU 78%(首轮策略后部分缓解但未消除);AMF/SMF 出现流控告警(首轮策略已生效)。", highlight: { nes: ["UDM_1"] } },
