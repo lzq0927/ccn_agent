@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>用户级主动保障 · PPT</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --border:#d4dbe8;
+    --t1:#1e293b; --t2:#475569; --t3:#64748b;
+    --primary:#2563eb; --srf:#7c3aed; --ue:#475569;
+    --ok:#10b981; --warn:#f59e0b; --fault:#ef4444; --line:#aeb8c9;
+    --shadow:0 2px 6px rgba(16,24,40,.05), 0 16px 40px rgba(16,24,40,.08);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:var(--font); color:var(--t1);
+    background:radial-gradient(1100px 520px at 100% -10%, #e7ecfb 0%, rgba(231,236,251,0) 55%), var(--bg);
+    min-height:100vh; font-size:18px; line-height:1.45; -webkit-font-smoothing:antialiased; padding:24px;
+  }
+  header{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+  header .mark{width:50px;height:50px;border-radius:13px;background:linear-gradient(135deg,#2563eb,#4f7cf7);display:grid;place-items:center;box-shadow:0 8px 20px rgba(37,99,235,.35);}
+  header .mark svg{width:30px;height:30px;}
+  header h1{margin:0;font-size:34px;font-weight:780;letter-spacing:.3px;}
+  header .sub{margin-top:2px;font-size:16px;color:var(--t2);}
+
+  .layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:stretch;}
+  .card{background:var(--card);border:1.5px solid var(--border);border-radius:18px;box-shadow:var(--shadow);}
+  .topo-card{padding:14px;display:flex;flex-direction:column;}
+  .topo-title{font-size:22px;font-weight:720;color:var(--t1);padding:4px 8px 8px;}
+  .topo-svg{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
+  .topo-svg svg{width:100%;height:auto;}
+
+  .t-node-label{font-size:32px;font-weight:720;fill:var(--t1);}
+  .t-sn-name{font-size:30px;font-weight:720;}
+  .t-el-type{font-size:22px;font-weight:700;}
+  .edge{fill:none;stroke:var(--line);stroke-width:2.6;}
+  .edge.on{stroke:var(--primary);stroke-width:5.5;filter:drop-shadow(0 0 7px rgba(37,99,235,.55));stroke-dasharray:9 8;animation:flow 1s linear infinite;}
+  @keyframes flow{to{stroke-dashoffset:-34;}}
+  .user-path{fill:none;stroke:var(--primary);stroke-width:5.5;stroke-dasharray:9 8;filter:drop-shadow(0 0 7px rgba(37,99,235,.55));animation:flow 1s linear infinite;}
+  .subnet-frame{fill:rgba(255,255,255,.6);stroke:#b6c2d6;stroke-width:2.4;stroke-dasharray:9 8;}
+  .subnet.sel .subnet-frame{stroke:var(--primary);stroke-width:3.6;}
+  .subnet.sel .t-sn-name{fill:var(--primary);}
+  .el-bg{transition:stroke .2s;}
+  .el-node.on .el-bg{stroke:var(--primary);stroke-width:4.5;}
+  .el-node.on .el-halo{opacity:.6;}
+  .el-halo{fill:none;stroke:var(--primary);stroke-width:3;opacity:0;}
+  .status-dot{stroke:#fff;stroke-width:2;}
+
+  .popup{padding:24px 26px;display:flex;flex-direction:column;gap:16px;}
+  .pop-head{display:flex;align-items:center;gap:16px;padding-bottom:16px;border-bottom:2px solid var(--border);}
+  .pop-av{width:60px;height:60px;border-radius:16px;background:#f59e0b;display:grid;place-items:center;box-shadow:0 6px 16px rgba(245,158,11,.35);}
+  .pop-av svg{width:34px;height:34px;}
+  .pop-name{font-size:38px;font-weight:780;line-height:1.1;}
+  .pop-id{font-size:21px;color:var(--t2);margin-top:3px;}
+  .pop-els{display:flex;gap:14px;}
+  .pop-el{flex:1;display:flex;align-items:center;gap:12px;background:#f8fafc;border:1.5px solid var(--border);border-radius:13px;padding:14px 16px;}
+  .pop-el .role{font-size:19px;color:var(--t2);}
+  .pop-el .nm{font-size:28px;font-weight:720;margin-top:1px;}
+  .pop-el .ok-tag{margin-left:auto;font-size:19px;font-weight:700;color:var(--ok);}
+  .dot{width:16px;height:16px;border-radius:50%;flex:none;}
+  .dot.ok{background:var(--ok);}
+
+  .trend-head{display:flex;align-items:center;justify-content:space-between;margin:2px 2px -4px;}
+  .trend-head .t{font-size:23px;font-weight:670;color:var(--t1);}
+  .pop-tw{display:inline-flex;background:#f1f4fb;border-radius:9px;padding:3px;gap:2px;}
+  .pop-tw button{border:none;background:transparent;font:inherit;font-size:18px;font-weight:620;color:var(--t2);padding:5px 15px;border-radius:7px;cursor:pointer;}
+  .pop-tw button.on{background:#fff;color:var(--primary);box-shadow:0 1px 2px rgba(16,24,40,.06);}
+
+  .metric{display:grid;grid-template-columns:1fr auto;gap:2px 14px;align-items:center;}
+  .m-label{font-size:24px;color:var(--t1);font-weight:650;}
+  .m-value{font-size:48px;font-weight:800;line-height:1;text-align:right;}
+  .m-value small{font-size:28px;color:var(--t3);font-weight:700;margin-left:2px;}
+  .m-value.ok{color:var(--ok);}
+  .m-chart{grid-column:1 / -1;width:100%;height:54px;display:block;margin-top:4px;}
+  .caxis{grid-column:1 / -1;display:flex;justify-content:space-between;font-size:17px;color:var(--t2);margin-top:1px;padding:0 2px;}
+
+  .guard-banner{display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#10b981,#34d399);border-radius:15px;padding:18px 22px;box-shadow:0 10px 26px rgba(16,185,129,.32);margin-top:auto;}
+  .guard-banner .g-ic{width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;color:var(--ok);font-size:32px;font-weight:900;flex:none;}
+  .guard-banner .g-title{font-size:32px;font-weight:800;color:#fff;line-height:1.1;}
+  .guard-banner .g-sub{font-size:26px;font-weight:700;color:#fff;margin-top:6px;}
+
+  @media (max-width:1100px){.layout{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<main class="layout">
+  <section class="card topo-card">
+    <div class="topo-title">用户级主动保障</div>
+    <div class="topo-svg">
+      <svg id="topo" viewBox="0 0 1100 1000" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </section>
+
+  <aside class="card popup">
+    <div class="pop-head">
+      <div class="pop-av"><svg viewBox="0 0 24 24"><g fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.6"/><line x1="10.5" y1="18.4" x2="13.5" y2="18.4"/></g></svg></div>
+      <div><div class="pop-name">VIP 终端</div><div class="pop-id">UE-4087 · 子网 VIP 高净值</div></div>
+    </div>
+
+    <div class="pop-els">
+      <div class="pop-el"><span class="dot ok"></span><div><div class="role">AMF · 接管</div><div class="nm">AMF-1</div></div><span class="ok-tag">正常</span></div>
+      <div class="pop-el"><span class="dot ok"></span><div><div class="role">SMF · 接管</div><div class="nm">SMF-2</div></div><span class="ok-tag">正常</span></div>
+    </div>
+
+    <div class="trend-head"><span class="t">UE-4087 业务与流量趋势</span>
+      <div class="pop-tw" id="tw"><button data-w="1h" class="on">近 1h</button><button data-w="24h">近 24h</button></div>
+    </div>
+
+    <div class="metric">
+      <div class="m-label">业务成功率</div>
+      <div class="m-value ok"><span id="srVal">99.2</span><small>%</small></div>
+      <svg class="m-chart" id="chartSR" viewBox="0 0 400 54" preserveAspectRatio="none"></svg>
+      <div class="caxis" id="axisSR"></div>
+    </div>
+
+    <div class="metric">
+      <div class="m-label">流量使用</div>
+      <div class="m-value"><span id="trVal">1287</span><small>Mbps</small></div>
+      <svg class="m-chart" id="chartTR" viewBox="0 0 400 54" preserveAspectRatio="none"></svg>
+      <div class="caxis" id="axisTR"></div>
+    </div>
+
+    <div class="guard-banner">
+      <div class="g-ic">✓</div>
+      <div><div class="g-title">主动保障已生效</div><div class="g-sub">14:32 成功率跌至 92.1% → 已恢复 99.2%</div></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const SVGNS="http://www.w3.org/2000/svg";
+const $=id=>document.getElementById(id);
+function el(name,attrs){const e=document.createElementNS(SVGNS,name);for(const k in attrs)e.setAttribute(k,attrs[k]);return e;}
+
+const topo=$("topo");
+const VB_W=1100, VB_H=1000, CX=550;
+const AGENT={x:400,y:30,w:300,h:100,cx:550,cy:80};
+const SRF  ={x:400,y:730,w:300,h:90,cx:550,cy:775};
+const UE   ={x:400,y:890,w:300,h:90,cx:550,cy:935};
+const SUB_Y=200, SUB_H=440;
+const SUBS=[
+  {id:"vip",name:"VIP 高净值",x:150,w:340,sel:true,els:[
+    {id:"AMF-1",type:"AMF",status:"ok"},{id:"AMF-2",type:"AMF",status:"warn"},
+    {id:"SMF-1",type:"SMF",status:"ok"},{id:"SMF-2",type:"SMF",status:"ok"}]},
+  {id:"bot",name:"机器人",x:610,w:340,sel:false,els:[
+    {id:"AMF-3",type:"AMF",status:"ok"},{id:"AMF-4",type:"AMF",status:"ok"},
+    {id:"SMF-3",type:"SMF",status:"ok"},{id:"SMF-4",type:"SMF",status:"ok"}]},
+];
+const snBox=s=>({x:s.x,y:SUB_Y,w:s.w,h:SUB_H,cx:s.x+s.w/2});
+const taken=new Set(["AMF-1","SMF-2"]);
+
+function defs(){
+  const d=el("defs",{});
+  const mk=(id,c)=>{const m=el("marker",{id,viewBox:"0 0 10 10",refX:"8.5",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto"});m.appendChild(el("path",{d:"M0,0 L10,5 L0,10 z",fill:c}));return m;};
+  d.appendChild(mk("arrow","#8a96a8")); d.appendChild(mk("arrowB","#2563eb"));
+  topo.appendChild(d);
+}
+function edge(id,d,on){return el("path",{id,d,class:"edge"+(on?" on":""),"marker-end":on?"url(#arrowB)":"url(#arrow)"});}
+function build(){
+  defs();
+  const eg=el("g",{}); topo.appendChild(eg);
+  SUBS.forEach(s=>{
+    const b=snBox(s); const ax=AGENT.x+90+(s.id==="vip"?0:120);
+    const ex=ax, ey=AGENT.y+AGENT.h, c2x=ex+(b.cx-ex)*0.4, c2y=ey+(b.y-ey)*0.4;
+    eg.appendChild(edge(`up-${s.id}`,`M ${b.cx} ${b.y} C ${b.cx} ${b.y-50}, ${c2x} ${c2y}, ${ex} ${ey}`,s.sel));
+  });
+  eg.appendChild(edge("ue-srf",`M ${UE.cx} ${UE.y} L ${SRF.cx} ${SRF.y+SRF.h}`,true));
+  eg.appendChild(edge("ue-agent",`M ${UE.x} ${UE.cy} L 44 ${UE.cy} L 44 ${AGENT.cy} L ${AGENT.x} ${AGENT.cy}`,true));
+  eg.appendChild(edge("agent-srf",`M ${AGENT.x+AGENT.w} ${AGENT.cy} L ${VB_W-44} ${AGENT.cy} L ${VB_W-44} ${SRF.cy} L ${SRF.x+SRF.w} ${SRF.cy}`,true));
+  const vipB=snBox(SUBS[0]);
+  const vbx=vipB.cx, vby=vipB.y+vipB.h, c2x=vbx+(SRF.cx-vbx)*0.4, c2y=vby+(SRF.y-vby)*0.4;
+  eg.appendChild(edge("srf-vip",`M ${SRF.cx} ${SRF.y} C ${SRF.cx} ${SRF.y-46}, ${c2x} ${c2y}, ${vbx} ${vby}`,true));
+  // 用户走 AMF-1 / SMF-1 的虚线（SMF 行在上 b.y+170，AMF 行在下 b.y+310）
+  const amf1={cx:vipB.x+120,cy:SUB_Y+310}, smf2={cx:vipB.x+250,cy:SUB_Y+170};
+  eg.appendChild(el("path",{class:"user-path",d:`M ${vipB.cx} ${vipB.y+vipB.h} L ${amf1.cx} ${amf1.cy} L ${smf2.cx} ${smf2.cy} L ${vipB.cx} ${vipB.y}`}));
+
+  const ng=el("g",{}); topo.appendChild(ng);
+  ng.appendChild(coreNode(AGENT,"高稳智能体","#2563eb","#eaf1fe","brain"));
+  ng.appendChild(coreNode(SRF,"SRF · 分发层","#7c3aed","#f1ecfd","dispatch"));
+  ng.appendChild(coreNode(UE,"UE · 用户终端","#475569","#eef2f7","phone"));
+  SUBS.forEach(s=>ng.appendChild(subnet(s)));
+}
+function coreNode(box,title,fill,soft,icon){
+  const g=el("g",{});
+  g.appendChild(el("rect",{x:box.x,y:box.y,width:box.w,height:box.h,rx:18,fill:soft,stroke:fill,"stroke-width":3}));
+  g.appendChild(el("circle",{cx:box.x+60,cy:box.cy,r:32,fill}));
+  drawIcon(icon,box.x+60,box.cy,g);
+  const t=el("text",{x:box.x+108,y:box.cy+11,class:"t-node-label"});t.textContent=title;g.appendChild(t);
+  return g;
+}
+function drawIcon(kind,cx,cy,g){
+  const s="#fff",sw=2.4; const P=d=>g.appendChild(el("path",{d,fill:"none",stroke:s,"stroke-width":sw,"stroke-linecap":"round","stroke-linejoin":"round"}));
+  if(kind==="brain"){
+    P(`M ${cx} ${cy-15} C ${cx-9} ${cy-16} ${cx-15} ${cy-10} ${cx-15} ${cy-3} C ${cx-15} ${cy+3} ${cx-11} ${cy+5} ${cx-10} ${cy+9} C ${cx-9} ${cy+13} ${cx-5} ${cy+14} ${cx} ${cy+13}`);
+    P(`M ${cx} ${cy-15} C ${cx+9} ${cy-16} ${cx+15} ${cy-10} ${cx+15} ${cy-3} C ${cx+15} ${cy+3} ${cx+11} ${cy+5} ${cx+10} ${cy+9} C ${cx+9} ${cy+13} ${cx+5} ${cy+14} ${cx} ${cy+13}`);
+    P(`M ${cx-14} ${cy-3} C ${cx-8} ${cy-2} ${cx-8} ${cy+2} ${cx-10} ${cy+6}`);
+    P(`M ${cx+14} ${cy-3} C ${cx+8} ${cy-2} ${cx+8} ${cy+2} ${cx+10} ${cy+6}`);
+    P(`M ${cx} ${cy-15} L ${cx} ${cy+13}`);
+  }else if(kind==="dispatch"){
+    g.appendChild(el("circle",{cx,cy:cy-12,r:3,fill:s}));
+    [[cx-13,cy+10],[cx,cy+10],[cx+13,cy+10]].forEach(([x,y])=>g.appendChild(el("circle",{cx:x,cy:y,r:2.8,fill:s})));
+    [[cx-13,cy+10],[cx,cy+10],[cx+13,cy+10]].forEach(([x,y])=>g.appendChild(el("line",{x1:cx,y1:cy-12,x2:x,y2:y,stroke:s,"stroke-width":sw,"stroke-linecap":"round"})));
+  }else{
+    g.appendChild(el("rect",{x:cx-10,y:cy-15,width:20,height:30,rx:4,fill:"none",stroke:s,"stroke-width":sw}));
+    g.appendChild(el("line",{x1:cx-4,y1:cy-11,x2:cx+4,y2:cy-11,stroke:s,"stroke-width":sw,"stroke-linecap":"round"}));
+    g.appendChild(el("circle",{cx,cy:cy+10,r:2.2,fill:s}));
+  }
+}
+function subnet(s){
+  const b=snBox(s); const g=el("g",{class:"subnet"+(s.sel?" sel":"")});
+  g.appendChild(el("rect",{x:b.x,y:b.y,width:b.w,height:b.h,rx:16,fill:"rgba(255,255,255,.6)",stroke:"#b6c2d6","stroke-width":2.4,"stroke-dasharray":"9 8",class:"subnet-frame"}));
+  g.appendChild(el("path",{d:`M ${b.x} ${b.y+16} Q ${b.x} ${b.y} ${b.x+16} ${b.y} L ${b.x+b.w-16} ${b.y} Q ${b.x+b.w} ${b.y} ${b.x+b.w} ${b.y+16} L ${b.x+b.w} ${b.y+60} L ${b.x} ${b.y+60} Z`,fill:"#e8edf5"}));
+  const nm=el("text",{x:b.cx,y:b.y+42,class:"t-sn-name","text-anchor":"middle",fill:s.sel?"var(--primary)":"var(--t1)"});nm.textContent="子网·"+s.name;g.appendChild(nm);
+  g.appendChild(el("line",{x1:b.x+18,y1:b.y+62,x2:b.x+b.w-18,y2:b.y+62,stroke:"#d4dbe8","stroke-width":1.2}));
+  const amfs=s.els.filter(e=>e.type==="AMF");
+  const smfs=s.els.filter(e=>e.type==="SMF");
+  smfs.forEach((e,i)=>drawEl(e,b.x+120+i*130,b.y+170,g));   // SMF 上
+  amfs.forEach((e,i)=>drawEl(e,b.x+120+i*130,b.y+310,g));   // AMF 下
+  return g;
+}
+function drawEl(e,cx,cy,g){
+  const on=taken.has(e.id);
+  const typeColor=e.type==="AMF"?"#2563eb":"#0ea5e9";
+  const stColor=e.status==="warn"?"#f59e0b":e.status==="fault"?"#ef4444":typeColor;
+  const fill=e.status==="warn"?"#fffbeb":e.status==="fault"?"#fef2f2":"#fff";
+  const grp=el("g",{class:"el-node"+(on?" on":"")});
+  grp.appendChild(el("circle",{cx,cy,r:34,class:"el-halo"}));
+  grp.appendChild(el("circle",{cx,cy,r:38,fill,stroke:on?"var(--primary)":stColor,"stroke-width":on?4.5:3,class:"el-bg"}));
+  const lab=el("text",{x:cx,y:cy+7,"text-anchor":"middle",class:"t-el-type",fill:on?"var(--primary)":stColor});lab.textContent=e.id;grp.appendChild(lab);
+  const sd=e.status==="ok"?"#10b981":e.status==="warn"?"#f59e0b":"#ef4444";
+  grp.appendChild(el("circle",{cx:cx+28,cy:cy-28,r:9,fill:sd,class:"status-dot"}));
+  g.appendChild(grp);
+}
+build();
+
+/* 曲线 + 时间轴 + 1h/24h 切换 */
+const DATA={
+  "1h":{sr:[99.4,99.3,99.2,97.8,94.5,92.1,96.8,99.0,99.2],tr:[1200,1260,1300,1287,1250,1290,1310,1287,1287],axis:["14:00","14:30","15:00"]},
+  "24h":{sr:[99.3,99.4,99.2,99.1,98.9,95.5,92.5,96.0,98.5,99.0,99.2,99.1],tr:[1100,1150,1200,1250,1300,1280,1260,1290,1310,1287,1280,1287],axis:["昨 15:00","03:00","15:00"]}
+};
+function miniChart(svgId,data,color){
+  const svg=$(svgId); const W=400,H=54,padT=6,padB=8,padL=4,padR=4;
+  const min=Math.min(...data)-1, max=Math.max(...data)+1;
+  const n=data.length, x=i=>padL+i*(W-padL-padR)/(n-1), yv=v=>padT+(H-padT-padB)*(1-(v-min)/(max-min));
+  const pts=data.map((v,i)=>`${x(i)},${yv(v)}`).join(" ");
+  let body=`<polygon points="${padL},${H-padB} ${pts} ${W-padR},${H-padB}" fill="${color}22"/>`;
+  body+=`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  body+=`<circle cx="${x(n-1)}" cy="${yv(data[n-1])}" r="4.5" fill="#fff" stroke="${color}" stroke-width="3"/>`;
+  svg.innerHTML=`<line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#e6eaf1" stroke-width="1.5"/>${body}`;
+}
+function renderCharts(win){
+  const d=DATA[win];
+  $("srVal").textContent=d.sr[d.sr.length-1].toFixed(1);
+  $("trVal").textContent=Math.round(d.tr[d.tr.length-1]);
+  miniChart("chartSR",d.sr,"#10b981");
+  miniChart("chartTR",d.tr,"#2563eb");
+  const ax=d.axis.map(a=>`<span>${a}</span>`).join("");
+  $("axisSR").innerHTML=ax; $("axisTR").innerHTML=ax;
+  document.querySelectorAll("#tw button").forEach(b=>b.classList.toggle("on",b.dataset.w===win));
+}
+document.querySelectorAll("#tw button").forEach(b=>b.addEventListener("click",()=>renderCharts(b.dataset.w)));
+renderCharts("1h");
+</script>
+</body>
+</html>
