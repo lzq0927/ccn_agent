@@ -150,7 +150,7 @@ const taken=new Set(["AMF-1","SMF-2"]);
 
 function defs(){
   const d=el("defs",{});
-  const mk=(id,c)=>{const m=el("marker",{id,viewBox:"0 0 10 10",refX:"8.5",refY:"5",markerWidth:"7",markerHeight:"7",orient:"auto"});m.appendChild(el("path",{d:"M0,0 L10,5 L0,10 z",fill:c}));return m;};
+  const mk=(id,c)=>{const m=el("marker",{id,viewBox:"0 0 10 10",refX:"8.5",refY:"5",markerWidth:"6",markerHeight:"6",orient:"auto"});m.appendChild(el("path",{d:"M0,0 L10,5 L0,10 z",fill:c}));return m;};
   d.appendChild(mk("arrow","#8a96a8")); d.appendChild(mk("arrowB","#2563eb"));
   topo.appendChild(d);
 }
