@@ -25,38 +25,28 @@
       var(--bg);
     min-height:100vh; font-size:16px; line-height:1.5; -webkit-font-smoothing:antialiased;
   }
-  .topbar{
-    display:flex;align-items:center;justify-content:space-between;gap:24px;padding:14px 24px;
-    background:rgba(255,255,255,.74); backdrop-filter:saturate(140%) blur(10px);
-    border-bottom:1px solid var(--border); position:sticky;top:0;z-index:20;
-  }
-  .brand{display:flex;align-items:center;gap:14px;}
-  .brand .mark{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#2563eb,#4f7cf7);display:grid;place-items:center;box-shadow:0 6px 16px rgba(37,99,235,.35);}
-  .brand .mark svg{width:28px;height:28px;}
-  .brand h1{font-size:19px;margin:0;font-weight:680;}
-  .brand p{margin:2px 0 0;font-size:13px;color:var(--t2);}
-  .gstats{display:flex;gap:10px;}
-  .gstat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:8px 15px;min-width:112px;box-shadow:var(--shadow-sm);}
+  .gstats{display:flex;gap:10px;padding:10px 18px;border-bottom:1px solid var(--border-soft);}
+  .gstat{flex:1;background:#fbfcfe;border:1px solid var(--border);border-radius:11px;padding:8px 12px;box-shadow:var(--shadow-sm);}
   .gstat .k{font-size:12px;color:var(--t3);}
   .gstat .v{font-size:18px;font-weight:720;color:var(--t1);margin-top:2px;}
   .gstat .v small{font-size:12px;color:var(--t2);font-weight:600;}
 
-  .layout{display:grid;grid-template-columns:minmax(0,1fr) 580px;gap:16px;padding:16px 24px 24px;align-items:stretch;}
+  .layout{display:grid;grid-template-columns:minmax(0,1fr) 560px;gap:16px;padding:16px 24px;align-items:stretch;}
   .card{background:var(--card);border:1.5px solid #d4dbe8;border-radius:var(--radius);box-shadow:var(--shadow);}
-  .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 18px;border-bottom:1px solid var(--border-soft);}
-  .card-head .title h2{margin:0;font-size:16px;font-weight:670;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border-soft);}
+  .card-head .title h2{margin:0;font-size:17px;font-weight:670;}
   .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--t2);}
   .legend i{display:inline-block;width:22px;height:0;border-top:2.6px solid;margin-right:6px;vertical-align:middle;}
   .legend .dot{width:10px;height:10px;border-radius:50%;border:none;margin-right:5px;}
 
-  /* 拓扑：等比完整显示，区域随右侧高度 stretch（上下接近顶满） */
+  /* 拓扑：拉满（svg 宽度铺满，viewBox 拉高填垂直） */
   .topo-wrap{display:flex;flex-direction:column;overflow:hidden;}
   .topo-scroll{flex:1 1 auto;overflow:hidden;display:flex;align-items:center;justify-content:center;padding:10px;background:#fbfcfe;}
   .topo-scroll svg{width:100%;height:auto;}
-  .t-node-label{font-size:24px;font-weight:680;fill:var(--t1);}
-  .t-sn-name{font-size:23px;font-weight:680;fill:var(--t1);}
-  .t-el-type{font-size:17px;font-weight:720;}
-  .t-el-seq{font-size:15px;fill:var(--t3);font-weight:600;}
+  .t-node-label{font-size:26px;font-weight:680;fill:var(--t1);}
+  .t-sn-name{font-size:24px;font-weight:680;fill:var(--t1);}
+  .t-el-type{font-size:20px;font-weight:720;}
+  .t-el-seq{font-size:16px;fill:var(--t3);font-weight:600;}
   .t-edge-label{font-size:22px;fill:#0f1724;font-weight:680;paint-order:stroke;stroke:#fff;stroke-width:7px;stroke-linejoin:round;}
   .edge{fill:none;stroke:var(--line);stroke-width:2.2;transition:stroke .25s,stroke-width .25s,opacity .25s;}
   .edge.dim{opacity:.2;}
@@ -68,22 +58,25 @@
   .subnet{transition:opacity .25s;}
   .subnet.dim{opacity:.3;}
   .subnet-frame{fill:rgba(255,255,255,.55);stroke:#b6c2d6;stroke-width:2.4;transition:stroke .25s,stroke-width .25s,filter .25s;}
-  .subnet.sel .subnet-frame{stroke:var(--primary);stroke-width:3.2;filter:drop-shadow(0 0 6px rgba(37,99,235,.35));}
+  .subnet.sel .subnet-frame{stroke:var(--primary);stroke-width:3.4;filter:drop-shadow(0 0 6px rgba(37,99,235,.35));}
   .subnet.sel .t-sn-name{fill:var(--primary);}
   .el-node{transition:opacity .25s;}
   .el-halo{fill:none;stroke:var(--primary);stroke-width:3;opacity:0;}
   .el-node.on .el-halo{opacity:.7;animation:elpulse 1.6s ease-out infinite;}
-  @keyframes elpulse{0%{r:26;opacity:.7;}100%{r:37;opacity:0;}}
+  @keyframes elpulse{0%{r:30;opacity:.7;}100%{r:42;opacity:0;}}
   .el-bg{transition:stroke .25s;}
   .status-dot{stroke:#fff;stroke-width:2;}
   .node-base{transition:opacity .25s;}
   .node-base.dim{opacity:.35;}
   .node-base.on .ring{stroke-width:3.5;}
 
-  /* 右侧面板（加宽后字体放大） */
-  .panel{position:sticky;top:74px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 84px);overflow:auto;padding-right:2px;}
+  /* 列表↔详情 之间的箭头 */
+  .panel-arrow{display:flex;justify-content:center;align-items:center;height:34px;color:var(--primary);font-size:30px;font-weight:700;line-height:1;}
+
+  /* 右侧面板 */
+  .panel{position:sticky;top:16px;display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 32px);overflow:auto;padding-right:2px;}
   .panel::-webkit-scrollbar{width:8px;} .panel::-webkit-scrollbar-thumb{background:#d4dae6;border-radius:8px;}
-  .user-list{max-height:138px;overflow:auto;padding:5px;}
+  .user-list{max-height:150px;overflow:auto;padding:5px;}
   .user-list::-webkit-scrollbar{width:8px;} .user-list::-webkit-scrollbar-thumb{background:#e2e7f0;border-radius:8px;}
   .u-row{display:flex;align-items:center;gap:10px;padding:6px 9px;border-radius:9px;cursor:pointer;border:1px solid transparent;transition:background .15s,border-color .15s;}
   .u-row:hover{background:#f1f4fb;}
@@ -92,23 +85,17 @@
   .u-row .nm{font-size:15px;font-weight:620;}
   .u-row .meta{font-size:12.5px;color:var(--t3);}
   .u-row .badge{margin-left:auto;font-size:12px;padding:3px 10px;border-radius:20px;font-weight:620;white-space:nowrap;}
-  .u-row .arrow{display:none;color:var(--primary);font-weight:700;font-size:15px;margin-left:3px;}
-  .u-row.sel .arrow{display:inline;}
   .badge.ok{background:#e7f7f1;color:#0f9b76;} .badge.warn{background:#fdf2e0;color:#b9791a;}
   .badge.fault{background:#fde8e8;color:#d23b3b;} .badge.guarded{background:#e0ecff;color:#235fdf;}
-  .uidentity{padding:11px 15px;}
-  .uid-top{display:flex;align-items:center;gap:13px;}
-  .uid-av{width:50px;height:50px;border-radius:13px;display:grid;place-items:center;flex:none;box-shadow:var(--shadow-sm);}
-  .uid-name{font-size:18px;font-weight:680;}
-  .uid-id{font-size:15px;color:var(--t2);font-weight:600;}
-  .chip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;padding:3px 9px;border-radius:20px;background:#f1f4fb;color:var(--t2);}
-  .chip .d{width:8px;height:8px;border-radius:50%;}
-  .uid-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
-  .sect{padding:10px 15px;border-top:1px solid var(--border-soft);}
+  .uidentity{padding:12px 15px;}
+  .uid-line{font-size:14px;color:var(--t2);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .uid-line .d{width:11px;height:11px;border-radius:50%;flex:none;}
+  .uid-line b{color:var(--t1);font-weight:660;}
+  .sect{padding:11px 15px;border-top:1px solid var(--border-soft);}
   .sect h3{margin:0 0 9px;font-size:16.5px;font-weight:670;color:var(--t1);display:flex;align-items:center;gap:8px;}
   .sect h3 .tgroup{display:inline-flex;align-items:baseline;gap:7px;}
   .sect h3 .tw{margin-left:auto;}
-  .sect h3 .hint{font-weight:500;color:var(--t3);font-size:12.5px;}
+  .sect h3 .hint{font-weight:500;color:var(--t3);font-size:13px;}
   .el-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
   .el-card{border:1px solid var(--border);border-radius:10px;padding:9px 12px;background:#fbfcfe;}
   .el-card .nm{font-size:15px;font-weight:660;display:flex;align-items:center;gap:7px;}
@@ -116,11 +103,11 @@
   .el-card .el-st{margin-left:auto;font-size:13px;font-weight:600;color:var(--t3);}
   .sdot{width:10px;height:10px;border-radius:50%;flex:none;}
   .sdot.ok{background:var(--ok);} .sdot.warn{background:var(--warn);} .sdot.fault{background:var(--fault);}
-  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px;}
-  .kpi{background:#fbfcfe;border:1px solid var(--border);border-radius:9px;padding:7px 4px;text-align:center;}
-  .kpi .v{font-size:17px;font-weight:720;}
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px;}
+  .kpi{background:#fbfcfe;border:1px solid var(--border);border-radius:9px;padding:8px 6px;display:flex;align-items:baseline;gap:5px;justify-content:center;}
+  .kpi .v{font-size:16px;font-weight:720;}
   .kpi .v.ok{color:var(--ok);} .kpi .v.warn{color:var(--warn);}
-  .kpi .l{font-size:12px;color:var(--t3);margin-top:2px;}
+  .kpi .l{font-size:12px;color:var(--t3);}
   .tw{display:inline-flex;background:#f1f4fb;border-radius:9px;padding:3px;gap:2px;}
   .tw button{border:none;background:transparent;font:inherit;font-size:13px;font-weight:620;color:var(--t2);padding:5px 13px;border-radius:7px;cursor:pointer;}
   .tw button.on{background:#fff;color:var(--primary);box-shadow:var(--shadow-sm);}
@@ -142,17 +129,6 @@
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">
-    <div class="mark"><svg viewBox="0 0 24 24"><g fill="#fff" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
-      <line x1="12" y1="12" x2="12" y2="4.2"/><line x1="12" y1="12" x2="19.8" y2="12"/><line x1="12" y1="12" x2="12" y2="19.8"/><line x1="12" y1="12" x2="4.2" y2="12"/>
-      <circle cx="12" cy="12" r="2.8"/><circle cx="12" cy="4.2" r="2.1"/><circle cx="19.8" cy="12" r="2.1"/><circle cx="12" cy="19.8" r="2.1"/><circle cx="4.2" cy="12" r="2.1"/>
-    </g></svg></div>
-    <div><h1>云核心网 · 用户级主动保障</h1><p>高稳智能体驱动的用户级根因感知与最优恢复策略分发</p></div>
-  </div>
-  <div class="gstats" id="gstats"></div>
-</header>
-
 <main class="layout">
   <section class="card topo-wrap">
     <div class="card-head">
@@ -165,8 +141,9 @@
         <span><span class="dot" style="background:var(--fault)"></span>故障</span>
       </div>
     </div>
+    <div class="gstats" id="gstats"></div>
     <div class="topo-scroll">
-      <svg id="topo" viewBox="0 0 1500 860" preserveAspectRatio="xMidYMid meet" aria-label="核心网保障拓扑"></svg>
+      <svg id="topo" viewBox="0 0 1500 1050" preserveAspectRatio="xMidYMid meet" aria-label="核心网保障拓扑"></svg>
     </div>
   </section>
 
@@ -175,6 +152,7 @@
       <div class="card-head"><div class="title"><h2>用户终端</h2></div></div>
       <div class="user-list" id="userList"></div>
     </div>
+    <div class="panel-arrow">▾</div>
     <div class="card" id="detail"><div class="empty">请在上方选择一个用户</div></div>
   </aside>
 </main>
@@ -241,18 +219,18 @@ function mkUser(id,name,sn,plan,amf,smf,throughput,guarded,seed){
     iconKind: /机器人|AGV|机械臂/.test(name) ? "robot":"phone", plan,
     amf:{id:amf,status:amfEl.status}, smf:{id:smf,status:smfEl.status},
     sessions: 1+(seed%4), latency: 28+(seed%18), guarded,
-    guard: guarded ? {at:"14:32",dur:"48s",drop:+Math.min(...successH1).toFixed(1),recover:successH1[successH1.length-1].toFixed(1),action:"SMF 会话迁移 + AMF 重注册，切换至备用网元"} : null,
+    guard: guarded ? {at:"14:32",dur:"48s",drop:+Math.min(...successH1).toFixed(1),recover:successH1[successH1.length-1].toFixed(1)} : null,
     series:{"1h":{success:successH1,traffic:trafficH1,biz:bizH1,step:"5min"},"24h":{success:successH24,traffic:trafficH24,biz:bizH24,step:"1h"}}
   };
 }
-const GLOBAL = { onlineUE:"115,832", successRate:99.42, guarded:1, alerts:2 };
+const GLOBAL = { onlineUE:"115,832", successRate:99.42, guarded:327, alerts:2 };
 
-/* ===== 拓扑（viewBox 1500×860，四层拉开、字号放大） ===== */
-const VB_W=1500, VB_H=860, CX=750;
-const AGENT={x:560,y:40,w:380,h:90,cx:750,cy:85};        // 底 130
-const SRF  ={x:560,y:590,w:380,h:85,cx:750,cy:632};       // 顶590 底675
-const UE   ={x:560,y:740,w:380,h:85,cx:750,cy:782};       // 顶740 底825
-const SUB_Y_TOP=230, SUB_H=280, SUB_W=222, SUB_GAP=14;    // 230~510
+/* ===== 拓扑（viewBox 1500×1050，四层拉开填满） ===== */
+const VB_W=1500, VB_H=1050, CX=750;
+const AGENT={x:560,y:30,w:380,h:96,cx:750,cy:78};        // 底 126
+const SRF  ={x:560,y:670,w:380,h:90,cx:750,cy:715};       // 顶670 底760
+const UE   ={x:560,y:860,w:380,h:90,cx:750,cy:905};       // 顶860 底950
+const SUB_Y_TOP=190, SUB_H=380, SUB_W=222, SUB_GAP=14;    // 190~570
 const SUB_X0=(VB_W-(SUB_W*6+SUB_GAP*5))/2;                // 49
 const EL_POS={};
 function subnetBox(i){const x=SUB_X0+i*(SUB_W+SUB_GAP);return {x,y:SUB_Y_TOP,w:SUB_W,h:SUB_H,cx:x+SUB_W/2};}
@@ -263,7 +241,6 @@ const topo=document.getElementById("topo");
 
 function buildDefs(){
   const defs=el("defs",{});
-  // 箭头：orient=auto，沿每条曲线终点切线方向
   const mk=(id,color)=>{const m=el("marker",{id,viewBox:"0 0 10 10",refX:"9",refY:"5",markerWidth:"8",markerHeight:"8",orient:"auto"});m.appendChild(el("path",{d:"M0,0 L10,5 L0,10 z",fill:color}));return m;};
   defs.appendChild(mk("arrow","#8a96a8"));
   defs.appendChild(mk("arrow-on","#2563eb"));
@@ -272,18 +249,16 @@ function buildDefs(){
 function buildTopo(){
   buildDefs();
   const edgesG=el("g",{id:"edges"}); topo.appendChild(edgesG);
-  // 子网 -> 高稳智能体
   SUBNETS_FULL.forEach((s,i)=>{
-    const b=subnetBox(i); const ax=AGENT.x+60+i*((AGENT.w-120)/5); // 620+i*52
+    const b=subnetBox(i); const ax=AGENT.x+60+i*((AGENT.w-120)/5);
     edgesG.appendChild(makeEdge(`e-up-${s.id}`,`M ${b.cx} ${b.y} C ${b.cx} ${b.y-50}, ${ax} ${AGENT.y+AGENT.h+50}, ${ax} ${AGENT.y+AGENT.h}`,`up-${s.id}`));
   });
-  edgesG.appendChild(makeEdgeLabel(750,185,"KPI · CHR · 状态 · 用户行为 上报"));
+  edgesG.appendChild(makeEdgeLabel(750,160,"KPI · CHR · 状态 · 用户行为 上报"));
   edgesG.appendChild(makeEdge("e-ue-srf",`M ${UE.cx} ${UE.y} L ${SRF.cx} ${SRF.y+SRF.h}`,"ue-srf"));
-  edgesG.appendChild(makeEdgeLabel(614,707,"用户接入 / 会话建立"));
   edgesG.appendChild(makeEdge("e-ue-agent",`M ${UE.x} ${UE.cy} L 40 ${UE.cy} L 40 ${AGENT.cy} L ${AGENT.x} ${AGENT.cy}`,"ue-agent"));
-  edgesG.appendChild(makeEdgeLabel(62,(UE.cy+AGENT.cy)/2,"用户建模","vert"));
+  edgesG.appendChild(makeEdgeLabel(432,893,"用户建模"));
   edgesG.appendChild(makeEdge("e-agent-srf",`M ${AGENT.x+AGENT.w} ${AGENT.cy} L ${VB_W-40} ${AGENT.cy} L ${VB_W-40} ${SRF.cy} L ${SRF.x+SRF.w} ${SRF.cy}`,"agent-srf"));
-  edgesG.appendChild(makeEdgeLabel(VB_W-62,(AGENT.cy+SRF.cy)/2,"根因感知","vert"));
+  edgesG.appendChild(makeEdgeLabel(VB_W-60,(AGENT.cy+SRF.cy)/2,"根因感知","vert"));
   edgesG.appendChild(makeEdge("e-srf-sn","","srf-sn"));
   edgesG.appendChild(el("path",{id:"e-user-path",class:"user-path"}));
 
@@ -305,47 +280,47 @@ function makeCoreNode(theme,box,title,id){
   const fill=theme==="primary"?"#2563eb":theme==="srf"?"#7c3aed":"#475569";
   const soft=theme==="primary"?"#eaf1fe":theme==="srf"?"#f1ecfd":"#eef2f7";
   g.appendChild(el("rect",{x:box.x,y:box.y,width:box.w,height:box.h,rx:18,fill:soft,stroke:fill,"stroke-width":3,class:"ring"}));
-  g.appendChild(el("circle",{cx:box.x+62,cy:box.cy,r:32,fill}));
-  drawIcon(theme,box.x+62,box.cy,g);
-  const t1=el("text",{x:box.x+110,y:box.cy+8,class:"t-node-label"});t1.textContent=title;g.appendChild(t1);
+  g.appendChild(el("circle",{cx:box.x+68,cy:box.cy,r:36,fill}));
+  drawIcon(theme,box.x+68,box.cy,g);
+  const t1=el("text",{x:box.x+120,y:box.cy+9,class:"t-node-label"});t1.textContent=title;g.appendChild(t1);
   return g;
 }
 function drawIcon(theme,cx,cy,g){
-  const s="#fff", sw=2;
+  const s="#fff", sw=2.2;
   const P=(d)=>{g.appendChild(el("path",{d,fill:"none",stroke:s,"stroke-width":sw,"stroke-linecap":"round","stroke-linejoin":"round"}));};
   if(theme==="primary"){
-    P(`M ${cx} ${cy-15} C ${cx-8} ${cy-16} ${cx-15} ${cy-10} ${cx-15} ${cy-3} C ${cx-15} ${cy+3} ${cx-11} ${cy+5} ${cx-10} ${cy+8} C ${cx-9} ${cy+13} ${cx-6} ${cy+14} ${cx} ${cy+13}`);
-    P(`M ${cx} ${cy-15} C ${cx+8} ${cy-16} ${cx+15} ${cy-10} ${cx+15} ${cy-3} C ${cx+15} ${cy+3} ${cx+11} ${cy+5} ${cx+10} ${cy+8} C ${cx+9} ${cy+13} ${cx+6} ${cy+14} ${cx} ${cy+13}`);
-    P(`M ${cx-14} ${cy-3} C ${cx-8} ${cy-2} ${cx-8} ${cy+2} ${cx-10} ${cy+6}`);
-    P(`M ${cx+14} ${cy-3} C ${cx+8} ${cy-2} ${cx+8} ${cy+2} ${cx+10} ${cy+6}`);
-    P(`M ${cx} ${cy-15} L ${cx} ${cy+13}`);
+    P(`M ${cx} ${cy-16} C ${cx-9} ${cy-17} ${cx-16} ${cy-11} ${cx-16} ${cy-3} C ${cx-16} ${cy+3} ${cx-12} ${cy+5} ${cx-11} ${cy+9} C ${cx-10} ${cy+14} ${cx-6} ${cy+15} ${cx} ${cy+14}`);
+    P(`M ${cx} ${cy-16} C ${cx+9} ${cy-17} ${cx+16} ${cy-11} ${cx+16} ${cy-3} C ${cx+16} ${cy+3} ${cx+12} ${cy+5} ${cx+11} ${cy+9} C ${cx+10} ${cy+14} ${cx+6} ${cy+15} ${cx} ${cy+14}`);
+    P(`M ${cx-15} ${cy-3} C ${cx-9} ${cy-2} ${cx-9} ${cy+2} ${cx-11} ${cy+6}`);
+    P(`M ${cx+15} ${cy-3} C ${cx+9} ${cy-2} ${cx+9} ${cy+2} ${cx+11} ${cy+6}`);
+    P(`M ${cx} ${cy-16} L ${cx} ${cy+14}`);
   }else if(theme==="srf"){
-    g.appendChild(el("circle",{cx,cy:cy-13,r:3.2,fill:s}));
-    [[cx-14,cy+10],[cx,cy+10],[cx+14,cy+10]].forEach(([x,y])=>g.appendChild(el("circle",{cx:x,cy:y,r:3,fill:s})));
-    [[cx-14,cy+10],[cx,cy+10],[cx+14,cy+10]].forEach(([x,y])=>g.appendChild(el("line",{x1:cx,y1:cy-13,x2:x,y2:y,stroke:s,"stroke-width":sw,"stroke-linecap":"round"})));
+    g.appendChild(el("circle",{cx,cy:cy-14,r:3.4,fill:s}));
+    [[cx-15,cy+11],[cx,cy+11],[cx+15,cy+11]].forEach(([x,y])=>g.appendChild(el("circle",{cx:x,cy:y,r:3.2,fill:s})));
+    [[cx-15,cy+11],[cx,cy+11],[cx+15,cy+11]].forEach(([x,y])=>g.appendChild(el("line",{x1:cx,y1:cy-14,x2:x,y2:y,stroke:s,"stroke-width":sw,"stroke-linecap":"round"})));
   }else{
-    g.appendChild(el("rect",{x:cx-10,y:cy-16,width:20,height:32,rx:4,fill:"none",stroke:s,"stroke-width":sw}));
-    g.appendChild(el("line",{x1:cx-4,y1:cy-11,x2:cx+4,y2:cy-11,stroke:s,"stroke-width":sw,"stroke-linecap":"round"}));
-    g.appendChild(el("circle",{cx,cy:cy+11,r:2.2,fill:s}));
+    g.appendChild(el("rect",{x:cx-11,y:cy-17,width:22,height:34,rx:4,fill:"none",stroke:s,"stroke-width":sw}));
+    g.appendChild(el("line",{x1:cx-4,y1:cy-12,x2:cx+4,y2:cy-12,stroke:s,"stroke-width":sw,"stroke-linecap":"round"}));
+    g.appendChild(el("circle",{cx,cy:cy+12,r:2.3,fill:s}));
   }
 }
 function makeSubnet(s,i){
   const b=subnetBox(i);
   const g=el("g",{class:"subnet","data-sn":s.id});
-  g.appendChild(el("rect",{x:b.x,y:b.y,width:b.w,height:b.h,rx:16,fill:"rgba(255,255,255,.55)",stroke:"#cbd5e1","stroke-dasharray":"8 7",class:"subnet-frame"}));
-  g.appendChild(el("path",{d:`M ${b.x} ${b.y+16} Q ${b.x} ${b.y} ${b.x+16} ${b.y} L ${b.x+b.w-16} ${b.y} Q ${b.x+b.w} ${b.y} ${b.x+b.w} ${b.y+16} L ${b.x+b.w} ${b.y+52} L ${b.x} ${b.y+52} Z`,fill:"#e8edf5"}));
-  const nm=el("text",{x:b.cx,y:b.y+36,class:"t-sn-name","text-anchor":"middle"});nm.textContent="子网·"+s.name;g.appendChild(nm);
-  g.appendChild(el("line",{x1:b.x+14,y1:b.y+54,x2:b.x+b.w-14,y2:b.y+54,stroke:"#d4dbe8","stroke-width":1}));
+  g.appendChild(el("rect",{x:b.x,y:b.y,width:b.w,height:b.h,rx:16,fill:"rgba(255,255,255,.55)",stroke:"#b6c2d6","stroke-dasharray":"8 7",class:"subnet-frame"}));
+  g.appendChild(el("path",{d:`M ${b.x} ${b.y+16} Q ${b.x} ${b.y} ${b.x+16} ${b.y} L ${b.x+b.w-16} ${b.y} Q ${b.x+b.w} ${b.y} ${b.x+b.w} ${b.y+16} L ${b.x+b.w} ${b.y+58} L ${b.x} ${b.y+58} Z`,fill:"#e8edf5"}));
+  const nm=el("text",{x:b.cx,y:b.y+40,class:"t-sn-name","text-anchor":"middle"});nm.textContent="子网·"+s.name;g.appendChild(nm);
+  g.appendChild(el("line",{x1:b.x+14,y1:b.y+60,x2:b.x+b.w-14,y2:b.y+60,stroke:"#d4dbe8","stroke-width":1}));
   const amfs=s.els.filter(e=>e.type==="AMF");
   const smfs=s.els.filter(e=>e.type==="SMF");
-  drawElRow(g,smfs,b.y+120,b,s.full);
-  drawElRow(g,amfs,b.y+210,b,s.full);
+  drawElRow(g,smfs,b.y+155,b,s.full);  // SMF 上
+  drawElRow(g,amfs,b.y+275,b,s.full);  // AMF 下
   g.style.cursor="pointer";
   g.addEventListener("click",()=>{const u=USERS.find(u=>u.subnet===s.id);if(u)selectUser(u.id);});
   return g;
 }
 function drawElRow(g,list,cy,b,full){
-  list.forEach((e,idx)=>{const cx=full?(b.x+72+idx*78):(b.x+b.w/2);g.appendChild(drawEl(e,cx,cy));});
+  list.forEach((e,idx)=>{const cx=full?(b.x+70+idx*82):(b.x+b.w/2);g.appendChild(drawEl(e,cx,cy));});
 }
 function drawEl(e,cx,cy){
   EL_POS[e.id]={cx,cy};
@@ -353,12 +328,12 @@ function drawEl(e,cx,cy){
   const typeColor=e.type==="AMF"?"#2563eb":"#0ea5e9";
   const stColor=e.status==="warn"?"#f59e0b":e.status==="fault"?"#ef4444":typeColor;
   const fill=e.status==="fault"?"#fef2f2":e.status==="warn"?"#fffbeb":"#fff";
-  eg.appendChild(el("circle",{cx,cy,r:34,class:"el-halo"}));
-  eg.appendChild(el("circle",{cx,cy,r:28,fill,stroke:stColor,"stroke-width":2.6,class:"el-bg"}));
-  const lab=el("text",{x:cx,y:cy+6,"text-anchor":"middle",class:"t-el-type",fill:stColor});lab.textContent=e.type;eg.appendChild(lab);
-  if(e.id.includes(".")){const sq=el("text",{x:cx,y:cy+50,"text-anchor":"middle",class:"t-el-seq"});sq.textContent=e.id.split(".")[1];eg.appendChild(sq);}
+  eg.appendChild(el("circle",{cx,cy,r:40,class:"el-halo"}));
+  eg.appendChild(el("circle",{cx,cy,r:34,fill,stroke:stColor,"stroke-width":2.8,class:"el-bg"}));
+  const lab=el("text",{x:cx,y:cy+7,"text-anchor":"middle",class:"t-el-type",fill:stColor});lab.textContent=e.type;eg.appendChild(lab);
+  if(e.id.includes(".")){const sq=el("text",{x:cx,y:cy+60,"text-anchor":"middle",class:"t-el-seq"});sq.textContent=e.id.split(".")[1];eg.appendChild(sq);}
   const sd=e.status==="ok"?"#10b981":e.status==="warn"?"#f59e0b":"#ef4444";
-  eg.appendChild(el("circle",{cx:cx+20,cy:cy-20,r:8,fill:sd,class:"status-dot"}));
+  eg.appendChild(el("circle",{cx:cx+24,cy:cy-24,r:9,fill:sd,class:"status-dot"}));
   return eg;
 }
 
@@ -380,7 +355,7 @@ function renderHighlight(){
   if(!u){ setSrfEdge("sn4",false); return; }
   const onKinds=new Set([`up-${u.subnet}`,"ue-srf","ue-agent","agent-srf","srf-sn"]);
   edges.forEach(e=>{const k=e.getAttribute("data-kind");if(onKinds.has(k)){e.classList.add("on","flow");e.setAttribute("marker-end","url(#arrow-on)");}else e.classList.add("dim");});
-  elabels.forEach(l=>{l.style.fill = onKinds.has(l.getAttribute("data-kind"))?"#2563eb":"#94a3b8";});
+  elabels.forEach(l=>{l.style.fill="";});
   subnets.forEach(s=>{ if(s.getAttribute("data-sn")===u.subnet) s.classList.add("sel"); else s.classList.add("dim"); });
   enodes.forEach(n=>{ if(n.getAttribute("data-el")===u.amf.id||n.getAttribute("data-el")===u.smf.id) n.classList.add("on"); });
   bases.forEach(n=>n.classList.add("on"));
@@ -398,13 +373,13 @@ function setSrfEdge(snId,on){
   const i=SUBNETS_FULL.findIndex(s=>s.id===snId);
   const b=subnetBox(i);
   const sx=SRF.cx, sy=SRF.y, tx=b.cx, ty=b.y+b.h;
-  edge.setAttribute("d",`M ${sx} ${sy} C ${sx} ${sy-46}, ${tx} ${ty+46}, ${tx} ${ty}`);
+  edge.setAttribute("d",`M ${sx} ${sy} C ${sx} ${sy-50}, ${tx} ${ty+50}, ${tx} ${ty}`);
   if(on){edge.classList.add("on","flow");edge.setAttribute("marker-end","url(#arrow-on)");}
   else {edge.classList.remove("on","flow");edge.setAttribute("marker-end","url(#arrow)");}
   let lab=topo.querySelector("[data-role='srf-sn-label']");
   if(!lab){lab=el("text",{class:"t-edge-label","data-role":"srf-sn-label","text-anchor":"middle"});topo.querySelector("#edges").appendChild(lab);}
-  lab.setAttribute("x",(sx+tx)/2+70); lab.setAttribute("y",(sy+ty)/2+4);
-  lab.textContent="最优恢复策略"; lab.style.fill = on?"#2563eb":"#94a3b8";
+  lab.setAttribute("x",(sx+tx)/2+74); lab.setAttribute("y",(sy+ty)/2+4);
+  lab.textContent="最优恢复策略"; lab.style.fill="#0f1724";
 }
 
 function userIconSvg(kind){
@@ -420,7 +395,7 @@ function renderUserList(){
     else if(u.amf.status==="warn"||u.smf.status==="warn") badge=['warn','预警'];
     else if(u.guarded) badge=['guarded','保障中'];
     else badge=['ok','健康'];
-    row.innerHTML=`<div class="av" style="background:${u.subnetColor}">${userIconSvg(u.iconKind)}</div><div style="min-width:0"><div class="nm">${u.name}</div><div class="meta">${u.id} · ${u.subnetName}</div></div><span class="badge ${badge[0]}">${badge[1]}</span><span class="arrow">▾</span>`;
+    row.innerHTML=`<div class="av" style="background:${u.subnetColor}">${userIconSvg(u.iconKind)}</div><div style="min-width:0"><div class="nm">${u.name}</div><div class="meta">${u.id} · ${u.subnetName}</div></div><span class="badge ${badge[0]}">${badge[1]}</span>`;
     row.addEventListener("click",()=>selectUser(u.id));
     box.appendChild(row);
   });
@@ -441,11 +416,10 @@ function renderDetail(){
     return `<div class="el-card"><div class="nm"><span class="sdot ${status}"></span><span class="el-id">${role} · ${id}</span><span class="el-st">${st}</span></div></div>`;
   };
   box.innerHTML=`
-    <div class="uidentity"><div class="uid-top"><div class="uid-av" style="background:${u.subnetColor}">${userIconSvg(u.iconKind)}</div><div class="uid-id">${u.id}</div></div>
-      <div class="uid-chips"><span class="chip"><span class="d" style="background:${u.subnetColor}"></span>${u.subnetName}</span><span class="chip">${u.plan}</span><span class="chip">会话 ${u.sessions}</span><span class="chip">时延 ${u.latency}ms</span></div></div>
+    <div class="uidentity"><div class="uid-line"><span class="d" style="background:${u.subnetColor}"></span><b>${u.subnetName}</b> · ${u.plan} · 会话 ${u.sessions} · 时延 ${u.latency}ms</div></div>
     <div class="sect"><h3><span class="tgroup">接管网元状态</span></h3>
       <div class="el-grid">${elCard("AMF",u.amf.id,u.amf.status)}${elCard("SMF",u.smf.id,u.smf.status)}</div>
-      <div class="kpi-row"><div class="kpi"><div class="v ${sCls}">${avgS}%</div><div class="l">成功率·均</div></div><div class="kpi"><div class="v">${sumBiz}</div><div class="l">业务·次</div></div><div class="kpi"><div class="v">${curT}</div><div class="l">流量·Mbps</div></div><div class="kpi"><div class="v">${peakT}</div><div class="l">峰值·Mbps</div></div></div></div>
+      <div class="kpi-row"><div class="kpi"><div class="v ${sCls}">${avgS}%</div><div class="l">成功率</div></div><div class="kpi"><div class="v">${sumBiz}</div><div class="l">业务</div></div><div class="kpi"><div class="v">${curT}</div><div class="l">流量</div></div><div class="kpi"><div class="v">${peakT}</div><div class="l">峰值</div></div></div></div>
     <div class="sect"><h3><span class="tgroup">业务与流量趋势 <span class="hint">历史 ${w==="1h"?"1 小时":"24 小时"}</span></span><span class="tw"><button data-w="1h" class="${w==="1h"?"on":""}">近 1h</button><button data-w="24h" class="${w==="24h"?"on":""}">近 24h</button></span></h3>
       ${chartBlock("业务成功率","%",S.success,"line",{min:88,max:100,color:"#10b981",cur:curS,curCls:sCls},axis)}
       ${chartBlock("流量使用","Mbps",S.traffic,"area",{color:"#2563eb",cur:curT},axis)}
@@ -455,10 +429,10 @@ function renderDetail(){
 }
 function chartBlock(title,unit,data,type,opt,axis){
   const curCls=opt.curCls||"";
-  return `<div class="chart-block"><div class="ctitle"><span class="t">${title}</span><span class="big ${curCls}">${opt.cur}<small style="font-size:11.5px;color:var(--t3);font-weight:600"> ${unit}</small></span></div>${miniChart(data,type,opt)}<div class="caxis"><span>${axis[0]}</span><span>${axis[1]}</span><span>${axis[2]}</span></div></div>`;
+  return `<div class="chart-block"><div class="ctitle"><span class="t">${title}</span><span class="big ${curCls}">${opt.cur}<small style="font-size:12px;color:var(--t3);font-weight:600"> ${unit}</small></span></div>${miniChart(data,type,opt)}<div class="caxis"><span>${axis[0]}</span><span>${axis[1]}</span><span>${axis[2]}</span></div></div>`;
 }
 function miniChart(data,type,opt){
-  const W=384,H=36,padT=4,padB=9,padL=4,padR=4;
+  const W=384,H=40,padT=4,padB=10,padL=4,padR=4;
   const min=opt.min!=null?opt.min:0, max=opt.max!=null?opt.max:Math.max(...data)*1.12;
   const n=data.length, x=i=>padL+i*(W-padL-padR)/(n-1), yv=v=>padT+(H-padT-padB)*(1-(v-min)/(max-min||1));
   let body="";
@@ -466,7 +440,7 @@ function miniChart(data,type,opt){
     const pts=data.map((v,i)=>`${x(i)},${yv(v)}`).join(" ");
     if(type==="area") body+=`<polygon points="${padL},${H-padB} ${pts} ${W-padR},${H-padB}" fill="${opt.color}1f"/>`;
     body+=`<polyline points="${pts}" fill="none" stroke="${opt.color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
-    body+=`<circle cx="${x(n-1)}" cy="${yv(data[n-1])}" r="2.8" fill="#fff" stroke="${opt.color}" stroke-width="2"/>`;
+    body+=`<circle cx="${x(n-1)}" cy="${yv(data[n-1])}" r="3" fill="#fff" stroke="${opt.color}" stroke-width="2"/>`;
   }else{
     const bw=(W-padL-padR)/n*0.56;
     data.forEach((v,i)=>{const bx=x(i)-bw/2,by=yv(v),bh=(H-padB)-by;body+=`<rect x="${bx}" y="${by}" width="${bw}" height="${Math.max(bh,1)}" rx="2" fill="${opt.color}" opacity="${(0.5+0.5*(v-min)/(max-min||1)).toFixed(2)}"/>`;});
