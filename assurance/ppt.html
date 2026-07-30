@@ -6,10 +6,10 @@
 <title>用户级主动保障 · PPT</title>
 <style>
   :root{
-    --bg:#f4f6fb; --card:#ffffff; --border:#d4dbe8;
+    --bg:#f4f6fb; --card:#ffffff; --border:#cfd8e6;
     --t1:#1e293b; --t2:#475569; --t3:#64748b;
     --primary:#2563eb; --srf:#7c3aed; --ue:#475569;
-    --ok:#10b981; --warn:#f59e0b; --fault:#ef4444; --line:#aeb8c9;
+    --ok:#10b981; --warn:#f59e0b; --fault:#ef4444; --line:#9aa6ba;
     --shadow:0 2px 6px rgba(16,24,40,.05), 0 16px 40px rgba(16,24,40,.08);
     --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",Roboto,Helvetica,Arial,sans-serif;
   }
@@ -20,67 +20,62 @@
     background:radial-gradient(1100px 520px at 100% -10%, #e7ecfb 0%, rgba(231,236,251,0) 55%), var(--bg);
     min-height:100vh; font-size:18px; line-height:1.45; -webkit-font-smoothing:antialiased; padding:24px;
   }
-  header{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
-  header .mark{width:50px;height:50px;border-radius:13px;background:linear-gradient(135deg,#2563eb,#4f7cf7);display:grid;place-items:center;box-shadow:0 8px 20px rgba(37,99,235,.35);}
-  header .mark svg{width:30px;height:30px;}
-  header h1{margin:0;font-size:34px;font-weight:780;letter-spacing:.3px;}
-  header .sub{margin-top:2px;font-size:16px;color:var(--t2);}
 
   .layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:stretch;}
-  .card{background:var(--card);border:1.5px solid var(--border);border-radius:18px;box-shadow:var(--shadow);}
+  .card{background:var(--card);border:2px solid var(--border);border-radius:18px;box-shadow:var(--shadow);}
   .topo-card{padding:14px;display:flex;flex-direction:column;}
-  .topo-title{font-size:22px;font-weight:720;color:var(--t1);padding:4px 8px 8px;}
+  .topo-title{font-size:46px;font-weight:760;color:var(--t1);padding:4px 8px 8px;}
   .topo-svg{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
   .topo-svg svg{width:100%;height:auto;}
 
-  .t-node-label{font-size:32px;font-weight:720;fill:var(--t1);}
-  .t-sn-name{font-size:30px;font-weight:720;}
-  .t-el-type{font-size:22px;font-weight:700;}
-  .edge{fill:none;stroke:var(--line);stroke-width:2.6;}
-  .edge.on{stroke:var(--primary);stroke-width:5.5;filter:drop-shadow(0 0 7px rgba(37,99,235,.55));stroke-dasharray:9 8;animation:flow 1s linear infinite;}
-  @keyframes flow{to{stroke-dashoffset:-34;}}
-  .user-path{fill:none;stroke:var(--primary);stroke-width:5.5;stroke-dasharray:9 8;filter:drop-shadow(0 0 7px rgba(37,99,235,.55));animation:flow 1s linear infinite;}
-  .subnet-frame{fill:rgba(255,255,255,.6);stroke:#b6c2d6;stroke-width:2.4;stroke-dasharray:9 8;}
-  .subnet.sel .subnet-frame{stroke:var(--primary);stroke-width:3.6;}
+  .t-node-label{font-size:36px;font-weight:760;fill:var(--t1);}
+  .t-sn-name{font-size:34px;font-weight:760;}
+  .t-el-type{font-size:36px;font-weight:750;}
+  .edge{fill:none;stroke:var(--line);stroke-width:3.5;}
+  .edge.on{stroke:var(--primary);stroke-width:11;filter:drop-shadow(0 0 10px rgba(37,99,235,.7));stroke-dasharray:13 9;animation:flow 1s linear infinite;}
+  @keyframes flow{to{stroke-dashoffset:-36;}}
+  .user-path{fill:none;stroke:var(--primary);stroke-width:11;stroke-dasharray:13 9;filter:drop-shadow(0 0 11px rgba(37,99,235,.8));animation:flow 1s linear infinite;}
+  .subnet-frame{fill:rgba(255,255,255,.6);stroke:#b6c2d6;stroke-width:3;stroke-dasharray:10 8;}
+  .subnet.sel .subnet-frame{stroke:var(--primary);stroke-width:4;}
   .subnet.sel .t-sn-name{fill:var(--primary);}
   .el-bg{transition:stroke .2s;}
-  .el-node.on .el-bg{stroke:var(--primary);stroke-width:4.5;}
+  .el-node.on .el-bg{stroke:var(--primary);stroke-width:6;}
   .el-node.on .el-halo{opacity:.6;}
-  .el-halo{fill:none;stroke:var(--primary);stroke-width:3;opacity:0;}
-  .status-dot{stroke:#fff;stroke-width:2;}
+  .el-halo{fill:none;stroke:var(--primary);stroke-width:3.5;opacity:0;}
+  .status-dot{stroke:#fff;stroke-width:2.5;}
 
   .popup{padding:24px 26px;display:flex;flex-direction:column;gap:16px;}
-  .pop-head{display:flex;align-items:center;gap:16px;padding-bottom:16px;border-bottom:2px solid var(--border);}
-  .pop-av{width:60px;height:60px;border-radius:16px;background:#f59e0b;display:grid;place-items:center;box-shadow:0 6px 16px rgba(245,158,11,.35);}
-  .pop-av svg{width:34px;height:34px;}
-  .pop-name{font-size:38px;font-weight:780;line-height:1.1;}
-  .pop-id{font-size:21px;color:var(--t2);margin-top:3px;}
+  .pop-head{display:flex;align-items:center;gap:16px;padding-bottom:16px;border-bottom:2.5px solid var(--border);}
+  .pop-av{width:66px;height:66px;border-radius:16px;background:#f59e0b;display:grid;place-items:center;box-shadow:0 6px 16px rgba(245,158,11,.35);}
+  .pop-av svg{width:38px;height:38px;}
+  .pop-name{font-size:46px;font-weight:780;line-height:1.1;}
+  .pop-id{font-size:28px;color:var(--t2);margin-top:3px;font-weight:600;}
   .pop-els{display:flex;gap:14px;}
-  .pop-el{flex:1;display:flex;align-items:center;gap:12px;background:#f8fafc;border:1.5px solid var(--border);border-radius:13px;padding:14px 16px;}
-  .pop-el .role{font-size:19px;color:var(--t2);}
-  .pop-el .nm{font-size:28px;font-weight:720;margin-top:1px;}
-  .pop-el .ok-tag{margin-left:auto;font-size:19px;font-weight:700;color:var(--ok);}
-  .dot{width:16px;height:16px;border-radius:50%;flex:none;}
+  .pop-el{flex:1;display:flex;align-items:center;gap:12px;background:#f8fafc;border:2px solid var(--border);border-radius:13px;padding:16px 18px;}
+  .pop-el .role{font-size:24px;color:var(--t2);font-weight:600;}
+  .pop-el .nm{font-size:34px;font-weight:740;margin-top:1px;}
+  .pop-el .ok-tag{margin-left:auto;font-size:24px;font-weight:720;color:var(--ok);}
+  .dot{width:18px;height:18px;border-radius:50%;flex:none;}
   .dot.ok{background:var(--ok);}
 
   .trend-head{display:flex;align-items:center;justify-content:space-between;margin:2px 2px -4px;}
-  .trend-head .t{font-size:23px;font-weight:670;color:var(--t1);}
+  .trend-head .t{font-size:32px;font-weight:700;color:var(--t1);}
   .pop-tw{display:inline-flex;background:#f1f4fb;border-radius:9px;padding:3px;gap:2px;}
-  .pop-tw button{border:none;background:transparent;font:inherit;font-size:18px;font-weight:620;color:var(--t2);padding:5px 15px;border-radius:7px;cursor:pointer;}
+  .pop-tw button{border:none;background:transparent;font:inherit;font-size:22px;font-weight:660;color:var(--t2);padding:6px 16px;border-radius:7px;cursor:pointer;}
   .pop-tw button.on{background:#fff;color:var(--primary);box-shadow:0 1px 2px rgba(16,24,40,.06);}
 
   .metric{display:grid;grid-template-columns:1fr auto;gap:2px 14px;align-items:center;}
-  .m-label{font-size:24px;color:var(--t1);font-weight:650;}
+  .m-label{font-size:30px;color:var(--t1);font-weight:680;}
   .m-value{font-size:48px;font-weight:800;line-height:1;text-align:right;}
-  .m-value small{font-size:28px;color:var(--t3);font-weight:700;margin-left:2px;}
+  .m-value small{font-size:32px;color:var(--t2);font-weight:750;margin-left:2px;}
   .m-value.ok{color:var(--ok);}
-  .m-chart{grid-column:1 / -1;width:100%;height:54px;display:block;margin-top:4px;}
-  .caxis{grid-column:1 / -1;display:flex;justify-content:space-between;font-size:17px;color:var(--t2);margin-top:1px;padding:0 2px;}
+  .m-chart{grid-column:1 / -1;width:100%;height:58px;display:block;margin-top:4px;}
+  .caxis{grid-column:1 / -1;display:flex;justify-content:space-between;font-size:26px;color:var(--t2);margin-top:1px;padding:0 2px;font-weight:600;}
 
   .guard-banner{display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#10b981,#34d399);border-radius:15px;padding:18px 22px;box-shadow:0 10px 26px rgba(16,185,129,.32);margin-top:auto;}
-  .guard-banner .g-ic{width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;color:var(--ok);font-size:32px;font-weight:900;flex:none;}
-  .guard-banner .g-title{font-size:32px;font-weight:800;color:#fff;line-height:1.1;}
-  .guard-banner .g-sub{font-size:26px;font-weight:700;color:#fff;margin-top:6px;}
+  .guard-banner .g-ic{width:58px;height:58px;border-radius:50%;background:rgba(255,255,255,.92);display:grid;place-items:center;color:var(--ok);font-size:38px;font-weight:900;flex:none;}
+  .guard-banner .g-title{font-size:36px;font-weight:800;color:#fff;line-height:1.1;}
+  .guard-banner .g-sub{font-size:30px;font-weight:700;color:#fff;margin-top:6px;}
 
   @media (max-width:1100px){.layout{grid-template-columns:1fr;}}
 </style>
@@ -126,7 +121,7 @@
 
     <div class="guard-banner">
       <div class="g-ic">✓</div>
-      <div><div class="g-title">主动保障已生效</div><div class="g-sub">14:32 成功率跌至 92.1% → 已恢复 99.2%</div></div>
+      <div><div class="g-title">主动保障已生效</div><div class="g-sub">14:32 成功率 92.1% → 99.2% 已恢复</div></div>
     </div>
   </aside>
 </main>
@@ -138,9 +133,9 @@ function el(name,attrs){const e=document.createElementNS(SVGNS,name);for(const k
 
 const topo=$("topo");
 const VB_W=1100, VB_H=1000, CX=550;
-const AGENT={x:400,y:30,w:300,h:100,cx:550,cy:80};
-const SRF  ={x:400,y:730,w:300,h:90,cx:550,cy:775};
-const UE   ={x:400,y:890,w:300,h:90,cx:550,cy:935};
+const AGENT={x:340,y:30,w:420,h:110,cx:550,cy:85};
+const SRF  ={x:340,y:720,w:420,h:100,cx:550,cy:770};
+const UE   ={x:340,y:880,w:420,h:100,cx:550,cy:930};
 const SUB_Y=200, SUB_H=440;
 const SUBS=[
   {id:"vip",name:"VIP 高净值",x:150,w:340,sel:true,els:[
@@ -175,18 +170,19 @@ function build(){
   const vbx=vipB.cx, vby=vipB.y+vipB.h, c2x=vbx+(SRF.cx-vbx)*0.4, c2y=vby+(SRF.y-vby)*0.4;
   eg.appendChild(edge("srf-vip",`M ${SRF.cx} ${SRF.y} C ${SRF.cx} ${SRF.y-46}, ${c2x} ${c2y}, ${vbx} ${vby}`,true));
   // 用户走 AMF-1 / SMF-1 的虚线（SMF 行在上 b.y+170，AMF 行在下 b.y+310）
-  const amf1={cx:vipB.x+120,cy:SUB_Y+310}, smf2={cx:vipB.x+250,cy:SUB_Y+170};
-  eg.appendChild(el("path",{class:"user-path",d:`M ${vipB.cx} ${vipB.y+vipB.h} L ${amf1.cx} ${amf1.cy} L ${smf2.cx} ${smf2.cy} L ${vipB.cx} ${vipB.y}`}));
 
   const ng=el("g",{}); topo.appendChild(ng);
   ng.appendChild(coreNode(AGENT,"高稳智能体","#2563eb","#eaf1fe","brain"));
   ng.appendChild(coreNode(SRF,"SRF · 分发层","#7c3aed","#f1ecfd","dispatch"));
   ng.appendChild(coreNode(UE,"UE · 用户终端","#475569","#eef2f7","phone"));
   SUBS.forEach(s=>ng.appendChild(subnet(s)));
+  // user-path 置于最上层（网元之上），避免被网元圆遮挡
+  const amf1={cx:vipB.x+110,cy:SUB_Y+330}, smf2={cx:vipB.x+260,cy:SUB_Y+170};
+  topo.appendChild(el("path",{class:"user-path",d:`M ${vipB.cx} ${vipB.y+vipB.h} L ${amf1.cx} ${amf1.cy} L ${smf2.cx} ${smf2.cy} L ${vipB.cx} ${vipB.y}`}));
 }
 function coreNode(box,title,fill,soft,icon){
   const g=el("g",{});
-  g.appendChild(el("rect",{x:box.x,y:box.y,width:box.w,height:box.h,rx:18,fill:soft,stroke:fill,"stroke-width":3}));
+  g.appendChild(el("rect",{x:box.x,y:box.y,width:box.w,height:box.h,rx:18,fill:soft,stroke:fill,"stroke-width":3.5}));
   g.appendChild(el("circle",{cx:box.x+60,cy:box.cy,r:32,fill}));
   drawIcon(icon,box.x+60,box.cy,g);
   const t=el("text",{x:box.x+108,y:box.cy+11,class:"t-node-label"});t.textContent=title;g.appendChild(t);
@@ -218,8 +214,8 @@ function subnet(s){
   g.appendChild(el("line",{x1:b.x+18,y1:b.y+62,x2:b.x+b.w-18,y2:b.y+62,stroke:"#d4dbe8","stroke-width":1.2}));
   const amfs=s.els.filter(e=>e.type==="AMF");
   const smfs=s.els.filter(e=>e.type==="SMF");
-  smfs.forEach((e,i)=>drawEl(e,b.x+120+i*130,b.y+170,g));   // SMF 上
-  amfs.forEach((e,i)=>drawEl(e,b.x+120+i*130,b.y+310,g));   // AMF 下
+  smfs.forEach((e,i)=>drawEl(e,b.x+110+i*150,b.y+170,g));   // SMF 上
+  amfs.forEach((e,i)=>drawEl(e,b.x+110+i*150,b.y+330,g));   // AMF 下
   return g;
 }
 function drawEl(e,cx,cy,g){
@@ -228,11 +224,11 @@ function drawEl(e,cx,cy,g){
   const stColor=e.status==="warn"?"#f59e0b":e.status==="fault"?"#ef4444":typeColor;
   const fill=e.status==="warn"?"#fffbeb":e.status==="fault"?"#fef2f2":"#fff";
   const grp=el("g",{class:"el-node"+(on?" on":"")});
-  grp.appendChild(el("circle",{cx,cy,r:34,class:"el-halo"}));
-  grp.appendChild(el("circle",{cx,cy,r:38,fill,stroke:on?"var(--primary)":stColor,"stroke-width":on?4.5:3,class:"el-bg"}));
-  const lab=el("text",{x:cx,y:cy+7,"text-anchor":"middle",class:"t-el-type",fill:on?"var(--primary)":stColor});lab.textContent=e.id;grp.appendChild(lab);
+  grp.appendChild(el("circle",{cx,cy,r:56,class:"el-halo"}));
+  grp.appendChild(el("circle",{cx,cy,r:60,fill,stroke:on?"var(--primary)":stColor,"stroke-width":on?8:5,class:"el-bg"}));
+  const lab=el("text",{x:cx,y:cy+12,"text-anchor":"middle",class:"t-el-type",fill:on?"var(--primary)":stColor});lab.textContent=e.id;grp.appendChild(lab);
   const sd=e.status==="ok"?"#10b981":e.status==="warn"?"#f59e0b":"#ef4444";
-  grp.appendChild(el("circle",{cx:cx+28,cy:cy-28,r:9,fill:sd,class:"status-dot"}));
+  grp.appendChild(el("circle",{cx:cx+44,cy:cy-44,r:12,fill:sd,class:"status-dot"}));
   g.appendChild(grp);
 }
 build();
@@ -248,8 +244,8 @@ function miniChart(svgId,data,color){
   const n=data.length, x=i=>padL+i*(W-padL-padR)/(n-1), yv=v=>padT+(H-padT-padB)*(1-(v-min)/(max-min));
   const pts=data.map((v,i)=>`${x(i)},${yv(v)}`).join(" ");
   let body=`<polygon points="${padL},${H-padB} ${pts} ${W-padR},${H-padB}" fill="${color}22"/>`;
-  body+=`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
-  body+=`<circle cx="${x(n-1)}" cy="${yv(data[n-1])}" r="4.5" fill="#fff" stroke="${color}" stroke-width="3"/>`;
+  body+=`<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  body+=`<circle cx="${x(n-1)}" cy="${yv(data[n-1])}" r="5.5" fill="#fff" stroke="${color}" stroke-width="4"/>`;
   svg.innerHTML=`<line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#e6eaf1" stroke-width="1.5"/>${body}`;
 }
 function renderCharts(win){
