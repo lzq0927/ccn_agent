@@ -7,7 +7,7 @@
 //   · EvalPanel(⑦评估):沉淀了什么 Skill / 优化什么(无真值对比)
 // ============================================================================
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { Scenario } from "../../data/types";
 import type { StoryState } from "../../story/types";
 import { ROUTE_COLORS, STATUS, srColor } from "../../theme";
@@ -19,6 +19,8 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
   const kpi = getKpi(scenario);
   const simT = state.simT;
   const isStorm = scenario.fault.faultType === "iot_storm";
+  // 非风暴(A/B/C):无请求数突增 → 多条路径 KPI 突降 + (B/C)CHR 突增/分散
+  if (!isStorm) return <NonStormAnomaly scenario={scenario} state={state} kpi={kpi} simT={simT} />;
   const graph = scenario.realGraph;
   const curI = Math.min(Math.max(Math.floor(simT) - 1, 0), 58);
   // AMF / SMF 聚合 SR
@@ -70,6 +72,66 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
           </div>
         );
       })()}
+    </div>
+  );
+}
+
+/** 非风暴场景(A/B/C)异常检测:多条路径 KPI 突降 + (B/C)CHR 突增/分散。无请求数突增线。 */
+function NonStormAnomaly({ scenario, state, kpi, simT }: { scenario: Scenario; state: StoryState; kpi: ReturnType<typeof getKpi>; simT: number }) {
+  void state;
+  const graph = scenario.realGraph;
+  if (!graph) return null;
+  const deg = graph.flowEdges
+    .map((e) => ({ e, sr: sample(kpi.edges[e.id] ?? [0.999], simT) }))
+    .filter((x) => x.sr < kpi.threshold)
+    .sort((a, b) => a.sr - b.sr)
+    .slice(0, 6);
+  const chr = scenario.chrInsight; // B/C 有,A 无
+  const isC = scenario.id === "C";
+  const showChr = chr && (scenario.id === "B" || isC);
+  return (
+    <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
+      <div style={{ padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.fault, fontFamily: "var(--font-mono)", marginBottom: 5 }}>📉 多条路径 KPI 突降{isC ? " · 总体微跌" : ""}</div>
+        {deg.length ? (
+          deg.map(({ e, sr }) => <SrBar key={e.id} a={e.a} b={e.b} sr={sr} />)
+        ) : (
+          <div style={{ fontSize: 11, color: "var(--text-faint)" }}>逐链路监测中 · 暂无路径跌破 99.5%(信号模糊)</div>
+        )}
+      </div>
+      {showChr && (
+        <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.4)", background: "rgba(167,139,250,0.07)" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 5 }}>{isC ? "🟣 CHR 原因分散 · 需聚类收敛" : "🟣 CHR 突增 · 会话原因值集中"}</div>
+          <ChrBars chr={chr!} highlight={!isC} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 链路成功率条(红→黄→绿) */
+function SrBar({ a, b, sr }: { a: string; b: string; sr: number }) {
+  const col = srColor(sr);
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+        <span style={{ color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{a} ↔ {b}</span>
+        <span style={{ color: col, fontWeight: 700, fontFamily: "var(--font-mono)" }}>SR {(sr * 100).toFixed(2)}%</span>
+      </div>
+      <div style={{ height: 4, borderRadius: 2, background: "rgba(148,163,184,0.15)", overflow: "hidden" }}><div style={{ height: "100%", width: `${Math.max(2, sr * 100)}%`, background: col }} /></div>
+    </div>
+  );
+}
+
+/** CHR 原因值条(主导 + 关联) */
+function ChrBars({ chr, highlight }: { chr: NonNullable<Scenario["chrInsight"]>; highlight: boolean }) {
+  const rel = chr.related ?? [];
+  const rows = [{ code: chr.causeCode, cn: chr.causeCn, share: chr.share ?? 60 }, ...rel];
+  return (
+    <div>
+      {rows.map((r, i) => (
+        <Bar key={i} label={`${r.code} ${r.cn}`} share={r.share ?? 0} color={i === 0 && highlight ? "#a78bfa" : "#64748b"} />
+      ))}
     </div>
   );
 }
@@ -138,13 +200,26 @@ export function MatchPanel({ scenario }: { scenario: Scenario }) {
 
 /* ————————————————————— ④ 根因推理:推理步骤 + 根因 ————————————————————— */
 export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
-  const steps = state.reasoningSteps;
+  const all = state.reasoningSteps;
   const root = state.rootCause;
   const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [steps.length]);
+  // 逐步揭示:打开后一条条追加(分步骤展示最新),不一次性全出;每加一条滚到底
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (all.length === 0) { setShown(0); return; }
+    const id = setInterval(() => {
+      setShown((s) => {
+        if (s >= all.length) { clearInterval(id); return s; }
+        return s + 1;
+      });
+    }, 360);
+    return () => clearInterval(id);
+  }, [all.length]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [shown]);
+  const steps = all.slice(0, shown);
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5, display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ fontSize: 10, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6, flexShrink: 0 }}>推理链 · Agent Loop(共 {state.reasoningTotal} 步,已揭示 {steps.length})</div>
+      <div style={{ fontSize: 10, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 6, flexShrink: 0 }}>推理链 · Agent Loop(共 {state.reasoningTotal} 步,已揭示 {Math.max(shown, all.length)})</div>
       <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingRight: 3, display: "flex", flexDirection: "column", gap: 5 }}>
         {steps.slice(-9).map((s) => {
           const concl = s.type === "conclusion";
@@ -169,16 +244,26 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
       {scenario.chrInsight && (() => {
         const chr = scenario.chrInsight;
         const rel = chr.related ?? [];
-        const showSst = steps.some((s) => /SST/.test(s.text));
-        const showDnn = steps.some((s) => /DNN/.test(s.text));
-        if (!showSst && !showDnn) return null;
+        const isBC = scenario.id === "B" || scenario.id === "C";
+        const showSst = !isBC && steps.some((s) => /SST/.test(s.text));
+        const showDnn = !isBC && steps.some((s) => /DNN/.test(s.text));
+        if (!isBC && !showSst && !showDnn) return null;
         return (
           <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.4)", background: "rgba(167,139,250,0.07)", flexShrink: 0 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 6 }}>CHR 占比分析</div>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              {showSst && <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color="#a78bfa" />}
-              {showDnn && rel.length > 0 && <Donut share={rel[0].share ?? 58} label={rel[0].code} sub="会话" color="#64748b" />}
-            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 6 }}>CHR 占比分析{isBC ? ` · ${chr.causeCn}` : ""}</div>
+            {isBC ? (
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <Donut share={chr.share ?? 60} label={chr.causeCode} sub="主导原因" color="#a78bfa" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {rel.map((r, i) => <Bar key={i} label={`${r.code} ${r.cn}`} share={r.share ?? 0} color="#64748b" />)}
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                {showSst && <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color="#a78bfa" />}
+                {showDnn && rel.length > 0 && <Donut share={rel[0].share ?? 58} label={rel[0].code} sub="会话" color="#64748b" />}
+              </div>
+            )}
           </div>
         );
       })()}

@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { PHASES, srColor } from "../../theme";
 import type { Scenario } from "../../data/types";
 import type { StoryState } from "../../story/types";
-import { StageCanvas } from "./StageCanvas";
+import { GuideCanvas, CIRCLES } from "./GuideCanvas";
 import { StepModal } from "./StepModal";
 import { KpiStrip } from "./KpiStrip";
 import { walkStops, getKpi } from "../../story/director";
@@ -97,9 +97,9 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
         </div>
       </div>
 
-      {/* 主体:全宽拓扑画布 + 弹窗 overlay */}
+      {/* 主体:全宽拓扑画布 + 弹窗 overlay(全场景统一 GuideCanvas;G 叠加 UE/AI 平台) */}
       <div style={{ flex: 1, minHeight: 0, position: "relative", background: "var(--twin-readout-bg)" }}>
-        <StageCanvas scenario={scenario} state={state} graph={scenario.realGraph} stops={stops} curIdx={idx} onCircleClick={onCircleClick} />
+        <GuideCanvas scenario={scenario} state={state} stops={stops} curIdx={idx} onCircleClick={onCircleClick} />
         {/* 弹窗 overlay */}
         {modalOpen && (
           <svg viewBox="0 0 1040 646" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
@@ -109,6 +109,7 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
               round={cur?.round ?? 1}
               circlePos={modalCirclePos}
               circleN={modalCircleN}
+              circles={CIRCLES.map((c) => ({ x: c.x, y: c.y }))}
               onClose={() => setModalOpen(false)}
             />
           </svg>
