@@ -128,7 +128,7 @@ function ModalBody({ scenario, state, phase, round, info }: { scenario: Scenario
   if (phase === 3) return <MatchPanel scenario={scenario} state={state} />;
   if (phase === 4) return <ReasonPanel scenario={scenario} state={state} />;
   if (phase === 5) return <DispatchPanel scenario={scenario} state={state} />;
-  if (phase === 7 && round === 1) return <EvalFailPanel scenario={scenario} state={state} />;
+  if (phase === 7 && state.loopBackKind) return <EvalFailPanel scenario={scenario} state={state} />;
   if (phase === 7) return <EvalPanel scenario={scenario} state={state} />;
   // 0/1/6:通用
   return (

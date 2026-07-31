@@ -82,11 +82,16 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
   );
 }
 
-/** 非风暴场景(A/B/C)异常检测:多条路径 KPI 突降 + (B/C)CHR 突增/分散。无请求数突增线。 */
+/** 非风暴场景(A/B/C)异常检测:多条路径 KPI 突降 + (B/C)CHR 突增/分散。无请求数突增线。
+ *  DEMO 画时序曲线(A/B=最劣化路径;C=整网总体微跌);LIVE 用实时快照条。 */
 function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scenario; state: StoryState; kpi: ReturnType<typeof getKpi>; simT: number; live: StoryState["liveKpi"] }) {
   void state;
   const graph = scenario.realGraph;
-  // LIVE:用真实链路异常(linkAnomalies);DEMO:用合成 edges 按 simT 取值
+  const isC = scenario.id === "C";
+  const chr = scenario.chrInsight; // B/C 有,A 无
+  const showChr = chr && (scenario.id === "B" || isC);
+
+  // LIVE:当前快照(条形)
   type Row = { key: string; a: string; b: string; sr: number };
   let deg: Row[] = [];
   if (live) {
@@ -94,24 +99,44 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
       .map((x) => ({ key: `${x.src}-${x.dst}`, a: x.src, b: x.dst, sr: x.successRate }))
       .sort((p, q) => p.sr - q.sr)
       .slice(0, 6);
-  } else if (graph) {
-    deg = graph.flowEdges
-      .map((e) => ({ key: e.id, a: e.a, b: e.b, sr: sample(kpi.edges[e.id] ?? [0.999], simT) }))
-      .filter((x) => x.sr < kpi.threshold)
-      .sort((a, b) => a.sr - b.sr)
-      .slice(0, 6);
   }
-  const chr = scenario.chrInsight; // B/C 有,A 无
-  const isC = scenario.id === "C";
-  const showChr = chr && (scenario.id === "B" || isC);
+
+  // DEMO:挑要画的时序曲线(A/B=最劣化路径 top3;C=整网总体微跌)
+  const PAL = ["#60a5fa", "#a78bfa", "#f472b6", "#facc15"];
+  const visN = Math.max(3, Math.min(60, Math.floor(simT) + 1));
+  let paths: { label: string; series: number[]; color: string }[] = [];
+  let noPathNote = "";
+  if (!live && graph) {
+    const cand = graph.flowEdges
+      .map((e) => ({ label: `${e.a}↔${e.b}`, series: kpi.edges[e.id] ?? [], min: Math.min(...(kpi.edges[e.id] ?? [1])) }))
+      .filter((p) => p.min < kpi.threshold)
+      .sort((a, b) => a.min - b.min)
+      .slice(0, 3)
+      .map((p, i) => ({ label: p.label, series: p.series, color: PAL[i % PAL.length] }));
+    if (cand.length) {
+      paths = cand;
+    } else {
+      // C 等:无单路径劣化 → 画整网总体(微跌),并标注各链路健康
+      paths = [{ label: "整网总体 SR", series: kpi.overall, color: PAL[0] }];
+      noPathNote = "各链路均 ≥99.5% · 无明显路径异常 · 总体微跌 · 信号模糊";
+    }
+  }
+
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
       <div style={{ padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.fault, fontFamily: "var(--font-mono)", marginBottom: 5 }}>📉 多条路径 KPI 突降{isC ? " · 总体微跌" : ""}{live ? " · 实时" : ""}</div>
-        {deg.length ? (
-          deg.map((r) => <SrBar key={r.key} a={r.a} b={r.b} sr={r.sr} />)
+        {live ? (
+          deg.length ? (
+            deg.map((r) => <SrBar key={r.key} a={r.a} b={r.b} sr={r.sr} />)
+          ) : (
+            <div style={{ fontSize: 11, color: "var(--text-faint)" }}>实时监测中 · 暂无路径跌破 99.5%(故障未注入或信号未显现)</div>
+          )
         ) : (
-          <div style={{ fontSize: 11, color: "var(--text-faint)" }}>{live ? "实时监测中 · 暂无路径跌破 99.5%(故障未注入或信号未显现)" : "逐链路监测中 · 暂无路径跌破 99.5%(信号模糊)"}</div>
+          <>
+            <MultiPathKpi paths={paths} threshold={kpi.threshold} visN={visN} />
+            {noPathNote && <div style={{ fontSize: 10.5, color: "var(--text-faint)", marginTop: 4 }}>{noPathNote}</div>}
+          </>
         )}
       </div>
       {showChr && (
@@ -120,6 +145,30 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
           <ChrBars chr={chr!} highlight={!isC} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** 多路径 KPI 时序曲线(DEMO):若干路径 SR 随时间,叠阈值线,裁剪到 visN(逐步揭示) */
+function MultiPathKpi({ paths, threshold, visN }: { paths: { label: string; series: number[]; color: string }[]; threshold: number; visN: number }) {
+  const W = 280, H = 72, yMin = 0.95;
+  const xAt = (i: number) => (i / 59) * W;
+  const yAt = (v: number) => { const c = Math.max(yMin, Math.min(1, v)); return H - 4 - ((c - yMin) / (1 - yMin)) * (H - 8); };
+  const yTh = yAt(threshold);
+  return (
+    <div style={{ marginTop: 4 }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
+        <line x1={0} x2={W} y1={yTh} y2={yTh} stroke="rgba(239,68,68,0.5)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+        {paths.map((p) => (
+          <polyline key={p.label} points={p.series.slice(0, visN).map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ")} fill="none" stroke={p.color} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+        ))}
+      </svg>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 8px", fontSize: 9, fontFamily: "var(--font-mono)", marginTop: 2 }}>
+        {paths.map((p) => (
+          <span key={p.label} style={{ color: p.color, display: "inline-flex", alignItems: "center", gap: 3 }}><span style={{ display: "inline-block", width: 7, height: 7, background: p.color, borderRadius: 2 }} />{p.label}</span>
+        ))}
+        <span style={{ color: STATUS.fault }}>┄ 阈值 99.5%</span>
+      </div>
     </div>
   );
 }
@@ -421,8 +470,27 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
   }
   const sk = scenario.skillEvolution;
   const rep = scenario.faultReport;
+  const kpi = getKpi(scenario);
+  const ev = scenario.evaluation;
+  const sr = sample(kpi.overall, state.simT);
+  const recovered = sr >= kpi.threshold;
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
+      {/* 评估通过:精确/召回/F1 + 网络恢复 SR(与 CPU 无关,适用 A/B/C/D 等所有通过场景) */}
+      <div style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.06)", marginBottom: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.healthy, fontFamily: "var(--font-mono)", marginBottom: 5 }}>✓ Agent3 评估 · 通过</div>
+        <div style={{ display: "flex", gap: 12, fontSize: 12, fontFamily: "var(--font-mono)", flexWrap: "wrap" }}>
+          {ev && (
+            <>
+              <span>精确 <b style={{ color: STATUS.healthy }}>{(ev.precision * 100).toFixed(0)}%</b></span>
+              <span>召回 <b style={{ color: STATUS.healthy }}>{(ev.recall * 100).toFixed(0)}%</b></span>
+              <span>F1 <b style={{ color: STATUS.healthy }}>{ev.f1.toFixed(2)}</b></span>
+              <span style={{ color: ev.exactMatch ? STATUS.healthy : "#fbbf24" }}>{ev.exactMatch ? "✓ 精确匹配" : "~ 部分匹配"}</span>
+            </>
+          )}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, fontFamily: "var(--font-mono)" }}>网络恢复 · 整网 SR <b style={{ color: srColor(sr) }}>{(sr * 100).toFixed(2)}%</b> {recovered ? "✓ ≥99.5%" : "· 恢复中"}</div>
+      </div>
       {rep && (
         <div style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(45,212,191,0.4)", background: "rgba(45,212,191,0.06)", marginBottom: 8 }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: "#5eead4", fontFamily: "var(--font-mono)", marginBottom: 4 }}>📋 故障报告</div>
