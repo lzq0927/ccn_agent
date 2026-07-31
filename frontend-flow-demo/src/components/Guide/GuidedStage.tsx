@@ -22,9 +22,11 @@ interface Props {
   onSelectScenario: (id: string) => void;
   onPlayUntil: (t: number) => void;
   onSeekTime: (t: number) => void;
+  /** LIVE 模式:圆圈点击触发后端阶段动作(DEMO 模式 undefined) */
+  onPhaseTrigger?: (phase: number) => void;
 }
 
-export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onSelectScenario, onPlayUntil, onSeekTime }: Props) {
+export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onSelectScenario, onPlayUntil, onSeekTime, onPhaseTrigger }: Props) {
   const stops = useMemo(() => walkStops(scenario), [scenario.id]);
   const [idx, setIdx] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -59,7 +61,7 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
   const info = PHASES[phase];
   const sr = sample(getKpi(scenario).overall, state.simT);
 
-  // 点圆圈 = playUntil + 弹出 Modal
+  // 点圆圈 = playUntil + 弹出 Modal(+ LIVE 模式触发后端阶段动作)
   const onCircleClick = (p: number, pos: { x: number; y: number }, n: number) => {
     setModalCirclePos(pos);
     setModalCircleN(n);
@@ -71,6 +73,7 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
       const first = stops.findIndex((s) => s.phase === p);
       if (first >= 0) { setIdx(first); onSeekTime(stops[first].time); }
     }
+    onPhaseTrigger?.(p);
     setModalOpen(true);
   };
 

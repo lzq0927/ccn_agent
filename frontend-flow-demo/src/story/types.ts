@@ -68,6 +68,16 @@ export interface StoryState {
   // —— SIM 实时仿真专属(DEMO 模式 undefined)——
   simNeCpu?: Record<string, number>; // 全网 NE CPU%(SIM 模式)
   simRates?: { amfCpu: number; smfCpu: number; regRate: number; iotRegRate: number; sessionRate: number; twoCThrottle: number };
+  /** LIVE 真实仿真快照(后端 kpi_snapshot;DEMO 模式 undefined) */
+  liveKpi?: {
+    amfSuccessRate: number; smfSuccessRate: number;
+    amfRegRequests: number; smfPduRequests: number;
+    iotRegRate: number; tocRegRate: number; iotSessRate: number; tocSessRate: number;
+    amfCpu: number; smfCpu: number;
+    linkAnomalies: { src: string; dst: string; successRate: number }[];
+  };
+  amfSrHist?: number[]; // LIVE AMF 注册成功率滚动历史(sparkline)
+  smfSrHist?: number[]; // LIVE SMF PDU 成功率滚动历史
 
   // —— 用户级韧性 × 网络自治 · 扩展派生态(确定性，随相位揭示)——
   currentStep: ReasonStep | null; // 当前执行中的推理步(最后揭示的一步)

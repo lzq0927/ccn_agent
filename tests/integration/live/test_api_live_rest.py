@@ -14,9 +14,10 @@ def test_capabilities_returns_registry(client):
     assert r.status_code == 200
     data = r.json()
     assert isinstance(data, dict)
+    # live_scenarios(A~G)现在都是真实实时仿真 → 全 live
+    assert data.get("A") == "live"
     assert data.get("F") == "live"
     assert data.get("G") == "live"
-    assert data.get("A") == "demo"
 
 
 def test_select_starts_session(client):

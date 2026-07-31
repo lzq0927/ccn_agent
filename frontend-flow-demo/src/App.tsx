@@ -15,7 +15,7 @@ import { SolutionFlow } from "./components/SolutionFlow/SolutionFlow";
 import { GuidedStage } from "./components/Guide/GuidedStage";
 import { useLiveClock } from "./story/useLiveClock";
 import { applyEvent, type LiveState } from "./story/liveBus";
-import { getCapabilities, openLiveSocket, selectScenario } from "./api/live";
+import { getCapabilities, openLiveSocket, selectScenario, control } from "./api/live";
 import type { StoryState } from "./story/types";
 
 type Mode = "demo" | "live";
@@ -29,6 +29,9 @@ function mergeLive(base: StoryState, live: LiveState): StoryState {
     round: live.round ?? base.round,
     simT: live.simT || base.simT,
     simNeCpu: Object.keys(live.simNeCpu).length ? live.simNeCpu : base.simNeCpu,
+    liveKpi: live.liveKpi ?? base.liveKpi,
+    amfSrHist: live.amfSrHist.length ? live.amfSrHist : base.amfSrHist,
+    smfSrHist: live.smfSrHist.length ? live.smfSrHist : base.smfSrHist,
     reasoningSteps: live.recentSteps.length ? live.recentSteps : base.reasoningSteps,
     currentStep: live.recentSteps.length
       ? live.recentSteps[live.recentSteps.length - 1]
@@ -41,6 +44,14 @@ function mergeLive(base: StoryState, live: LiveState): StoryState {
     evalRevealed: live.activeEvaluation ? true : base.evalRevealed,
   };
 }
+
+/** 圆圈点击 → 后端 control 动作(LIVE 模式;phase 1/4/6 仅视觉,不发后端) */
+const PHASE_ACTION: Record<number, string> = {
+  2: "inject_fault", // 异常检测
+  3: "diagnose",     // 策略匹配 → 启动真 Agent 诊断
+  5: "apply_policy", // 下发策略 → 真回灌仿真
+  7: "evaluate",     // 评估优化 → 检查恢复
+};
 
 export default function App() {
   const [scenarioId, setScenarioId] = useState("A");
@@ -124,6 +135,13 @@ export default function App() {
   const state = isLive ? mergeLive(demoClock.state, liveClock.state) : demoClock.state;
   const playheadRef = isLive ? liveClock.playheadRef : demoClock.playheadRef;
 
+  // LIVE:圆圈点击触发后端阶段(注入故障 / 诊断 / 下发策略 / 评估)
+  const onPhaseTrigger = (phase: number) => {
+    if (!isLive || !liveSessionId) return;
+    const action = PHASE_ACTION[phase];
+    if (action) void control(liveSessionId, action);
+  };
+
   return (
     <>
       <div className="app-bg" />
@@ -153,6 +171,7 @@ export default function App() {
               onSelectScenario={setScenarioId}
               onPlayUntil={(t) => demoClock.playUntil(t)}
               onSeekTime={(t) => demoClock.seekGlobal(t / demoClock.duration)}
+              onPhaseTrigger={onPhaseTrigger}
             />
           </div>
         </div>

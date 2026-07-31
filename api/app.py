@@ -29,6 +29,7 @@ def create_app() -> FastAPI:
             "http://localhost:5173",
             "http://localhost:5174",  # frontend-show(展会演示前端)
             "http://localhost:5175",  # frontend-flow(方案流程演示 LIVE 模式)
+            "http://localhost:5179",  # frontend-flow-demo(引导式展会 LIVE 真实仿真)
             "http://localhost:8000",
         ],
         allow_credentials=True,

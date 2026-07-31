@@ -79,6 +79,30 @@ class LiveDataRecorder:
         self._write_meta()
         self._flush_kpi_csv()
         self._flush_recovery_json()
+        self._snapshot_to_replay_dir()
+
+    def _snapshot_to_replay_dir(self) -> None:
+        """把本 session 的全部数据复制到 ``live_replay/{scenario_id}/``(按场景留存,供回放)。
+
+        最新一次完整运行覆盖该场景的回放目录;失败不影响主流程。
+        """
+        if not self.scenario_id:
+            return
+        try:
+            import shutil
+
+            replay_dir = Path(self.dir).parent.parent / "live_replay" / self.scenario_id
+            replay_dir.mkdir(parents=True, exist_ok=True)
+            for src in Path(self.dir).iterdir():
+                dst = replay_dir / src.name
+                try:
+                    if src.is_file():
+                        shutil.copy2(src, dst)
+                except Exception:  # noqa: BLE001
+                    logger.debug("copy %s failed", src)
+            (replay_dir / "replay_source_session.txt").write_text(self.session_id, encoding="utf-8")
+        except Exception:  # noqa: BLE001
+            logger.exception("snapshot to replay dir failed")
 
     # ------------------------------------------------------------------
     # 逐项记录(全部吞异常)

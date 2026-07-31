@@ -24,7 +24,9 @@ npm run build      # tsc --noEmit && vite build  → dist/
 npm run lint       # tsc --noEmit
 ```
 
-> **纯 DEMO 模式**:内置取自真实 `storage/cases` 的样本数据,确定性自动播放,**不依赖后端 / LLM**,展会现场 100% 可靠。无 LIVE 模式。
+> **DEMO 模式(默认)**:内置取自真实 `storage/cases` 的样本数据,确定性自动播放,展会现场 100% 可靠。
+>
+> **LIVE 模式(A~G)**:切到 LIVE 后接后端**真实消息级离散事件仿真**——注册/PDU 流程逐条消息执行,AMF 记注册成功率+请求数、SMF 记 PDU 成功率+请求数;点「异常检测」注入故障→「诊断」走真高稳智能体(MiniMax)→「下发策略」回灌仿真执行→「评估优化」检查恢复;数据按场景落盘 `storage/live_replay/{场景}/` 可回放。需后端 `uvicorn api.app:app --port 8000` + MiniMax key(见 `config/llm.local.yaml`)。
 
 ## 操作
 

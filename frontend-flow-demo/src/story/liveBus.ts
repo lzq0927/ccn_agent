@@ -22,12 +22,23 @@ export interface LiveState {
   round: 1 | 2;
   simT: number;
   simNeCpu: Record<string, number>;
+  liveKpi: LiveKpi | null;
+  amfSrHist: number[];
+  smfSrHist: number[];
   recentSteps: ReasonStep[];
   recoveryActions: RecoveryAction[];
   activeDiagnosis: { faultElements: string[]; faultType: string; confidence: number; route: string } | null;
   activeEvaluation: EvalMetrics | null;
   userBreakdown: UserBreakdown | null;
   error: { source: string; message: string; fatal: boolean } | null;
+}
+
+export interface LiveKpi {
+  amfSuccessRate: number; smfSuccessRate: number;
+  amfRegRequests: number; smfPduRequests: number;
+  iotRegRate: number; tocRegRate: number; iotSessRate: number; tocSessRate: number;
+  amfCpu: number; smfCpu: number;
+  linkAnomalies: { src: string; dst: string; successRate: number }[];
 }
 
 const _initial = (sid: string, scn: string): LiveState => ({
@@ -39,6 +50,9 @@ const _initial = (sid: string, scn: string): LiveState => ({
   round: 1,
   simT: 0,
   simNeCpu: {},
+  liveKpi: null,
+  amfSrHist: [],
+  smfSrHist: [],
   recentSteps: [],
   recoveryActions: [],
   activeDiagnosis: null,
@@ -70,10 +84,36 @@ export function applyEvent(sid: string, scn: string, ev: { type: string; payload
     case "runner_state":
       st.runnerState = ev.payload.state as RunnerState;
       break;
+    case "phase_change":
+      // 后端点击触发阶段推进(覆盖 DEMO 没有的 0/1/2/6 相位)
+      st.phaseIndex = ev.payload.phase ?? st.phaseIndex;
+      break;
     case "tick":
       st.simT = ev.payload.sim_t ?? st.simT;
       if (ev.payload.ne_cpu) st.simNeCpu = ev.payload.ne_cpu;
       break;
+    case "kpi_snapshot": {
+      const p = ev.payload;
+      st.liveKpi = {
+        amfSuccessRate: p.amf_success_rate ?? 0,
+        smfSuccessRate: p.smf_success_rate ?? 0,
+        amfRegRequests: p.amf_reg_requests ?? 0,
+        smfPduRequests: p.smf_pdu_requests ?? 0,
+        iotRegRate: p.iot_reg_rate ?? 0,
+        tocRegRate: p.toc_reg_rate ?? 0,
+        iotSessRate: p.iot_sess_rate ?? 0,
+        tocSessRate: p.toc_sess_rate ?? 0,
+        amfCpu: p.amf_cpu ?? 0,
+        smfCpu: p.smf_cpu ?? 0,
+        linkAnomalies: (p.link_anomalies ?? []).map((a: { src: string; dst: string; success_rate: number }) => ({
+          src: a.src, dst: a.dst, successRate: a.success_rate,
+        })),
+      };
+      // 滚动历史(sparkline 用),cap 60
+      st.amfSrHist = [...st.amfSrHist, st.liveKpi.amfSuccessRate].slice(-60);
+      st.smfSrHist = [...st.smfSrHist, st.liveKpi.smfSuccessRate].slice(-60);
+      break;
+    }
     case "reasoning_step":
       st.recentSteps.push(ev.payload as ReasonStep);
       break;

@@ -44,6 +44,21 @@ export function KpiStrip({ scenario, state }: { scenario: Scenario; state: Story
       <line x1={curX} y1={0} x2={curX} y2={H} stroke="var(--text-bright)" strokeWidth={0.5} opacity={0.5} />
     </svg>
   );
+  // LIVE 滚动历史:数组长度可变,按自身长度铺满全宽,游标落在最新点
+  const sparkLive = (arr: number[], color: string) => {
+    const n = arr.length;
+    if (n < 2) return spark(arr, color);
+    const x = (i: number) => (i / (n - 1)) * W;
+    const pts = arr.map((v, i) => `${x(i).toFixed(1)},${ySr(v).toFixed(1)}`).join(" ");
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
+        <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+        <circle cx={x(n - 1)} cy={ySr(arr[n - 1])} r={1.6} fill={color} />
+        <line x1={x(n - 1)} y1={0} x2={x(n - 1)} y2={H} stroke="var(--text-bright)" strokeWidth={0.5} opacity={0.5} />
+      </svg>
+    );
+  };
+  const sparkOf = (arr: number[], color: string) => (live ? sparkLive(arr, color) : spark(arr, color));
 
   const neCpu = state.simNeCpu;
   const cpuOf = (type: string) => {
@@ -55,15 +70,22 @@ export function KpiStrip({ scenario, state }: { scenario: Scenario; state: Story
 
   const degradedCount = (graph?.flowEdges ?? []).filter((e) => kpi.edges[e.id]?.some((v) => v < kpi.threshold)).length;
   const overloadCount = isStorm ? scenario.fault.elements.length : 0;
-  const regRate = isStorm ? iotRegAt(scenario, simT) : 0;
-  const sessRate = isStorm ? sessIotAt(scenario, simT) : 0;
+
+  // LIVE 真实快照优先;否则回落 DEMO 合成曲线
+  const live = state.liveKpi;
+  const amfArr = live && state.amfSrHist && state.amfSrHist.length >= 2 ? state.amfSrHist : agg("AMF");
+  const smfArr = live && state.smfSrHist && state.smfSrHist.length >= 2 ? state.smfSrHist : agg("SMF");
+  const amfSr = live ? live.amfSuccessRate : sample(agg("AMF"), simT);
+  const smfSr = live ? live.smfSuccessRate : sample(agg("SMF"), simT);
+  const regRate = live ? (live.iotRegRate + live.tocRegRate) : (isStorm ? iotRegAt(scenario, simT) : 0);
+  const sessRate = live ? (live.iotSessRate + live.tocSessRate) : (isStorm ? sessIotAt(scenario, simT) : 0);
 
   return (
     <div style={{ borderTop: "1px solid var(--border)", background: "var(--bg-panel-solid)", padding: "6px 12px", display: "flex", gap: 10, alignItems: "stretch" }}>
       <span style={{ fontSize: 10, letterSpacing: "0.08em", color: "var(--text-soft)", fontFamily: "var(--font-mono)", alignSelf: "center", whiteSpace: "nowrap" }}>KPI T{simT.toFixed(0)}</span>
       {/* AMF注册成功率 / PDU会话建立成功率 */}
-      <KpiCard title="AMF注册成功率" value={`${(sample(agg("AMF"), simT) * 100).toFixed(2)}%`} color="#60a5fa">{spark(agg("AMF"), "#60a5fa")}</KpiCard>
-      <KpiCard title="PDU会话建立成功率" value={`${(sample(agg("SMF"), simT) * 100).toFixed(2)}%`} color="#a78bfa">{spark(agg("SMF"), "#a78bfa")}</KpiCard>
+      <KpiCard title="AMF注册成功率" value={`${(amfSr * 100).toFixed(2)}%`} color="#60a5fa">{sparkOf(amfArr, "#60a5fa")}</KpiCard>
+      <KpiCard title="PDU会话建立成功率" value={`${(smfSr * 100).toFixed(2)}%`} color="#a78bfa">{sparkOf(smfArr, "#a78bfa")}</KpiCard>
       {/* NE CPU —— G 场景过载点在 UDM(AMF/SMF 正常);其余展示 AMF/SMF/UPF */}
       <div style={{ flex: "1 1 20%", display: "flex", flexDirection: "column", padding: "3px 6px", borderLeft: "1px solid var(--border)" }}>
         <span style={{ fontSize: 8.5, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700 }}>NE CPU{isStorm ? "(过载)" : ""}</span>

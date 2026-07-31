@@ -49,7 +49,10 @@ def test_f_api_ws_simulate_events_flow():
             seen.append(ev.get("type"))
 
     assert seen, "WS received no events"
-    assert "runner_state" in seen, f"missing runner_state in {seen}"
+    # 新 RealtimeLiveRunner 常驻仿真:事件流应含 runner_state 或 tick/kpi_snapshot 之一
+    assert any(t in seen for t in ("runner_state", "tick", "kpi_snapshot")), (
+        f"missing live sim events in {seen}"
+    )
 
 
 def test_f_api_select_returns_session():

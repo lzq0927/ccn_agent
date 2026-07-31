@@ -6,7 +6,6 @@ admit_ue_request(): UE 注册/PDU 会话准入由 plugin.on_ue_request 决策。
 """
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from typing import Callable, Literal
 
