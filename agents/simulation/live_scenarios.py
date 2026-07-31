@@ -30,6 +30,8 @@ class LiveScenario:
     kpi_columns: list[str] = field(default_factory=list)
     # 恢复配方:每条 = 前端展示 {id,cn,en,layer} + 引擎策略 {policy:{kind,...}}
     recovery_actions: list[dict] = field(default_factory=list)
+    # 双轮场景:首轮「不足」的弱策略(不充分恢复 → 触发二轮);为空则首轮即用 recovery_actions
+    recovery_actions_r1: list[dict] = field(default_factory=list)
 
 
 # 默认 KPI 列(单网元/链路类场景:A/B)
@@ -61,7 +63,7 @@ SCENARIO_A = LiveScenario(
     label_en="UPF_1 MICRO-LOSS · WORKFLOW",
     short_intro="UPF_1 链路微损→PDU 会话成功率下降;隔离 UPF_1 并切换会话至 UPF_2/3 恢复",
     route_expectation="workflow",
-    fault_config=_fc(FaultPointType.SINGLE_NE, FaultMode.LINK, {"UPF_1"}, 0.035),
+    fault_config=_fc(FaultPointType.SINGLE_NE, FaultMode.LINK, {"UPF_1"}, 0.06),
     ue_count=95, iot_ratio=0.0, is_storm=False, expected_rounds=1,
     kpi_columns=list(_KPI_BASE),
     recovery_actions=[
@@ -90,6 +92,11 @@ SCENARIO_B = LiveScenario(
         {"id": "reroute_smf1", "cn": "会话切换至健康 SMF_2 接管", "en": "REROUTE TO SMF_2",
          "layer": "SMF", "policy": {"kind": "reroute", "from_ne_id": "SMF_1"}},
     ],
+    # 首轮:仅隔离未重选 → 受影响会话仍失败(SMF_1 down 无接管)→ 触发二轮补重选
+    recovery_actions_r1=[
+        {"id": "iso_smf1_r1", "cn": "[轮1] 隔离 SMF_1(未重选)", "en": "R1 ISOLATE SMF_1", "layer": "SMF",
+         "policy": {"kind": "isolate", "ne_id": "SMF_1"}},
+    ],
 )
 
 # ---------------------------------------------------------------------------
@@ -108,6 +115,8 @@ SCENARIO_C = LiveScenario(
         {"id": "user_reroute", "cn": "通知受影响 UE 换路/重选至邻区健康 gNB", "en": "USER REROUTE",
          "layer": "UE", "policy": {"kind": "reroute", "from_ne_id": "gNB_2"}},
     ],
+    # 首轮:误判为网络侧、未做用户侧重选 → 未恢复 → 二轮用户分群重选
+    recovery_actions_r1=[],
 )
 
 # ---------------------------------------------------------------------------
@@ -126,6 +135,11 @@ SCENARIO_D = LiveScenario(
     recovery_actions=[
         {"id": "ue_backoff", "cn": "对注册成功物联终端发 Reg Reject + back-off timer", "en": "UE BACKOFF",
          "layer": "UE", "policy": {"kind": "flow_control", "layer": "UE", "ratio": 0.6, "flt": {"sst": 3}}},
+    ],
+    # 首轮:back-off 比例不足(部分终端不支持)→ 未收敛 → 二轮加大 + 网络侧限流
+    recovery_actions_r1=[
+        {"id": "ue_backoff_r1", "cn": "[轮1] UE back-off(比例不足)", "en": "R1 UE BACKOFF",
+         "layer": "UE", "policy": {"kind": "flow_control", "layer": "UE", "ratio": 0.3, "flt": {"sst": 3}}},
     ],
 )
 
@@ -147,6 +161,13 @@ SCENARIO_E = LiveScenario(
          "layer": "AMF", "policy": {"kind": "flow_control", "layer": "AMF", "ratio": 0.6, "flt": {"sst": 3}}},
         {"id": "smf_dnn", "cn": "SMF 限制物联 APN/DNN 接纳 ρ=60%", "en": "SMF DNN 60%",
          "layer": "SMF", "policy": {"kind": "flow_control", "layer": "SMF", "ratio": 0.6, "flt": {"dnn": "iot"}}},
+    ],
+    # 首轮:UE back-off 失效 → 网络侧限流比例不足 → 未收敛 → 二轮加大双通道限流
+    recovery_actions_r1=[
+        {"id": "amf_nssai_r1", "cn": "[轮1] AMF NSSAI 限流(比例不足)", "en": "R1 AMF NSSAI",
+         "layer": "AMF", "policy": {"kind": "flow_control", "layer": "AMF", "ratio": 0.3, "flt": {"sst": 3}}},
+        {"id": "smf_dnn_r1", "cn": "[轮1] SMF DNN 限流(比例不足)", "en": "R1 SMF DNN",
+         "layer": "SMF", "policy": {"kind": "flow_control", "layer": "SMF", "ratio": 0.3, "flt": {"dnn": "iot"}}},
     ],
 )
 
@@ -171,6 +192,15 @@ SCENARIO_F = LiveScenario(
         {"id": "smf_dnn", "cn": "SMF DNN 接纳 ρ=52%", "en": "SMF DNN 52%",
          "layer": "SMF", "policy": {"kind": "flow_control", "layer": "SMF", "ratio": 0.52, "flt": {"dnn": "iot"}}},
     ],
+    # 首轮:3 策略全下但 iPhone 不支持 back-off 立即重试放大风暴(限流比例不足)→ 未收敛
+    recovery_actions_r1=[
+        {"id": "ue_backoff_r1", "cn": "[轮1] UE back-off(iPhone 放大)", "en": "R1 UE BACKOFF",
+         "layer": "UE", "policy": {"kind": "flow_control", "layer": "UE", "ratio": 0.3, "flt": {"sst": 3}}},
+        {"id": "amf_nssai_r1", "cn": "[轮1] AMF NSSAI(比例不足)", "en": "R1 AMF NSSAI",
+         "layer": "AMF", "policy": {"kind": "flow_control", "layer": "AMF", "ratio": 0.3, "flt": {"sst": 3}}},
+        {"id": "smf_dnn_r1", "cn": "[轮1] SMF DNN(比例不足)", "en": "R1 SMF DNN",
+         "layer": "SMF", "policy": {"kind": "flow_control", "layer": "SMF", "ratio": 0.3, "flt": {"dnn": "iot"}}},
+    ],
 )
 
 # ---------------------------------------------------------------------------
@@ -191,6 +221,13 @@ SCENARIO_G = LiveScenario(
          "layer": "AMF", "policy": {"kind": "flow_control", "layer": "AMF", "ratio": 0.55, "flt": {"sst": 3}}},
         {"id": "smf_dnn", "cn": "SMF 限 DNN=MIot 接纳 + 回 UE T3396", "en": "SMF DNN + T3396",
          "layer": "SMF", "policy": {"kind": "flow_control", "layer": "SMF", "ratio": 0.5, "flt": {"dnn": "iot"}}},
+    ],
+    # 首轮:部分终端不支持 T3346 立即重试 → 限流比例不足 → UDM 仍过载 → 二轮差值重算
+    recovery_actions_r1=[
+        {"id": "amf_nssai_r1", "cn": "[轮1] AMF NSSAI(比例不足)", "en": "R1 AMF NSSAI",
+         "layer": "AMF", "policy": {"kind": "flow_control", "layer": "AMF", "ratio": 0.3, "flt": {"sst": 3}}},
+        {"id": "smf_dnn_r1", "cn": "[轮1] SMF DNN(比例不足)", "en": "R1 SMF DNN",
+         "layer": "SMF", "policy": {"kind": "flow_control", "layer": "SMF", "ratio": 0.3, "flt": {"dnn": "iot"}}},
     ],
 )
 

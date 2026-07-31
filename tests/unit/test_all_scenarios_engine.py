@@ -38,3 +38,36 @@ def test_scenario_normal_then_fault_then_policy(sid):
     # 策略执行后不崩,SR 有限(单网元类应恢复;风暴类至少不更差)
     post_reg, post_pdu = engine._success_rates()  # noqa: SLF001
     assert 0.0 <= post_reg <= 1.0 and 0.0 <= post_pdu <= 1.0
+
+
+def test_two_round_recipe_weak_then_full():
+    """双轮场景(F):首轮弱策略不充分恢复,二轮完整策略恢复(round_no 控制)。"""
+    from agents.simulation.live_scenarios import SCENARIO_F
+
+    scen = SCENARIO_F
+    # 首轮用 r1(弱),二轮用 recovery_actions(完整)
+    a1 = resolve_policy_actions(scen, diagnosis=None, round_no=1)
+    a2 = resolve_policy_actions(scen, diagnosis=None, round_no=2)
+    assert a1 != a2, "round-1 and round-2 recipes should differ"
+    # 首轮 ratio 应整体小于二轮
+    r1_max = max((p.ratio for p in a1 if p.kind == "flow_control"), default=0)
+    r2_max = max((p.ratio for p in a2 if p.kind == "flow_control"), default=0)
+    assert r1_max < r2_max, f"round-1 ({r1_max}) should be weaker than round-2 ({r2_max})"
+
+    # 引擎层面:首轮弱策略 → 未恢复;追加二轮完整策略 → 恢复
+    e = RealtimeEngine(scenario=scen, seed=77)
+    for i in range(1, 16):
+        e.advance_tick(i)
+    e.inject_fault(scen.fault_config)
+    for i in range(16, 30):
+        e.advance_tick(i)
+
+    e.apply_policy(a1)
+    for i in range(30, 46):
+        e.advance_tick(i)
+    assert e.is_recovered() is False, "round-1 weak policy should NOT recover"
+
+    e.apply_policy(a2)
+    for i in range(46, 62):
+        e.advance_tick(i)
+    assert e.is_recovered() is True, "round-2 full policy should recover"

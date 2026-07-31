@@ -127,6 +127,8 @@ class RealtimeEngine:
         self._win_reg: deque[tuple[int, int]] = deque(maxlen=_ROLLING_WINDOW)  # (req, succ)
         self._win_pdu: deque[tuple[int, int]] = deque(maxlen=_ROLLING_WINDOW)
         self._win_touch: deque[dict[str, int]] = deque(maxlen=_ROLLING_WINDOW)
+        # 每有向链路逐 tick 的 (att,succ) 滚动窗口 → 稳定的局向 KPI(避免单 tick 小样本抖动)
+        self._win_link: deque[dict[tuple[str, str], list[int]]] = deque(maxlen=_ROLLING_WINDOW)
 
         # 给 Agent 的累积缓冲
         self._kpi_link: deque[dict] = deque(maxlen=_KPI_BUFFER_LINK)
@@ -293,7 +295,12 @@ class RealtimeEngine:
         nf = binding.ne.get("AMF") if proc_name == "Registration" else binding.ne.get("SMF")
         cpu = self._ne_cpu.get(nf, 0.0) if nf else 0.0
         if cpu >= 80 and self._rng.random() < (cpu - 80) / 120:
-            # 拥塞拒绝:计请求(已在上面),不计成功;发一条拒绝 CHR
+            # 拥塞拒绝:计请求(已在上面),不计成功;在 NF 的接纳自环链路记一笔失败,
+            # 让风暴期的 AMF/SMF 过载在 link KPI 可见(供 Agent 识别为 all_type_ne 过载,
+            # 而非健康链路 + 散点 CHR 的模糊信号)
+            if nf:
+                a = self._tick_link.setdefault((nf, nf), [0, 0])
+                a[0] += 1  # attempts++, successes 不增 → 该 NE 自环 SR 下降
             self._emit_chr(self.sim_t, binding, proc_name, 0, binding.ue_id, nf or "",
                            "Congestion Reject", True)
             return
@@ -406,15 +413,29 @@ class RealtimeEngine:
         return f"{src_type}->{dst_type}"
 
     def _accumulate_kpi_rows(self, sim_t: int) -> None:
-        # link 级(本 tick 每有向链路一行)
-        for (src, dst), (att, succ) in self._tick_link.items():
+        # 把本 tick 每有向链路计数压入滚动窗口,再聚合成稳定 SR(单 tick 小样本会抖动)
+        self._win_link.append({k: list(v) for k, v in self._tick_link.items()})
+        agg: dict[tuple[str, str], list[int]] = {}
+        for tick_links in self._win_link:
+            for (s, d), (att, succ) in tick_links.items():
+                a = agg.setdefault((s, d), [0, 0])
+                a[0] += att
+                a[1] += succ
+        # link 级(每有向链路一行,滚动窗口稳定 SR)—— Agent 单网元定位的主要信号源
+        for (src, dst), (att, succ) in agg.items():
             sr = succ / att if att else 1.0
             self._kpi_link.append({
                 "timestamp": sim_t, "level": "link", "ue_id": "", "src": src, "dst": dst,
                 "success_rate": round(sr, 6), "procedure": "live",
             })
-        # trace 级:从 CHR buffer 取本 tick 的失败跳作为异常 trace(采样)
-        # (trace 级 KPI 主要给 Agent 做单网元定位;这里以 CHR 失败跳近似)
+        # session 级(本 tick 整体成功率)—— 供严重度/时序特征
+        total_req = self._tick_reg_req + self._tick_pdu_req
+        total_succ = self._tick_reg_succ + self._tick_pdu_succ
+        if total_req > 0:
+            self._kpi_trace.append({
+                "timestamp": sim_t, "level": "session", "ue_id": "", "src": "", "dst": "",
+                "success_rate": round(total_succ / total_req, 6), "procedure": "live",
+            })
 
     # ------------------------------------------------------------------
     # 故障注入 / 策略执行 / 恢复判定
@@ -531,12 +552,16 @@ class RealtimeEngine:
         return dict(self._ne_cpu)
 
     def snapshot_for_agent(self) -> dict:
-        """组装 Agent CaseData 材料(KPI/CHR/拓扑/真值)。"""
+        """组装 Agent CaseData 材料(KPI/CHR/拓扑/真值)。
+
+        link KPI 取最近 ~6 tick 的稳定(SR 已按滚动窗口聚合,非单 tick 抖动)行,
+        兼顾 anomaly_ratio 不被过度稀释与时序特征;session 级保留全部。
+        """
         ground_truth = {"fault_elements": [], "fault_links": []}
         if self.fault:
             ground_truth["fault_elements"] = sorted(self.fault.affected_ne_ids or [])
         return {
-            "kpi_rows": list(self._kpi_link) + list(self._kpi_trace),
+            "kpi_rows": list(self._kpi_link)[-90:] + list(self._kpi_trace),
             "chr_records": list(self._chr_buffer),
             "topology_text": render_topo_text(self.topology),
             "process_text": _PROCESS_TEXT,

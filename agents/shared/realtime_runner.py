@@ -70,6 +70,7 @@ class RealtimeLiveRunner:
         sim_window: int = 120,
         reasoning_step_delay: float = 0.3,
         recovery_action_delay: float = 0.3,
+        post_policy_settle: float = 2.5,
     ):
         self.session_id = session_id
         self.scenario = scenario
@@ -79,6 +80,7 @@ class RealtimeLiveRunner:
         self.sim_window = sim_window
         self.reasoning_step_delay = reasoning_step_delay
         self.recovery_action_delay = recovery_action_delay
+        self.post_policy_settle = post_policy_settle
 
         self.engine = RealtimeEngine(scenario=scenario, seed=hash(session_id) & 0xFFFF)
         self.engine.round = 1
@@ -223,10 +225,14 @@ class RealtimeLiveRunner:
 
     async def handle_apply_policy(self) -> None:
         self._set_state("recovering")
-        actions = resolve_policy_actions(self.scenario, self._last_diagnosis)
+        # 轮次感知:首轮用弱策略 recovery_actions_r1(若定义),二轮用完整 recovery_actions
+        actions = resolve_policy_actions(self.scenario, self._last_diagnosis, round_no=self._round)
         self.engine.apply_policy(actions)
         self._set_phase(5)  # 下发策略
-        for rec in self.scenario.recovery_actions:
+        recipe = self.scenario.recovery_actions_r1 if (
+            self._round == 1 and self.scenario.recovery_actions_r1
+        ) else self.scenario.recovery_actions
+        for rec in recipe:
             self._publish("recovery_action", {
                 "id": rec.get("id", ""), "cn": rec.get("cn", ""), "en": rec.get("en", ""),
                 "layer": rec.get("layer"), "ts": 0, "round": self._round,
@@ -246,7 +252,29 @@ class RealtimeLiveRunner:
     async def handle_evaluate(self) -> None:
         self._set_state("evaluating")
         self._set_phase(7)  # 评估优化
+        # 等常驻循环把策略效果刷进滚动窗口
+        await asyncio.sleep(self.post_policy_settle)
         recovered = self.engine.is_recovered()
+
+        # 双轮场景:首轮弱策略未恢复 → 自动进二轮(重诊 + 精调策略)
+        if (
+            not recovered
+            and self._round < self.scenario.expected_rounds
+            and self.scenario.recovery_actions_r1 is not None
+            and (self._round == 1 or self.scenario.recovery_actions_r1)
+        ):
+            self._round += 1
+            self.engine.round = self._round
+            self._publish("confidence_low", {
+                "score": float(getattr(self._last_diagnosis, "confidence", 0.0)) if self._last_diagnosis else 0.0,
+                "current_attempt": self._round - 1, "hint": "round2_refine",
+            })
+            self._publish("round_change", {"round": self._round})
+            await self.handle_diagnose()       # 二轮重诊
+            await self.handle_apply_policy()   # 二轮精调策略
+            await asyncio.sleep(self.post_policy_settle)
+            recovered = self.engine.is_recovered()
+
         report = _build_evaluation(self.scenario, self._last_diagnosis, recovered, self._round, self.engine)
         self._publish("evaluation_report", report)
         if self.recorder is not None:

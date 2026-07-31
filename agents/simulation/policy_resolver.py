@@ -24,11 +24,18 @@ logger = logging.getLogger(__name__)
 def resolve_policy_actions(
     scenario: "LiveScenario",
     diagnosis: "DiagnosisResult | None",
+    round_no: int = 2,
 ) -> list[PolicyAction]:
+    """把诊断翻译成 PolicyAction。
+
+    ``round_no=1`` 且场景定义了 ``recovery_actions_r1``(弱策略)时用首轮配方;
+    否则用 ``recovery_actions``(完整/二轮)。
+    """
     actions: list[PolicyAction] = []
     diag_elements = set(getattr(diagnosis, "fault_elements", []) or []) if diagnosis else set()
+    recipe = scenario.recovery_actions_r1 if (round_no == 1 and scenario.recovery_actions_r1) else scenario.recovery_actions
 
-    for rec in scenario.recovery_actions:
+    for rec in recipe:
         pol = rec.get("policy") or {}
         kind = pol.get("kind", "")
         if kind == "isolate":
@@ -44,8 +51,8 @@ def resolve_policy_actions(
                 kind="flow_control", layer=pol.get("layer", ""),
                 ratio=float(pol.get("ratio", 0.0)), flt=dict(pol.get("flt", {})),
             ))
-    logger.info("scenario %s: resolved %d policy actions from diagnosis %s",
-                scenario.id, len(actions), sorted(diag_elements))
+    logger.info("scenario %s round%d: resolved %d policy actions from diagnosis %s",
+                scenario.id, round_no, len(actions), sorted(diag_elements))
     return actions
 
 

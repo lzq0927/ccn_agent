@@ -47,7 +47,7 @@ def _make_runner(bus, tmp_path=None, tick_interval=0.004, sim_window=10000):
     runner = RealtimeLiveRunner(
         session_id="sess_test", scenario=SCENARIO_A, bus=bus, storage=None,
         recorder=None, tick_interval=tick_interval, sim_window=sim_window,
-        reasoning_step_delay=0.0, recovery_action_delay=0.0,
+        reasoning_step_delay=0.0, recovery_action_delay=0.0, post_policy_settle=0.0,
     )
     # 桩掉真 Agent 构造(注入 progress 回调,模拟真 Agent 的流式事件)
     runner.diagnoser._build_agent = lambda: _FakeAgent(runner.diagnoser._on_progress)  # noqa: SLF001

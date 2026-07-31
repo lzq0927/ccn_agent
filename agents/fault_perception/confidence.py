@@ -258,8 +258,15 @@ class ConfidenceAssessor:
                 or features.chr_failure_concentration > 0.6
             )
             layer_inconsistency = features.anomaly_ratio < 0.02 and chr_fail_rate > 0.005
+            # KPI 已是清晰的单网元故障( severity ≥ 3% )时,无需走 CHR 探索——探索是给
+            # 微损/信号模糊场景的。避免把清晰的 single_ne 误导入 exploration(过度召回)。
+            clear_single_ne = (
+                features.pattern_match == "single_ne" and features.anomaly_severity >= 0.03
+            )
             features.exploration_trigger = bool(
-                signal_present and (micro_loss or user_concentration or layer_inconsistency)
+                signal_present
+                and (micro_loss or user_concentration or layer_inconsistency)
+                and not clear_single_ne
             )
 
         return features
