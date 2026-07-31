@@ -16,6 +16,7 @@ import { GuidedStage } from "./components/Guide/GuidedStage";
 import { useLiveClock } from "./story/useLiveClock";
 import { applyEvent, type LiveState } from "./story/liveBus";
 import { getCapabilities, openLiveSocket, selectScenario, control } from "./api/live";
+import { walkStops } from "./story/director";
 import type { StoryState } from "./story/types";
 
 type Mode = "demo" | "live";
@@ -135,6 +136,19 @@ export default function App() {
   const state = isLive ? mergeLive(demoClock.state, liveClock.state) : demoClock.state;
   const playheadRef = isLive ? liveClock.playheadRef : demoClock.playheadRef;
 
+  // LIVE:后端 phase_change 驱动 DEMO 时钟定位到对应相位(不动画),
+  // 让 DEMO 派生的拓扑 twinMode / 受影响 NE 高亮 / headline 等 visuals 与当前阶段一致。
+  const livePhase = liveClock.state.phaseIndex;
+  const liveRound = liveClock.state.round;
+  useEffect(() => {
+    if (!isLive) return;
+    const stops = walkStops(scenario);
+    const stop = stops.find((s) => s.phase === livePhase && s.round === liveRound)
+      ?? stops.find((s) => s.phase === livePhase);
+    if (stop) demoClock.seekGlobal(stop.time / demoClock.duration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, livePhase, liveRound, scenario.id]);
+
   // LIVE:圆圈点击触发后端阶段(注入故障 / 诊断 / 下发策略 / 评估)
   const onPhaseTrigger = (phase: number) => {
     if (!isLive || !liveSessionId) return;
@@ -172,6 +186,7 @@ export default function App() {
               onPlayUntil={(t) => demoClock.playUntil(t)}
               onSeekTime={(t) => demoClock.seekGlobal(t / demoClock.duration)}
               onPhaseTrigger={onPhaseTrigger}
+              isLive={isLive}
             />
           </div>
         </div>

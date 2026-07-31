@@ -19,8 +19,9 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
   const kpi = getKpi(scenario);
   const simT = state.simT;
   const isStorm = scenario.fault.faultType === "iot_storm";
+  const live = state.liveKpi;  // LIVE 真实快照(有则优先用真实链路/SR;无则回落 DEMO 合成)
   // 非风暴(A/B/C):无请求数突增 → 多条路径 KPI 突降 + (B/C)CHR 突增/分散
-  if (!isStorm) return <NonStormAnomaly scenario={scenario} state={state} kpi={kpi} simT={simT} />;
+  if (!isStorm) return <NonStormAnomaly scenario={scenario} state={state} kpi={kpi} simT={simT} live={live} />;
   const graph = scenario.realGraph;
   const curI = Math.min(Math.max(Math.floor(simT) - 1, 0), 58);
   // AMF / SMF 聚合 SR
@@ -36,6 +37,11 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
   const maxReg = Math.max(...regRate, 200);
   const maxSess = Math.max(...sessRate, 400);
   const visN = Math.max(3, curI + 2);
+  // LIVE:SR 用真实滚动历史(amfSrHist/smfSrHist),请求数用当前实时值铺平
+  const liveAmf = live && state.amfSrHist && state.amfSrHist.length >= 2 ? state.amfSrHist : null;
+  const liveSmf = live && state.smfSrHist && state.smfSrHist.length >= 2 ? state.smfSrHist : null;
+  const liveReg = live ? Array.from({ length: Math.max(liveAmf?.length ?? 1, 1) }, () => live.iotRegRate + live.tocRegRate) : null;
+  const liveSess = live ? Array.from({ length: Math.max(liveSmf?.length ?? 1, 1) }, () => live.iotSessRate + live.tocSessRate) : null;
   // 风暴场景:故障窗口内 SR 合成下降(让曲线可见跌落)
   const dipSr = (arr: number[]) => {
     if (!isStorm) return arr;
@@ -55,8 +61,8 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
 
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
-      <DualCurve sr={dipSr(amfSr)} rate={regRate} mx={maxReg} visN={visN} srC="#60a5fa" rateC="#f59e0b" title="AMF注册成功率 + 注册请求数/s" />
-      <DualCurve sr={dipSr(smfSr)} rate={sessRate} mx={maxSess} visN={visN} srC="#a78bfa" rateC="#f59e0b" title="PDU会话建立成功率 + 会话请求数/s" />
+      <DualCurve sr={liveAmf ?? dipSr(amfSr)} rate={liveReg ?? regRate} mx={liveReg ? Math.max(liveReg[0] ?? 1, 200) : maxReg} visN={liveAmf ? liveAmf.length : visN} srC="#60a5fa" rateC="#f59e0b" title="AMF注册成功率 + 注册请求数/s" live={!!liveAmf} />
+      <DualCurve sr={liveSmf ?? dipSr(smfSr)} rate={liveSess ?? sessRate} mx={liveSess ? Math.max(liveSess[0] ?? 1, 400) : maxSess} visN={liveSmf ? liveSmf.length : visN} srC="#a78bfa" rateC="#f59e0b" title="PDU会话建立成功率 + 会话请求数/s" live={!!liveSmf} />
 
       {isStorm && scenario.stormMetrics && (() => {
         const m = scenario.stormMetrics;
@@ -77,26 +83,35 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
 }
 
 /** 非风暴场景(A/B/C)异常检测:多条路径 KPI 突降 + (B/C)CHR 突增/分散。无请求数突增线。 */
-function NonStormAnomaly({ scenario, state, kpi, simT }: { scenario: Scenario; state: StoryState; kpi: ReturnType<typeof getKpi>; simT: number }) {
+function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scenario; state: StoryState; kpi: ReturnType<typeof getKpi>; simT: number; live: StoryState["liveKpi"] }) {
   void state;
   const graph = scenario.realGraph;
-  if (!graph) return null;
-  const deg = graph.flowEdges
-    .map((e) => ({ e, sr: sample(kpi.edges[e.id] ?? [0.999], simT) }))
-    .filter((x) => x.sr < kpi.threshold)
-    .sort((a, b) => a.sr - b.sr)
-    .slice(0, 6);
+  // LIVE:用真实链路异常(linkAnomalies);DEMO:用合成 edges 按 simT 取值
+  type Row = { key: string; a: string; b: string; sr: number };
+  let deg: Row[] = [];
+  if (live) {
+    deg = (live.linkAnomalies ?? [])
+      .map((x) => ({ key: `${x.src}-${x.dst}`, a: x.src, b: x.dst, sr: x.successRate }))
+      .sort((p, q) => p.sr - q.sr)
+      .slice(0, 6);
+  } else if (graph) {
+    deg = graph.flowEdges
+      .map((e) => ({ key: e.id, a: e.a, b: e.b, sr: sample(kpi.edges[e.id] ?? [0.999], simT) }))
+      .filter((x) => x.sr < kpi.threshold)
+      .sort((a, b) => a.sr - b.sr)
+      .slice(0, 6);
+  }
   const chr = scenario.chrInsight; // B/C 有,A 无
   const isC = scenario.id === "C";
   const showChr = chr && (scenario.id === "B" || isC);
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
       <div style={{ padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.fault, fontFamily: "var(--font-mono)", marginBottom: 5 }}>📉 多条路径 KPI 突降{isC ? " · 总体微跌" : ""}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.fault, fontFamily: "var(--font-mono)", marginBottom: 5 }}>📉 多条路径 KPI 突降{isC ? " · 总体微跌" : ""}{live ? " · 实时" : ""}</div>
         {deg.length ? (
-          deg.map(({ e, sr }) => <SrBar key={e.id} a={e.a} b={e.b} sr={sr} />)
+          deg.map((r) => <SrBar key={r.key} a={r.a} b={r.b} sr={r.sr} />)
         ) : (
-          <div style={{ fontSize: 11, color: "var(--text-faint)" }}>逐链路监测中 · 暂无路径跌破 99.5%(信号模糊)</div>
+          <div style={{ fontSize: 11, color: "var(--text-faint)" }}>{live ? "实时监测中 · 暂无路径跌破 99.5%(故障未注入或信号未显现)" : "逐链路监测中 · 暂无路径跌破 99.5%(信号模糊)"}</div>
         )}
       </div>
       {showChr && (
@@ -136,10 +151,11 @@ function ChrBars({ chr, highlight }: { chr: NonNullable<Scenario["chrInsight"]>;
   );
 }
 
-/** 双曲线(SR + 请求数),实时裁剪 */
-function DualCurve({ sr, rate, mx, visN, srC, rateC, title }: { sr: number[]; rate: number[]; mx: number; visN: number; srC: string; rateC: string; title: string }) {
+/** 双曲线(SR + 请求数),实时裁剪。live=true 时按数组自身长度铺满全宽(滚动历史可变长) */
+function DualCurve({ sr, rate, mx, visN, srC, rateC, title, live }: { sr: number[]; rate: number[]; mx: number; visN: number; srC: string; rateC: string; title: string; live?: boolean }) {
   const W = 280, H = 48;
-  const xAt = (i: number) => (i / 59) * W;
+  const n = live ? Math.max(sr.length, 2) : 60;
+  const xAt = (i: number) => (i / (n - 1)) * W;
   const ySr = (v: number) => H - 3 - ((v - 0.8) / 0.2) * (H - 6);
   const yRate = (v: number) => H - 3 - (Math.min(v, mx) / mx) * (H - 6);
   return (

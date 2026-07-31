@@ -24,9 +24,11 @@ interface Props {
   onSeekTime: (t: number) => void;
   /** LIVE 模式:圆圈点击触发后端阶段动作(DEMO 模式 undefined) */
   onPhaseTrigger?: (phase: number) => void;
+  /** LIVE 模式开启:圆圈点击改为「定位+触发后端」,不再动画推进 DEMO 时间线 */
+  isLive?: boolean;
 }
 
-export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onSelectScenario, onPlayUntil, onSeekTime, onPhaseTrigger }: Props) {
+export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onSelectScenario, onPlayUntil, onSeekTime, onPhaseTrigger, isLive }: Props) {
   const stops = useMemo(() => walkStops(scenario), [scenario.id]);
   const [idx, setIdx] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -61,10 +63,20 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
   const info = PHASES[phase];
   const sr = sample(getKpi(scenario).overall, state.simT);
 
-  // 点圆圈 = playUntil + 弹出 Modal(+ LIVE 模式触发后端阶段动作)
+  // 点圆圈:DEMO=playUntil 动画推进;LIVE=定位(snap)+ 触发后端阶段(不动画,逐步生成/消费)
   const onCircleClick = (p: number, pos: { x: number; y: number }, n: number) => {
     setModalCirclePos(pos);
     setModalCircleN(n);
+    if (isLive) {
+      // LIVE:直接定位到该相位(不动画穿过其他相位)+ 触发后端
+      const first = stops.findIndex((s) => s.phase === p);
+      const target = first >= 0 ? first : idx;
+      setIdx(target);
+      if (first >= 0) onSeekTime(stops[first].time);
+      onPhaseTrigger?.(p);
+      setModalOpen(true);
+      return;
+    }
     let i = idx + 1;
     while (i < stops.length && stops[i].phase !== p) i++;
     if (i < stops.length) {

@@ -541,11 +541,21 @@ class RealtimeEngine:
             "iot_sess_rate": self._tick_iot_sess, "toc_sess_rate": self._tick_toc_sess,
             "amf_cpu": round(amf_cpu, 2), "smf_cpu": round(smf_cpu, 2),
             "ne_cpu": dict(self._ne_cpu),
-            "link_anomalies": [
-                {"src": s, "dst": d, "success_rate": round(succ / att, 4)}
-                for (s, d), (att, succ) in self._tick_link.items() if succ / (att or 1) < 0.995
-            ],
+            # 局向异常:用滚动窗口聚合(稳定),非单 tick 小样本(否则会闪烁/漏显)
+            "link_anomalies": self._rolling_link_anomalies(),
         }
+
+    def _rolling_link_anomalies(self) -> list[dict]:
+        agg: dict[tuple[str, str], list[int]] = {}
+        for tick_links in self._win_link:
+            for (s, d), (att, succ) in tick_links.items():
+                a = agg.setdefault((s, d), [0, 0])
+                a[0] += att
+                a[1] += succ
+        return [
+            {"src": s, "dst": d, "success_rate": round(succ / att, 4)}
+            for (s, d), (att, succ) in agg.items() if att and succ / att < 0.995
+        ]
 
     @property
     def ne_cpu(self) -> dict[str, float]:
