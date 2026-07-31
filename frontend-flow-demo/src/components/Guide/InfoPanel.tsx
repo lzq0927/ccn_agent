@@ -37,11 +37,11 @@ export function InfoPanel({ scenario, state, round }: Props) {
       </div>
       <div key={`${phase}-${round}`} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 14px", animation: "fpop-in 0.3s cubic-bezier(0.22,1,0.36,1)" }}>
         {phase === 2 ? <AnomalyPanel scenario={scenario} state={state} />
-          : phase === 3 ? <MatchPanel scenario={scenario} />
+          : phase === 3 ? <MatchPanel scenario={scenario} state={state} />
             : phase === 4 ? <ReasonPanel scenario={scenario} state={state} />
               : phase === 5 ? <DispatchPanel scenario={scenario} state={state} />
                 : phase === 7 && round === 1 ? <EvalFailPanel scenario={scenario} state={state} />
-                  : phase === 7 ? <EvalPanel scenario={scenario} />
+                  : phase === 7 ? <EvalPanel scenario={scenario} state={state} />
                     : <GenericBody info={info} color={ph.color} />}
       </div>
     </div>

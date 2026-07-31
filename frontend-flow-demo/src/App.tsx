@@ -33,6 +33,9 @@ function mergeLive(base: StoryState, live: LiveState): StoryState {
     liveKpi: live.liveKpi ?? base.liveKpi,
     amfSrHist: live.amfSrHist.length ? live.amfSrHist : base.amfSrHist,
     smfSrHist: live.smfSrHist.length ? live.smfSrHist : base.smfSrHist,
+    liveConfidence: live.confidence ?? base.liveConfidence,
+    evalMetrics: live.activeEvaluation ?? base.evalMetrics,
+    evalRevealed: live.activeEvaluation ? true : base.evalRevealed,
     reasoningSteps: live.recentSteps.length ? live.recentSteps : base.reasoningSteps,
     currentStep: live.recentSteps.length
       ? live.recentSteps[live.recentSteps.length - 1]
@@ -41,8 +44,6 @@ function mergeLive(base: StoryState, live: LiveState): StoryState {
     rootCause: live.activeDiagnosis
       ? { nes: live.activeDiagnosis.faultElements, links: base.rootCause.links }
       : base.rootCause,
-    evalMetrics: live.activeEvaluation ?? base.evalMetrics,
-    evalRevealed: live.activeEvaluation ? true : base.evalRevealed,
   };
 }
 

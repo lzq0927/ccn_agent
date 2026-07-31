@@ -125,11 +125,11 @@ export function StepModal({ scenario, state, round, circlePos, circleN, circles,
 function ModalBody({ scenario, state, phase, round, info }: { scenario: Scenario; state: StoryState; phase: number; round: number; info: ReturnType<typeof guideCallout> }) {
   const ph = PHASES[phase];
   if (phase === 2) return <AnomalyPanel scenario={scenario} state={state} />;
-  if (phase === 3) return <MatchPanel scenario={scenario} />;
+  if (phase === 3) return <MatchPanel scenario={scenario} state={state} />;
   if (phase === 4) return <ReasonPanel scenario={scenario} state={state} />;
   if (phase === 5) return <DispatchPanel scenario={scenario} state={state} />;
   if (phase === 7 && round === 1) return <EvalFailPanel scenario={scenario} state={state} />;
-  if (phase === 7) return <EvalPanel scenario={scenario} />;
+  if (phase === 7) return <EvalPanel scenario={scenario} state={state} />;
   // 0/1/6:通用
   return (
     <>

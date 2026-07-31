@@ -193,16 +193,20 @@ function Donut({ share, label, sub, color }: { share: number; label: string; sub
 }
 
 /* ————————————————————— ③ 策略匹配:为什么命中该策略 ————————————————————— */
-export function MatchPanel({ scenario }: { scenario: Scenario }) {
-  const c = scenario.confidence;
-  const rc = ROUTE_COLORS[c.route];
-  // 维度条已移除(太细节)
+export function MatchPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
+  // LIVE:用真 Agent 的置信度评估;DEMO:用场景手设 confidence
+  const lc = state.liveConfidence;
+  const c = lc
+    ? { score: lc.score, route: lc.route as typeof scenario.confidence.route, patternName: lc.pattern || scenario.confidence.patternName }
+    : scenario.confidence;
+  const rc = ROUTE_COLORS[c.route] ?? ROUTE_COLORS[scenario.confidence.route];
   const why = whyMatched(scenario);
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>
         <span style={{ fontSize: 22, fontWeight: 800, color: rc.base, fontFamily: "var(--font-mono)" }}>{c.score.toFixed(2)}</span>
         <span style={{ fontSize: 14, fontWeight: 800, color: rc.base }}>→ {rc.cn}</span>
+        {lc && <span style={{ fontSize: 10, color: "#7dd3fc", fontFamily: "var(--font-mono)" }}>· 实时</span>}
       </div>
       <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-soft)", marginBottom: 8 }}>{c.patternName}</div>
 
@@ -384,7 +388,37 @@ function FailRow({ label, val, detail }: { label: string; val: string; detail: s
 }
 
 /* ————————————————————— ⑦ 评估优化:沉淀 + 优化(无真值对比)————————————————————— */
-export function EvalPanel({ scenario }: { scenario: Scenario }) {
+export function EvalPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
+  // LIVE:state.evalMetrics 带 metrics 字段(后端 evaluation_report 形状)→ 显示真实恢复+P/R/F1
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const liveRep: any = state.evalMetrics && (state.evalMetrics as any).metrics ? state.evalMetrics : null;
+  if (liveRep) {
+    const m = liveRep.metrics;
+    const ce = liveRep.case_entry ?? {};
+    const recovered: boolean = !!liveRep.recovered;
+    return (
+      <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
+        <div style={{ padding: "8px 10px", borderRadius: 7, border: `1px solid ${recovered ? "rgba(34,197,94,0.4)" : "rgba(245,158,11,0.4)"}`, background: recovered ? "rgba(34,197,94,0.06)" : "rgba(245,158,11,0.06)", marginBottom: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: recovered ? STATUS.healthy : "#fbbf24", fontFamily: "var(--font-mono)", marginBottom: 5 }}>{recovered ? "✓ 网络已恢复" : "⚠ 未恢复"} · 实时评估</div>
+          <div style={{ display: "flex", gap: 10, fontSize: 12, fontFamily: "var(--font-mono)" }}>
+            <span>精确 <b style={{ color: STATUS.healthy }}>{((m.precision ?? 0) * 100).toFixed(0)}%</b></span>
+            <span>召回 <b style={{ color: STATUS.healthy }}>{((m.recall ?? 0) * 100).toFixed(0)}%</b></span>
+            <span>F1 <b style={{ color: STATUS.healthy }}>{(m.f1 ?? 0).toFixed(2)}</b></span>
+          </div>
+          {liveRep.amf_success_rate != null && (
+            <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, fontFamily: "var(--font-mono)" }}>
+              AMF 注册 SR {(liveRep.amf_success_rate * 100).toFixed(2)}% · SMF PDU SR {(liveRep.smf_success_rate * 100).toFixed(2)}%
+            </div>
+          )}
+          {ce.truth && (
+            <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>
+              诊断 <b style={{ color: "#c4b5fd" }}>{(ce.predicted ?? []).join(",") || "—"}</b> · 真值 <b style={{ color: "#7dd3fc" }}>{(ce.truth ?? []).join(",")}</b> {m.exact_match ? "✓ 精确匹配" : "~ 部分匹配"}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   const sk = scenario.skillEvolution;
   const rep = scenario.faultReport;
   return (

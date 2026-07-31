@@ -29,6 +29,8 @@ export interface LiveState {
   recoveryActions: RecoveryAction[];
   activeDiagnosis: { faultElements: string[]; faultType: string; confidence: number; route: string } | null;
   activeEvaluation: EvalMetrics | null;
+  /** LIVE Agent 的置信度评估(confidence_assessment 事件) */
+  confidence: { score: number; route: string; pattern: string } | null;
   userBreakdown: UserBreakdown | null;
   error: { source: string; message: string; fatal: boolean } | null;
 }
@@ -57,6 +59,7 @@ const _initial = (sid: string, scn: string): LiveState => ({
   recoveryActions: [],
   activeDiagnosis: null,
   activeEvaluation: null,
+  confidence: null,
   userBreakdown: null,
   error: null,
 });
@@ -118,8 +121,13 @@ export function applyEvent(sid: string, scn: string, ev: { type: string; payload
       st.recentSteps.push(ev.payload as ReasonStep);
       break;
     case "confidence_assessment":
-      // 推 phaseIndex=3 (策略匹配)
+      // 推 phaseIndex=3 (策略匹配)+ 记录真 Agent 置信度/路由/模式
       st.phaseIndex = 3;
+      st.confidence = {
+        score: ev.payload.score ?? 0,
+        route: ev.payload.route ?? "workflow",
+        pattern: (ev.payload.matched_patterns?.[0] ?? ev.payload.breakdown?.patternName ?? ""),
+      };
       break;
     case "diagnosis_complete":
       st.activeDiagnosis = {

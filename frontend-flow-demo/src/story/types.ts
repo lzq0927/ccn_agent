@@ -78,6 +78,8 @@ export interface StoryState {
   };
   amfSrHist?: number[]; // LIVE AMF 注册成功率滚动历史(sparkline)
   smfSrHist?: number[]; // LIVE SMF PDU 成功率滚动历史
+  /** LIVE 真 Agent 置信度评估(DEMO 模式 undefined → 用 scenario.confidence) */
+  liveConfidence?: { score: number; route: string; pattern: string };
 
   // —— 用户级韧性 × 网络自治 · 扩展派生态(确定性，随相位揭示)——
   currentStep: ReasonStep | null; // 当前执行中的推理步(最后揭示的一步)
