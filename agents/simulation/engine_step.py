@@ -62,8 +62,12 @@ class EngineStepper:
         return self._speed
 
     async def sleep(self) -> None:
-        """按 base_interval / speed 等待(供 LiveRunner 主循环调)。"""
+        """按 base_interval / speed 等待(供 LiveRunner 主循环调)。
+
+        interval=0 时仍 ``await asyncio.sleep(0)`` 让出控制权——否则常驻 tick 循环
+        会独占事件循环,卡死 WS / 控制请求。"""
         if self.base_interval <= 0:
+            await asyncio.sleep(0)
             return
         await asyncio.sleep(self.base_interval / self._speed)
 

@@ -83,28 +83,40 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
 }
 
 /** 非风暴场景(A/B/C)异常检测:多条路径 KPI 突降 + (B/C)CHR 突增/分散。无请求数突增线。
- *  DEMO 画时序曲线(A/B=最劣化路径;C=整网总体微跌);LIVE 用实时快照条。 */
+ *  DEMO 画合成时序曲线;LIVE 用实时累积的每链路 SR 时序画曲线(逐步揭示,非瞬时)。 */
 function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scenario; state: StoryState; kpi: ReturnType<typeof getKpi>; simT: number; live: StoryState["liveKpi"] }) {
-  void state;
   const graph = scenario.realGraph;
   const isC = scenario.id === "C";
   const chr = scenario.chrInsight; // B/C 有,A 无
   const showChr = chr && (scenario.id === "B" || isC);
 
-  // LIVE:当前快照(条形)
-  type Row = { key: string; a: string; b: string; sr: number };
-  let deg: Row[] = [];
-  if (live) {
-    deg = (live.linkAnomalies ?? [])
-      .map((x) => ({ key: `${x.src}-${x.dst}`, a: x.src, b: x.dst, sr: x.successRate }))
-      .sort((p, q) => p.sr - q.sr)
-      .slice(0, 6);
-  }
+  const PAL = ["#60a5fa", "#a78bfa", "#f472b6", "#facc15"];
+
+  // LIVE:从 state.linkHist(每链路 SR 时序)挑最劣化的几条画曲线 + 当前值条
+  const linkHist = state.linkHist ?? {};
+  const livePaths: { label: string; series: number[]; color: string }[] = live
+    ? Object.entries(linkHist)
+        .map(([id, series]) => ({
+          label: id.replace("->", "↔"),
+          series,
+          min: series.length ? Math.min(...series) : 1,
+          len: series.length,
+        }))
+        .filter((p) => p.len >= 2)
+        .sort((a, b) => a.min - b.min)
+        .slice(0, 4)
+        .map((p, i) => ({ label: p.label, series: p.series, color: PAL[i % PAL.length] }))
+    : [];
+  const liveBars = live
+    ? (live.linkAnomalies ?? [])
+        .map((x) => ({ key: `${x.src}-${x.dst}`, a: x.src, b: x.dst, sr: x.successRate }))
+        .sort((p, q) => p.sr - q.sr)
+        .slice(0, 4)
+    : [];
 
   // DEMO:挑要画的时序曲线(A/B=最劣化路径 top3;C=整网总体微跌)
-  const PAL = ["#60a5fa", "#a78bfa", "#f472b6", "#facc15"];
   const visN = Math.max(3, Math.min(60, Math.floor(simT) + 1));
-  let paths: { label: string; series: number[]; color: string }[] = [];
+  let demoPaths: { label: string; series: number[]; color: string }[] = [];
   let noPathNote = "";
   if (!live && graph) {
     const cand = graph.flowEdges
@@ -114,10 +126,9 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
       .slice(0, 3)
       .map((p, i) => ({ label: p.label, series: p.series, color: PAL[i % PAL.length] }));
     if (cand.length) {
-      paths = cand;
+      demoPaths = cand;
     } else {
-      // C 等:无单路径劣化 → 画整网总体(微跌),并标注各链路健康
-      paths = [{ label: "整网总体 SR", series: kpi.overall, color: PAL[0] }];
+      demoPaths = [{ label: "整网总体 SR", series: kpi.overall, color: PAL[0] }];
       noPathNote = "各链路均 ≥99.5% · 无明显路径异常 · 总体微跌 · 信号模糊";
     }
   }
@@ -125,16 +136,23 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
       <div style={{ padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}>
-        <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.fault, fontFamily: "var(--font-mono)", marginBottom: 5 }}>📉 多条路径 KPI 突降{isC ? " · 总体微跌" : ""}{live ? " · 实时" : ""}</div>
+        <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.fault, fontFamily: "var(--font-mono)", marginBottom: 5 }}>📉 多条路径 KPI 突降{isC ? " · 总体微跌" : ""}{live ? " · 实时累积" : ""}</div>
         {live ? (
-          deg.length ? (
-            deg.map((r) => <SrBar key={r.key} a={r.a} b={r.b} sr={r.sr} />)
+          livePaths.length ? (
+            <>
+              <MultiPathKpi paths={livePaths} threshold={kpi.threshold} visN={60} live />
+              {liveBars.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  {liveBars.map((r) => <SrBar key={r.key} a={r.a} b={r.b} sr={r.sr} />)}
+                </div>
+              )}
+            </>
           ) : (
-            <div style={{ fontSize: 11, color: "var(--text-faint)" }}>实时监测中 · 暂无路径跌破 99.5%(故障未注入或信号未显现)</div>
+            <div style={{ fontSize: 11, color: "var(--text-faint)" }}>实时监测中 · 等待仿真数据累积(故障未注入或信号未显现)</div>
           )
         ) : (
           <>
-            <MultiPathKpi paths={paths} threshold={kpi.threshold} visN={visN} />
+            <MultiPathKpi paths={demoPaths} threshold={kpi.threshold} visN={visN} />
             {noPathNote && <div style={{ fontSize: 10.5, color: "var(--text-faint)", marginTop: 4 }}>{noPathNote}</div>}
           </>
         )}
@@ -149,19 +167,23 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
   );
 }
 
-/** 多路径 KPI 时序曲线(DEMO):若干路径 SR 随时间,叠阈值线,裁剪到 visN(逐步揭示) */
-function MultiPathKpi({ paths, threshold, visN }: { paths: { label: string; series: number[]; color: string }[]; threshold: number; visN: number }) {
+/** 多路径 KPI 时序曲线。DEMO:裁剪到 visN(逐步揭示,固定 60 长度);
+ *  LIVE(live=true):按每条 series 自身长度铺满全宽(滚动历史可变长,逐步累积)。 */
+function MultiPathKpi({ paths, threshold, visN, live }: { paths: { label: string; series: number[]; color: string }[]; threshold: number; visN: number; live?: boolean }) {
   const W = 280, H = 72, yMin = 0.95;
-  const xAt = (i: number) => (i / 59) * W;
+  const xAt = (i: number, len: number) => (i / Math.max(len - 1, 1)) * W;
   const yAt = (v: number) => { const c = Math.max(yMin, Math.min(1, v)); return H - 4 - ((c - yMin) / (1 - yMin)) * (H - 8); };
   const yTh = yAt(threshold);
   return (
     <div style={{ marginTop: 4 }}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
         <line x1={0} x2={W} y1={yTh} y2={yTh} stroke="rgba(239,68,68,0.5)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
-        {paths.map((p) => (
-          <polyline key={p.label} points={p.series.slice(0, visN).map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ")} fill="none" stroke={p.color} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
-        ))}
+        {paths.map((p) => {
+          const s = live ? p.series : p.series.slice(0, visN);
+          return (
+            <polyline key={p.label} points={s.map((v, i) => `${xAt(i, live ? s.length : 60).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ")} fill="none" stroke={p.color} strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+          );
+        })}
       </svg>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 8px", fontSize: 9, fontFamily: "var(--font-mono)", marginTop: 2 }}>
         {paths.map((p) => (

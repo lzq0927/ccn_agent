@@ -25,6 +25,8 @@ export interface LiveState {
   liveKpi: LiveKpi | null;
   amfSrHist: number[];
   smfSrHist: number[];
+  /** 每条有向链路的 SR 滚动时序(画「路径 KPI 曲线」用),cap 60 */
+  linkHist: Record<string, number[]>;
   recentSteps: ReasonStep[];
   recoveryActions: RecoveryAction[];
   activeDiagnosis: { faultElements: string[]; faultType: string; confidence: number; route: string } | null;
@@ -55,6 +57,7 @@ const _initial = (sid: string, scn: string): LiveState => ({
   liveKpi: null,
   amfSrHist: [],
   smfSrHist: [],
+  linkHist: {},
   recentSteps: [],
   recoveryActions: [],
   activeDiagnosis: null,
@@ -115,6 +118,15 @@ export function applyEvent(sid: string, scn: string, ev: { type: string; payload
       // 滚动历史(sparkline 用),cap 60
       st.amfSrHist = [...st.amfSrHist, st.liveKpi.amfSuccessRate].slice(-60);
       st.smfSrHist = [...st.smfSrHist, st.liveKpi.smfSuccessRate].slice(-60);
+      // 每条链路 SR 时序(画路径 KPI 曲线),cap 60;只保留近 12 条链路避免无限增长
+      const lsr: Record<string, number> = p.link_sr ?? {};
+      const next: Record<string, number[]> = {};
+      const ids = Object.keys(lsr);
+      for (const id of ids) {
+        const prev = st.linkHist[id] ?? [];
+        next[id] = [...prev, lsr[id]].slice(-60);
+      }
+      st.linkHist = next;
       break;
     }
     case "reasoning_step":

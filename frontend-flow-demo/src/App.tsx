@@ -21,18 +21,22 @@ import type { StoryState } from "./story/types";
 
 type Mode = "demo" | "live";
 
-/** LIVE 事件覆盖到 DEMO 底板 —— 只覆盖后端确实推过的字段,其余保留确定性派生值 */
+/** LIVE 事件覆盖到 DEMO 底板 —— 只覆盖后端确实推过的字段,其余保留确定性派生值。
+ *  注意:phaseIndex 不取 live.phaseIndex —— 后端 phase_change 异步到达会滞后于点击,
+ *  导致弹窗显示「上一个相位」(点异常检测显示数据采集…)。相位由圆圈点击直接驱动
+ *  (GuidedStage 定位 demoClock → base.phaseIndex),后端只负责产出数据事件。 */
 function mergeLive(base: StoryState, live: LiveState): StoryState {
   return {
     ...base,
     scenarioId: live.scenarioId || base.scenarioId,
-    phaseIndex: live.phaseIndex || base.phaseIndex,
+    phaseIndex: base.phaseIndex,
     round: live.round ?? base.round,
     simT: live.simT || base.simT,
     simNeCpu: Object.keys(live.simNeCpu).length ? live.simNeCpu : base.simNeCpu,
     liveKpi: live.liveKpi ?? base.liveKpi,
     amfSrHist: live.amfSrHist.length ? live.amfSrHist : base.amfSrHist,
     smfSrHist: live.smfSrHist.length ? live.smfSrHist : base.smfSrHist,
+    linkHist: live.linkHist ?? base.linkHist,
     liveConfidence: live.confidence ?? base.liveConfidence,
     evalMetrics: live.activeEvaluation ?? base.evalMetrics,
     evalRevealed: live.activeEvaluation ? true : base.evalRevealed,
@@ -137,18 +141,16 @@ export default function App() {
   const state = isLive ? mergeLive(demoClock.state, liveClock.state) : demoClock.state;
   const playheadRef = isLive ? liveClock.playheadRef : demoClock.playheadRef;
 
-  // LIVE:后端 phase_change 驱动 DEMO 时钟定位到对应相位(不动画),
-  // 让 DEMO 派生的拓扑 twinMode / 受影响 NE 高亮 / headline 等 visuals 与当前阶段一致。
-  const livePhase = liveClock.state.phaseIndex;
-  const liveRound = liveClock.state.round;
+  // LIVE:仅在 session 建立时定位到「数据采集」相位(phase 1)——之后完全由圆圈点击驱动
+  // (GuidedStage 定位 demoClock)。不在每次后端 phase_change 时定位 —— 那会异步滞后,
+  // 导致弹窗显示上一个相位(点异常检测却显示数据采集)。
   useEffect(() => {
     if (!isLive) return;
     const stops = walkStops(scenario);
-    const stop = stops.find((s) => s.phase === livePhase && s.round === liveRound)
-      ?? stops.find((s) => s.phase === livePhase);
+    const stop = stops.find((s) => s.phase === 1);
     if (stop) demoClock.seekGlobal(stop.time / demoClock.duration);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLive, livePhase, liveRound, scenario.id]);
+  }, [isLive, scenario.id]);
 
   // LIVE:圆圈点击触发后端阶段(注入故障 / 诊断 / 下发策略 / 评估)
   const onPhaseTrigger = (phase: number) => {

@@ -67,7 +67,7 @@ class RealtimeLiveRunner:
         storage: Any | None = None,
         recorder: Any | None = None,
         tick_interval: float = 0.15,
-        sim_window: int = 120,
+        sim_window: int = 1200,
         reasoning_step_delay: float = 0.3,
         recovery_action_delay: float = 0.3,
         post_policy_settle: float = 2.5,
@@ -141,6 +141,9 @@ class RealtimeLiveRunner:
     async def _tick_loop(self) -> None:
         try:
             while not self._stopped and self.stepper.sim_t < self.sim_window:
+                # 评估完成(done)后停止产出 —— 闭环结束,不再跑空转 tick
+                if self._state == "done":
+                    break
                 if self.stepper._paused:  # noqa: SLF001
                     await asyncio.sleep(0.05)
                     continue

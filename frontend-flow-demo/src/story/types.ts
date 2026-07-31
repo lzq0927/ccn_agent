@@ -78,6 +78,8 @@ export interface StoryState {
   };
   amfSrHist?: number[]; // LIVE AMF 注册成功率滚动历史(sparkline)
   smfSrHist?: number[]; // LIVE SMF PDU 成功率滚动历史
+  /** LIVE 每条有向链路 SR 时序(画路径 KPI 曲线),key 如 "SMF_1->UPF_1" */
+  linkHist?: Record<string, number[]>;
   /** LIVE 真 Agent 置信度评估(DEMO 模式 undefined → 用 scenario.confidence) */
   liveConfidence?: { score: number; route: string; pattern: string };
 
