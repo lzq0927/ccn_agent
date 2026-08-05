@@ -81,31 +81,10 @@ function recoveryActionsFor(s: Scenario): RecoveryAction[] {
         { id: "restore", cn: "用户侧恢复 · 网络无需隔离网元", en: "USER-SIDE RESTORE" },
       ];
     case "iot_storm":
-      // 流控溯源:不隔离网元,按场景下发流控策略
-      if (s.id === "E") {
-        // E:首轮 back-off(20% 支持,未收敛)→ 二轮 NSSAI+APN 限流(收敛)
-        return [
-          { id: "r1_backoff", cn: "[轮1] AMF Reg Reject + back-off(仅 20% 支持,未收敛)", en: "R1 BACKOFF FAIL" },
-          { id: "r2_nssai", cn: "[轮2] AMF 限制物联切片 NSSAI 接入", en: "R2 NSSAI LIMIT" },
-          { id: "r2_apn", cn: "[轮2] SMF 限制物联 APN/DNN 接入", en: "R2 APN LIMIT" },
-          { id: "r2_ratio", cn: "[轮2] 两限制比例 · 算法实时调节", en: "R2 RATIO CONTROL" },
-        ];
-      }
-      if (s.id === "F") {
-        // F:首轮 3 策略并行全下(UE/AMF/SMF);二轮 3 策略但 UE 层排除 iPhone
-        return [
-          { id: "r1_ue_backoff", cn: "[轮1] UE 层:back-off T=12s(全发,iPhone 忽略→放大)", en: "R1 UE BACKOFF" },
-          { id: "r1_amf_nssai", cn: "[轮1] AMF 层:限物联 NSSAI 接纳 ρ_AMF=75%", en: "R1 AMF NSSAI 75%" },
-          { id: "r1_smf_apn", cn: "[轮1] SMF 层:限物联 DNN 接纳 ρ_SMF=70%", en: "R1 SMF DNN 70%" },
-          { id: "r2_ue_backoff", cn: "[轮2] UE 层:back-off T=14s(排除 iPhone,仅 65% 终端)", en: "R2 UE BACKOFF (EXCL IPHONE)" },
-          { id: "r2_amf_nssai", cn: "[轮2] AMF 层:限 NSSAI ρ_AMF=57%(微调)", en: "R2 AMF NSSAI 57%" },
-          { id: "r2_smf_apn", cn: "[轮2] SMF 层:限 DNN ρ_SMF=52%(微调)", en: "R2 SMF DNN 52%" },
-        ];
-      }
-      // D:首轮 back-off 即收敛
+      // 流控溯源(D:UDM 过载,AMF/SMF 协同限流;具体三层策略由 recoveryPlan 渲染)
       return [
-        { id: "reg_reject", cn: "AMF 对注册成功终端发 Registration Reject", en: "AMF REGISTRATION REJECT" },
-        { id: "backoff", cn: "下发 back-off timer 抑制反复上线", en: "UE BACK-OFF TIMER" },
+        { id: "reg_reject", cn: "AMF/SMF 流控拒绝 + 回 T3346/T3396 定时器", en: "FLOW REJECT + T3346/T3396" },
+        { id: "admission", cn: "AMF 限 SST=3 / SMF 限 DNN=MIot.xx 接纳", en: "AMF/SMF ADMISSION LIMIT" },
       ];
     default:
       return [{ id: "reroute", cn: "流量重路由至健康路径", en: "TRAFFIC REROUTE" }];
@@ -156,9 +135,9 @@ export function phaseAt(t: number): { index: number; progress: number } {
   return { index: PHASE_DURATIONS.length - 1, progress: 1 };
 }
 
-// —— 两轮场景时间线:B/C/E。首轮评估/恢复未通过 → loop② 回 Agent1 → 二轮重新执行 → 恢复成功 ——
-//   E 首轮含 back-off 恢复(phase5,部分缓解后未收敛);B/C 首轮评估未通过,不走到恢复(phase4 后直接回 Agent1)
-const TWO_ROUND_IDS = new Set(["B", "C", "E", "F", "G"]);
+// —— 两轮场景时间线:B/C/D。首轮评估/恢复未通过 → loop② 回 Agent1 → 二轮重新执行 → 恢复成功 ——
+//   D 首轮含限流恢复(phase5,部分缓解后未消除);B/C 首轮评估未通过,不走到恢复(phase4 后直接回 Agent1)
+const TWO_ROUND_IDS = new Set(["B", "C", "D"]);
 type Seg = { dur: number; phase: number; round: 1 | 2 };
 const R1_COMMON: Seg[] = [
   { dur: 3, phase: 0, round: 1 },
@@ -172,10 +151,11 @@ const R2_SEGS: Seg[] = [
   { dur: 5, phase: 6, round: 2 }, { dur: 13, phase: 7, round: 2 },
 ];
 function twoRoundSegs(id: string): Seg[] {
-  return (id === "E" || id === "F" || id === "G") ? [...R1_WITH_RECOV, ...R2_SEGS] : [...R1_COMMON, ...R2_SEGS];
+  // D(原 G):首轮含限流恢复(R1_WITH_RECOV);B/C 首轮评估未通过、无恢复(R1_COMMON)
+  return id === "D" ? [...R1_WITH_RECOV, ...R2_SEGS] : [...R1_COMMON, ...R2_SEGS];
 }
 const TWO_ROUND_LOOP: Record<string, number> = {};
-for (const id of ["B", "C", "E", "F", "G"]) TWO_ROUND_LOOP[id] = twoRoundSegs(id).reduce((a, b) => a + b.dur, 0);
+for (const id of ["B", "C", "D"]) TWO_ROUND_LOOP[id] = twoRoundSegs(id).reduce((a, b) => a + b.dur, 0);
 
 export function loopDurationFor(s: Scenario): number {
   return TWO_ROUND_IDS.has(s.id) ? (TWO_ROUND_LOOP[s.id] ?? LOOP_DURATION) : LOOP_DURATION;
@@ -223,57 +203,7 @@ function phaseAtForScenario(s: Scenario, t: number): { index: number; progress: 
   return { index: r.index, progress: r.progress, round: 1 as const };
 }
 
-/** E 场景 simT 映射:两轮映射到仿真时间 1-60,第一轮结束 back-off 部分缓解,第二轮 NSSAI+APN 完全恢复 */
-function simTForE(phaseIndex: number, p: number, round: 1 | 2): number {
-  if (round === 1) {
-    switch (phaseIndex) {
-      case 0: return 6;
-      case 1: return lerp(6, 24, p);
-      case 2: return lerp(24, 28, p);
-      case 3: return 28;
-      case 4: return lerp(28, 30, p);
-      case 5: return lerp(30, 33, p); // back-off 部分缓解
-      default: return 33;
-    }
-  }
-  // round 2
-  switch (phaseIndex) {
-    case 1: return lerp(33, 36, p);
-    case 2: return lerp(36, 40, p);
-    case 3: return 40;
-    case 4: return lerp(40, 44, p);
-    case 5: return lerp(44, 52, p); // NSSAI+APN 完全恢复
-    case 6: return lerp(52, 56, p);
-    default: return 56;
-  }
-}
-
-/** F 场景 simT 映射:首轮 3 策略全下(iPhone 放大致失败反升,simT 32→36 ↔ iotReg 180→186),
- *  二轮排除 iPhone 收敛(simT 44→54 ↔ iotReg 186→28)。连续递增,KPI 游标不倒走。 */
-function simTForF(phaseIndex: number, p: number, round: 1 | 2): number {
-  if (round === 1) {
-    switch (phaseIndex) {
-      case 0: return 6;
-      case 1: return lerp(6, 26, p);
-      case 2: return lerp(26, 30, p);    // 风暴起 fs=28
-      case 3: return 30;
-      case 4: return lerp(30, 32, p);    // 推理 + 用户分类
-      case 5: return lerp(32, 36, p);    // 首轮 3 策略:失败反升段
-      default: return 36;                // 首轮结束于失败峰
-    }
-  }
-  switch (phaseIndex) {
-    case 1: return lerp(36, 39, p);
-    case 2: return lerp(39, 42, p);
-    case 3: return 42;
-    case 4: return lerp(42, 44, p);      // 二轮溯源终端类型
-    case 5: return lerp(44, 54, p);      // 二轮收敛段
-    case 6: return lerp(54, 58, p);
-    default: return 58;
-  }
-}
-
-/** B/C 两轮 simT 映射:首轮故障持续(评估未通过不恢复),二轮推进到 faultEnd 完成恢复
+/** B/C/D 两轮 simT 映射:首轮故障持续(评估未通过/限流未收敛不恢复),二轮推进到 faultEnd 完成恢复
  *  基于各场景 faultStart(fs)/faultEnd(fe) 自适应。 */
 function simTForTwoRound(s: Scenario, phaseIndex: number, p: number, round: 1 | 2): number {
   const fs = s.fault.faultStart;
@@ -294,7 +224,38 @@ function simTForTwoRound(s: Scenario, phaseIndex: number, p: number, round: 1 | 
     case 2: return lerp(fs + 6, fs + 8, p);
     case 3: return fs + 8;
     case 4: return lerp(fs + 8, fe - 2, p); // 二轮根因
-    case 5: return lerp(fe - 2, fe, p); // 二轮恢复 → SR 回升
+    case 5: return lerp(fe - 2, fe, p); // 二轮恢复 → KPI 回升
+    case 6: return lerp(fe, fe + 4, p);
+    default: return Math.min(60, fe + 4);
+  }
+}
+
+/** D(UDM 过载)专用 simT 映射:CPU/风暴只在「策略下发(phase 5)」后才衰退;
+ *  根因推理(phase 4)保持当前过载位不下降 —— 修复「点根因推理 CPU 就降」:
+ *  点推理 CPU 不降,点策略下发 CPU 才降。
+ *  风暴峰值区 [fs, rs≈fs+0.6·dur) → CPU 最高;衰退区 [rs, fe] → CPU 降。
+ *  R1 下发部分缓解(CPU ~80% → EvalFail);R2 根因保持该位,R2 下发衰退到恢复。 */
+function simTForD(phaseIndex: number, p: number, round: 1 | 2): number {
+  const fs = 28, fe = 42;
+  const peak = fs + 3; // 31 风暴峰值(CPU 最高)
+  const partial = 38;  // 首轮下发后部分缓解(CPU ~80%,过载未消除 → EvalFail)
+  if (round === 1) {
+    switch (phaseIndex) {
+      case 0: return 6;
+      case 1: return lerp(6, fs - 2, p);
+      case 2: return lerp(fs - 2, peak, p);   // 异常检测:进入风暴峰值(CPU 过载)
+      case 3: return peak;
+      case 4: return lerp(peak, peak + 2, p); // 根因推理:保持峰值(CPU 不降)
+      case 5: return lerp(peak + 2, partial, p); // 首轮下发:部分缓解(CPU 降)
+      default: return partial;                   // phase7 EvalFail:部分缓解未消除
+    }
+  }
+  switch (phaseIndex) {
+    case 1: return lerp(partial, partial + 1, p);
+    case 2: return partial;
+    case 3: return partial;
+    case 4: return lerp(partial - 1, partial, p); // 二轮根因推理:保持部分缓解(CPU 不再降)
+    case 5: return lerp(partial, fe, p);           // 二轮下发:衰退到恢复(CPU 降)
     case 6: return lerp(fe, fe + 4, p);
     default: return Math.min(60, fe + 4);
   }
@@ -324,51 +285,19 @@ function simTFor(s: Scenario, phaseIndex: number, p: number): number {
   }
 }
 
-// —— D/E 实时仿真数据(挪自 SIM 引擎):物联注册/会话请求率 + 全网 CPU,随 simT 波动 ——
+// —— D 实时仿真数据(挪自 SIM 引擎):物联注册/会话请求率 + 全网 CPU,随 simT 波动 ——
 //   与 KPI 曲线共用 iotRegAt/sessIotAt,保证曲线与实时数值一致。
 
-/** D/E 物联注册请求数/s(按仿真时间,与 KPI 曲线一致) */
+/** D 物联注册请求数/s(按仿真时间,与 KPI 曲线一致) */
 export function iotRegAt(s: Scenario, t: number): number {
-  if (s.id === "F") {
-    if (t < 28) return 5;
-    if (t < 32) return lerp(5, 180, (t - 28) / 4);    // 风暴起
-    if (t < 36) return lerp(180, 186, (t - 32) / 4);  // 首轮:iPhone 放大,反升
-    if (t < 44) return 186;                            // 首轮失败峰持续
-    if (t < 54) return lerp(186, 28, (t - 44) / 10);  // 二轮排除 iPhone,收敛
-    return 28;
-  }
-  if (s.id === "E") {
-    if (t < 28) return 5;
-    if (t < 30) return 180;
-    if (t < 33) return lerp(180, 140, (t - 30) / 3); // back-off 部分缓解
-    if (t < 44) return 140; // 未收敛
-    if (t < 52) return lerp(140, 5, (t - 44) / 8); // NSSAI+APN 完全恢复
-    return 5;
-  }
   const fs = s.fault.faultStart, fe = fs + s.fault.faultDuration;
   if (t < fs) return 5;
   if (t < fe) { const rs = fs + (fe - fs) * 0.6; return t < rs ? 180 : lerp(180, 5, (t - rs) / (fe - rs)); }
   return 5;
 }
 
-/** D/E 物联 PDU 会话建立数/s */
+/** D 物联 PDU 会话建立数/s */
 export function sessIotAt(s: Scenario, t: number): number {
-  if (s.id === "F") {
-    if (t < 28) return 40;
-    if (t < 32) return lerp(40, 400, (t - 28) / 4);
-    if (t < 36) return lerp(400, 405, (t - 32) / 4);  // 首轮微升
-    if (t < 44) return 405;
-    if (t < 54) return lerp(405, 95, (t - 44) / 10);  // 二轮收敛
-    return 95;
-  }
-  if (s.id === "E") {
-    if (t < 28) return 40;
-    if (t < 30) return 400;
-    if (t < 33) return lerp(400, 300, (t - 30) / 3);
-    if (t < 44) return 300;
-    if (t < 52) return lerp(300, 40, (t - 44) / 8);
-    return 40;
-  }
   const fs = s.fault.faultStart, fe = fs + s.fault.faultDuration;
   if (t < fs) return 40;
   if (t < fe) { const rs = fs + (fe - fs) * 0.6; return t < rs ? 400 : lerp(400, 40, (t - rs) / (fe - rs)); }
@@ -380,7 +309,7 @@ export function stormSi(s: Scenario, t: number): number {
   return clamp((iotRegAt(s, t) - 5) / 175, 0, 1);
 }
 
-/** D/E 实时请求率 + CPU(随 simT 波动,挪自 SIM 引擎同款公式) */
+/** D 实时请求率 + CPU(随 simT 波动,挪自 SIM 引擎同款公式) */
 export function liveStormRates(s: Scenario, simT: number) {
   const si = stormSi(s, simT);
   const iotRegRate = iotRegAt(s, simT);
@@ -405,7 +334,7 @@ export function liveNeCpu(s: Scenario, simT: number): Record<string, number> {
   for (const n of graph.nodes) {
     let cpu: number;
     if (s.stormMetrics?.udmCpu != null) {
-      // G 场景:AMF/SMF/UDM 都过载(有问题的 UE 对接在这两个 AMF 上)
+      // D 场景:AMF/SMF/UDM 都过载(有问题的 UE 对接在这两个 AMF 上)
       if (n.type === "UDM") cpu = 40 + si * 55;
       else if (n.type === "AMF") cpu = 40 + si * 50;
       else if (n.type === "SMF") cpu = 38 + si * 48;
@@ -465,7 +394,7 @@ const ALGO_REASON: Record<string, { cn: string; en: string }[]> = {
     { cn: "iFFusion 融合异常检测", en: "iFFUSION ANOMALY" },
     { cn: "AMF/SMF 均质化比较", en: "AMF/SMF HOMOGENIZE" },
     { cn: "故障排除", en: "FAULT EXCLUSION" },
-    { cn: "UPF 故障聚合", en: "UPF AGGREGATION" },
+    { cn: "故障聚合·均质化", en: "FAULT AGGREGATION" },
     { cn: "根因定位", en: "ROOT-CAUSE" },
   ],
   B: [
@@ -481,26 +410,11 @@ const ALGO_REASON: Record<string, { cn: string; en: string }[]> = {
     { cn: "群体异常定位", en: "GROUP ANOMALY" },
   ],
   D: [
-    { cn: "AMF/SMF 容器 CPU 过载检测", en: "CPU OVERLOAD DETECT" },
-    { cn: "AMF 注册/上行 NAS 突增分析", en: "REG/NAS SURGE" },
-    { cn: "溯源到物联终端注册风暴", en: "TRACE TO IOT UE" },
-    { cn: "UE 侧 back-off 流控决策", en: "UE BACK-OFF DECISION" },
-  ],
-  E: [
-    { cn: "AMF/SMF 容器 CPU 过载检测", en: "CPU OVERLOAD DETECT" },
-    { cn: "策略1 UE back-off(未收敛)", en: "UE BACK-OFF FAIL" },
-    { cn: "UPF UFDR 报表溯源(二轮)", en: "UFDR TRACING R2" },
-    { cn: "SST=3 + 物联 DNN 双突增", en: "SST=3 + IOT DNN SURGE" },
-    { cn: "策略2 AMF NSSAI + SMF APN 限流", en: "NET ADMISSION" },
-    { cn: "比例算法实时调节", en: "RATIO CONTROL" },
-  ],
-  F: [
-    { cn: "AMF/SMF 容器 CPU 过载检测", en: "CPU OVERLOAD DETECT" },
-    { cn: "UFDR + APN/终端类型分类溯源", en: "UFDR + APN/DEVICE TRACE" },
-    { cn: "首轮 3 策略并行下发", en: "R1 3-STRATEGY PARALLEL" },
-    { cn: "iPhone back-off 失败反升检测", en: "IPHONE BACKOFF FAIL" },
-    { cn: "二轮终端类型感知调整", en: "R2 DEVICE-AWARE ADJUST" },
-    { cn: "分层接纳限流收敛", en: "LAYERED ADMISSION CONVERGE" },
+    { cn: "AMF/SMF/UDM 三点过载检测", en: "TRIPLE OVERLOAD DETECT" },
+    { cn: "CHR SST=3 / DNN 占比分析", en: "CHR SST/DNN SHARE" },
+    { cn: "UFDR SUPI→AI 平台溯源", en: "UFDR SUPI TRACE" },
+    { cn: "CPU/消息线性推算减量", en: "LINEAR ΔMSG CALC" },
+    { cn: "AMF/SMF 协同限流决策", en: "COORD ADMISSION" },
   ],
 };
 
@@ -514,8 +428,8 @@ function algorithmsFor(s: Scenario, phaseIndex: number): { cn: string; en: strin
 const SCENARIO_SUB: Record<string, Record<number, string>> = {
   A: {
     2: "iFFusion 逐链路检出:前端 AMF↔SMF 通信路径普遍异常 · 异常全面初筛",
-    3: "置信度 0.76 > 0.7 · 命中 UPF 故障聚合 · 直达确定性工作流(不走 LLM)",
-    4: "均质化比较+故障排除收敛范围 · 故障聚合定位 UPF_1 · 防误报",
+    3: "异常模式清晰 · 置信度 > 0.7 · 命中确定性工作流(不走 LLM)",
+    4: "均质化比较 + 故障排除收敛范围 · 故障聚合定位唯一离群网元 · 防误报",
     5: "隔离 UPF_1 · 流量切换至 UPF POOL 内 UPF_2/UPF_3 接管",
   },
   B: {
@@ -531,22 +445,10 @@ const SCENARIO_SUB: Record<string, Record<number, string>> = {
     5: "网络侧无法隔离 gNB·通知物联终端群体换路·用户侧恢复",
   },
   D: {
-    2: "AMF/SMF 容器 CPU 过载 + KPI 受影响 · AMF 上行 NAS / SMF N11 PDU 建立突增",
-    3: "置信度 0.55 · 技能引导 · 流控溯源",
-    4: "溯源到物联终端注册风暴 · 决策 UE 侧 back-off(Registration Reject + back-off timer)",
-    5: "执行:AMF Registration Reject + back-off timer → 待验证收敛",
-  },
-  E: {
-    2: "AMF/SMF 容器 CPU 过载 + KPI 受影响 · 注册/会话风暴冲击",
-    3: "置信度 0.30 · 信号模糊 · 自主探索策略",
-    4: "策略1(UE back-off)未收敛 → 二轮拉取 UFDR(SST=3 + 物联 DNN)→ 溯源 AMF/SMF · 决策策略2",
-    5: "执行策略2:AMF 限 NSSAI + SMF 限 APN · 比例算法实时调节 → 待验证收敛",
-  },
-  F: {
-    2: "AMF/SMF 容器 CPU 过载 + 注册/会话风暴冲击 · 单一物联平台 APN 异常",
-    3: "置信度 0.32 · 信号模糊 · 自主探索 · 决策首轮 3 策略并行",
-    4: "用户分类:10 APN 仅物联平台异常 / 6 终端仅 iPhone 不支持 back-off · 决策 3 策略并行(UE/AMF/SMF)",
-    5: "首轮 3 策略全下:iPhone back-off 失败反升 → 二轮排除 iPhone + AMF/SMF 限流微调收敛",
+    2: "AMF/SMF/UDM 三点 CPU 过载 · 注册/会话 KPI 降 · AMF/SMF→UDM 消息突增",
+    3: "置信度 0.80 · 命中确定性工作流 · UDM 过载协同限流",
+    4: "CHR SST=3/DNN=MIot.xx + UFDR SUPI 溯源 AI 平台 1 · 线性推算减量 · 决策 AMF/SMF 协同限流",
+    5: "首轮限 SST/DNN + 回 T3346/T3396(部分终端不支持)→ 二轮差值重算 · UDM 过载消除",
   },
 };
 
@@ -560,29 +462,26 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   const p = prepare(s);
   const { neSet } = affectedEntities(s.fault);
   const simT = clamp(
-    s.id === "E" ? simTForE(phaseIndex, progress, eRound)
-      : s.id === "F" ? simTForF(phaseIndex, progress, eRound)
-        : TWO_ROUND_IDS.has(s.id) ? simTForTwoRound(s, phaseIndex, progress, eRound)
-          : simTFor(s, phaseIndex, progress),
+    s.id === "D" ? simTForD(phaseIndex, progress, eRound)
+      : TWO_ROUND_IDS.has(s.id) ? simTForTwoRound(s, phaseIndex, progress, eRound)
+        : simTFor(s, phaseIndex, progress),
     1, 60,
   );
 
-  // D/E(iot_storm)实时仿真数据:CPU/请求率随 simT 波动(挪自 SIM 引擎,DEMO 内置)
+  // D(iot_storm)实时仿真数据:CPU/请求率随 simT 波动(挪自 SIM 引擎,DEMO 内置)
   const isStorm = s.fault.faultType === "iot_storm";
   const simRates = isStorm ? liveStormRates(s, simT) : undefined;
   const simNeCpu = isStorm ? liveNeCpu(s, simT) : undefined;
 
-  // 推理步揭示(阶段4) — 两轮场景(B/C/E):轮1揭示1-6,轮2揭示7-12
+  // 推理步揭示(阶段4) — 两轮场景(B/C/D):轮1揭示1-6,轮2揭示7-12
   const total = s.reasoning.length;
   const isTwoRound = TWO_ROUND_IDS.has(s.id);
   // 回路:B/C 首轮⑤评估未通过 → loop①(⑤ 回 Agent1,Agent2 内部,不走 Agent3)
-  //       E 首轮 back-off 未收敛 → loop②(经 Agent3,A3→A1);二轮回到 Agent1 瞬间(phase1)对应回路保持亮
+  //       D 首轮限流未收敛 → loop②(经 Agent3,A3→A1);二轮回到 Agent1 瞬间(phase1)对应回路保持亮
   const failBC = (s.id === "B" || s.id === "C") && phaseIndex === 4 && progress > 0.6;
-  const failEF = (s.id === "E" || s.id === "F" || s.id === "G") && phaseIndex === 7;
+  const failD = s.id === "D" && phaseIndex === 7;
   const loopBackKind: "loop1" | "loop2" | null = isTwoRound
-    ? ((eRound === 1 && (failBC || failEF))
-      ? (s.id === "E" || s.id === "F" || s.id === "G" ? "loop2" : "loop1")
-      : null)
+    ? ((eRound === 1 && (failBC || failD)) ? (s.id === "D" ? "loop2" : "loop1") : null)
     : null;
   let revealedCount: number;
   if (isTwoRound) {
@@ -624,15 +523,8 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   let rerouteEdges: string[] = [];
   let cordonedNe: string[] = [];
   if (phaseIndex === 5) {
-    if (s.id === "E") {
-      const n = eRound === 1 ? Math.min(1, Math.ceil(progress * 1)) : p.recoveryActions.length;
-      recoveryActions = p.recoveryActions.slice(0, n);
-    } else if (s.id === "F") {
-      // F:轮1 揭示 r1_* 前 3 条,轮2 揭示 r2_* 后 3 条,各按 ceil(progress*3) 渐进
-      const n = Math.min(3, Math.ceil(progress * 3));
-      recoveryActions = eRound === 1 ? p.recoveryActions.slice(0, n) : p.recoveryActions.slice(3, 3 + n);
-    } else if (isTwoRound) {
-      // B/C:仅二轮执行恢复;轮1评估未通过,recoveryActions 保持空
+    if (isTwoRound) {
+      // B/C/D:仅二轮执行恢复(B/C 轮1评估未通过、D 轮1限流未收敛 → 轮1 保持空,二轮渐进揭示)
       if (eRound === 2) {
         const n = Math.ceil(progress * p.recoveryActions.length);
         recoveryActions = p.recoveryActions.slice(0, n);
@@ -688,15 +580,13 @@ export function direct(s: Scenario, t: number, loop: number): StoryState {
   // 隔离标注弹窗(场景 A/B/D):执行恢复期间(phase 5，与隔离围栏同步)
   const isolationPopup = s.isolation && phaseIndex === 5 ? s.isolation : null;
 
-  // 流控溯源(场景 D/E):CPU 过载标注(phase≥2)、UFDR 溯源弹窗(phase 4)、流控策略弹窗(phase 5)
+  // 流控溯源(场景 D):CPU 过载标注(phase≥2)、UFDR 溯源弹窗(phase 4)、流控策略弹窗(phase 5)
   const cpuOverloadNe = phaseIndex >= 2 && s.fault.faultType === "iot_storm" ? s.fault.elements : [];
   const flowControlPopup = s.flowControl && phaseIndex === 5 ? s.flowControl : null;
-  // 场景 F 三层并行恢复计划:phase 4 揭示用户分类(breakdown),phase 5 揭示策略(strategies,按 round 区分)
+  // 场景 D 三层并行恢复计划:phase 4 揭示用户分类(breakdown),phase 5 揭示策略(strategies,按 round 区分)
   const recoveryPlan = s.recoveryPlan && (phaseIndex === 4 || phaseIndex === 5) ? s.recoveryPlan : null;
-  // E 轮2 UFDR 弹窗(phase 4 第二轮才显示)
-  const ufdrPopup = s.id === "E"
-    ? (s.ufdr && phaseIndex === 4 && eRound === 2 ? s.ufdr : null)
-    : (s.ufdr && phaseIndex === 4 ? s.ufdr : null);
+  // UFDR 溯源弹窗(phase 4)
+  const ufdrPopup = s.ufdr && phaseIndex === 4 ? s.ufdr : null;
 
   // 误报拦截(场景 C):phase 2-4 可见，phase≥3 被置信度拦截/划掉
   const falseAlarmActive = !!s.falseAlarm && phaseIndex >= 2 && phaseIndex <= 4;

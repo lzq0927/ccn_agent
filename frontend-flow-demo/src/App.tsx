@@ -1,6 +1,6 @@
 // ============================================================================
 // App —— 高稳智能体 · 方案流程演示(DEMO + LIVE 双模式)
-//   DEMO: useStoryClock 确定性回放 A–F(默认,且始终在跑 —— LIVE 的底板)
+//   DEMO: useStoryClock 确定性回放 A–D(默认,且始终在跑 —— LIVE 的底板)
 //   LIVE: useLiveClock 订阅后端 WS 事件流,把实时字段叠加到 DEMO 底板上
 //         (LiveState 只覆盖 StoryState 的一个子集,其余仍走 director 派生,
 //          保证 SolutionFlow / ExecutionPanel 永远拿到完整的 StoryState)
@@ -13,6 +13,7 @@ import { useStoryClock } from "./story/useStoryClock";
 import { TopBar } from "./components/Shell/TopBar";
 import { SolutionFlow } from "./components/SolutionFlow/SolutionFlow";
 import { GuidedStage } from "./components/Guide/GuidedStage";
+import { StepAxis } from "./components/StepAxis/StepAxis";
 import { useLiveClock } from "./story/useLiveClock";
 import { applyEvent, type LiveState } from "./story/liveBus";
 import { getCapabilities, openLiveSocket, selectScenario, control } from "./api/live";
@@ -37,6 +38,9 @@ function mergeLive(base: StoryState, live: LiveState): StoryState {
     amfSrHist: live.amfSrHist.length ? live.amfSrHist : base.amfSrHist,
     smfSrHist: live.smfSrHist.length ? live.smfSrHist : base.smfSrHist,
     linkHist: live.linkHist ?? base.linkHist,
+    neRegSrHist: live.neRegSrHist ?? base.neRegSrHist,
+    nePduSrHist: live.nePduSrHist ?? base.nePduSrHist,
+    anomalyResult: live.anomalyResult ?? base.anomalyResult,
     liveConfidence: live.confidence ?? base.liveConfidence,
     evalMetrics: live.activeEvaluation ?? base.evalMetrics,
     evalRevealed: live.activeEvaluation ? true : base.evalRevealed,
@@ -53,8 +57,9 @@ function mergeLive(base: StoryState, live: LiveState): StoryState {
 
 /** 圆圈点击 → 后端 control 动作(LIVE 模式;phase 1/4/6 仅视觉,不发后端) */
 const PHASE_ACTION: Record<number, string> = {
-  2: "inject_fault", // 异常检测
-  3: "diagnose",     // 策略匹配 → 启动真 Agent 诊断
+  2: "inject_fault", // 异常检测 → 注入故障 + 真异常检测工具
+  3: "match",        // 策略匹配 → 真置信度评估
+  4: "root",         // 根因推理 → 真 Agent Loop
   5: "apply_policy", // 下发策略 → 真回灌仿真
   7: "evaluate",     // 评估优化 → 检查恢复
 };
@@ -178,7 +183,7 @@ export default function App() {
             <SolutionFlow state={state} scenario={scenario} />
           </div>
 
-          {/* 右:弹窗式拓扑演示(全宽画布+点击圆圈弹出),场景 A–G */}
+          {/* 右:弹窗式拓扑演示(全宽画布+点击圆圈弹出),场景 A–D */}
           <div style={{ flex: "1 1 67%", minWidth: 480, display: "flex", minHeight: 0 }}>
             <GuidedStage
               scenario={scenario}
@@ -190,9 +195,13 @@ export default function App() {
               onSeekTime={(t) => demoClock.seekGlobal(t / demoClock.duration)}
               onPhaseTrigger={onPhaseTrigger}
               isLive={isLive}
+              playing={demoClock.playing}
             />
           </div>
         </div>
+
+        {/* 底部全宽:闭环步骤长轴(8/12/14 步,当前步高亮 + 一句话结论) */}
+        <StepAxis scenario={scenario} state={state} playheadRef={playheadRef} />
 
         {liveError && (
           <div

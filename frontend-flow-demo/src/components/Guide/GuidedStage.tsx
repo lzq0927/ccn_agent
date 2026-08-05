@@ -1,6 +1,6 @@
 // ============================================================================
 // GuidedStage —— 右侧交互式拓扑演示(弹窗式,去掉固定 InfoPanel)
-//   场景条 → StageCanvas(全宽,拓扑+圆圈+采集/下发) → 弹窗(点击圆圈弹出) → KPI条 → footer
+//   场景条 → StageCanvas(全宽,拓扑+圆圈+采集/下发,右上角浮「重新开始」) → 弹窗(点击圆圈弹出) → KPI条
 //   点击圆圈 = playUntil 该步结束 + 弹出 StepModal(内容在圆圈附近)
 // ============================================================================
 
@@ -26,9 +26,11 @@ interface Props {
   onPhaseTrigger?: (phase: number) => void;
   /** LIVE 模式开启:圆圈点击改为「定位+触发后端」,不再动画推进 DEMO 时间线 */
   isLive?: boolean;
+  /** DEMO 时钟是否正在播放(playUntil 动画中)—— 用于「当前步执行完再引导下一步」 */
+  playing?: boolean;
 }
 
-export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onSelectScenario, onPlayUntil, onSeekTime, onPhaseTrigger, isLive }: Props) {
+export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onSelectScenario, onPlayUntil, onSeekTime, onPhaseTrigger, isLive, playing }: Props) {
   const stops = useMemo(() => walkStops(scenario), [scenario.id]);
   const [idx, setIdx] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
@@ -36,6 +38,14 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
   const [modalCircleN, setModalCircleN] = useState(1);
 
   useEffect(() => { setIdx(0); setModalOpen(false); }, [scenario.id]);
+
+  // 引导时机:播放中 → 闪烁停在当前步(不显示 👇);播放结束 + 700ms 停顿后才引导下一步
+  const [guideNext, setGuideNext] = useState(true);
+  useEffect(() => {
+    if (playing) { setGuideNext(false); return; }
+    const id = setTimeout(() => setGuideNext(true), 700);
+    return () => clearTimeout(id);
+  }, [playing, scenario.id]);
 
   const advanceTo = (i: number) => {
     const t = Math.max(0, Math.min(stops.length - 1, i));
@@ -106,15 +116,21 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
             );
           })}
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        {/* 当前场景一句话目标 —— 填充按钮与整网 KPI 之间的空白 */}
+        <div style={{ flex: 1, minWidth: 0, marginLeft: 10, fontSize: 11, color: "var(--text-mid)", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={scenario.intro ?? scenario.tagline}>
+          {scenario.objective ?? scenario.tagline}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           {cur?.round === 2 && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 4, color: "#fbbf24", border: "1px solid #f59e0b88", background: "rgba(245,158,11,0.12)", fontFamily: "var(--font-mono)" }}>第②轮</span>}
-          <span style={{ fontSize: 11, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>整网 SR <b style={{ color: srColor(sr) }}>{(sr * 100).toFixed(2)}%</b></span>
+          <span style={{ fontSize: 11, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>整网 KPI <b style={{ color: srColor(sr) }}>{(sr * 100).toFixed(2)}%</b></span>
         </div>
       </div>
 
-      {/* 主体:全宽拓扑画布 + 弹窗 overlay(全场景统一 GuideCanvas;G 叠加 UE/AI 平台) */}
+      {/* 主体:全宽拓扑画布 + 弹窗 overlay(全场景统一 GuideCanvas;D 叠加 UE/AI 平台) */}
       <div style={{ flex: 1, minHeight: 0, position: "relative", background: "var(--twin-readout-bg)" }}>
-        <GuideCanvas scenario={scenario} state={state} stops={stops} curIdx={idx} onCircleClick={onCircleClick} />
+        {/* 重新开始:浮在画布(案例演示条下方框)右上角 */}
+        <button onClick={reset} title="重新开始" className="btn" style={{ position: "absolute", top: 8, right: 8, zIndex: 6, padding: "4px 10px", fontSize: 11, background: "rgba(10,14,26,0.7)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}>↻ 重新开始</button>
+        <GuideCanvas scenario={scenario} state={state} stops={stops} curIdx={idx} onCircleClick={onCircleClick} guideNext={guideNext} />
         {/* 弹窗 overlay */}
         {modalOpen && (
           <svg viewBox="0 0 1040 646" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, overflow: "visible", pointerEvents: "none" }}>
@@ -133,17 +149,6 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
 
       {/* KPI 条 */}
       <KpiStrip scenario={scenario} state={state} />
-
-      {/* footer */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "8px 14px", borderTop: "1px solid var(--border)", background: "var(--bg-panel-solid)" }}>
-        <button onClick={reset} className="btn" style={{ padding: "5px 12px", fontSize: 11 }}>↻ 重新开始</button>
-        <span style={{ fontSize: 11, color: "var(--text-faint)", fontFamily: "var(--font-mono)", letterSpacing: "0.06em" }}>
-          STEP {phase >= 1 && phase <= 7 ? phase : 0} · 停靠 {idx + 1}/{stops.length}
-        </span>
-        <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-mid)" }}>
-          {idx === 0 ? "👉 点击图中闪烁的 ① 号圆圈开始" : idx >= stops.length - 1 ? "🎉 演示完成,可点击圆圈重温" : "👉 点击 👇 指向的下一个圆圈继续"}
-        </span>
-      </div>
     </div>
   );
 }

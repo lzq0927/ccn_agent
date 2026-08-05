@@ -25,8 +25,19 @@ export interface LiveState {
   liveKpi: LiveKpi | null;
   amfSrHist: number[];
   smfSrHist: number[];
-  /** 每条有向链路的 SR 滚动时序(画「路径 KPI 曲线」用),cap 60 */
+  /** 每条有向链路的 KPI 滚动时序(画「路径 KPI 曲线」用),cap 60 */
   linkHist: Record<string, number[]>;
+  /** per-NE 实例 KPI 滚动时序(AMF 注册 / SMF PDU,cap 60)→ ②弹窗均质化比较曲线 */
+  neRegSrHist: Record<string, number[]>;
+  nePduSrHist: Record<string, number[]>;
+  /** ②异常检测真工具产出(analyze_kpi_anomalies + find_common_ne) */
+  anomalyResult: {
+    degradedLinks: { src: string; dst: string; minSr: number | null; avgSr: number | null; count: number | null }[];
+    topNe: string | null;
+    neFrequency: { neId: string; count: number; ratio: number }[];
+    neRegSr: Record<string, number>;
+    nePduSr: Record<string, number>;
+  } | null;
   recentSteps: ReasonStep[];
   recoveryActions: RecoveryAction[];
   activeDiagnosis: { faultElements: string[]; faultType: string; confidence: number; route: string } | null;
@@ -58,6 +69,9 @@ const _initial = (sid: string, scn: string): LiveState => ({
   amfSrHist: [],
   smfSrHist: [],
   linkHist: {},
+  neRegSrHist: {},
+  nePduSrHist: {},
+  anomalyResult: null,
   recentSteps: [],
   recoveryActions: [],
   activeDiagnosis: null,
@@ -118,7 +132,7 @@ export function applyEvent(sid: string, scn: string, ev: { type: string; payload
       // 滚动历史(sparkline 用),cap 60
       st.amfSrHist = [...st.amfSrHist, st.liveKpi.amfSuccessRate].slice(-60);
       st.smfSrHist = [...st.smfSrHist, st.liveKpi.smfSuccessRate].slice(-60);
-      // 每条链路 SR 时序(画路径 KPI 曲线),cap 60;只保留近 12 条链路避免无限增长
+      // 每条链路 KPI 时序(画路径 KPI 曲线),cap 60;只保留近 12 条链路避免无限增长
       const lsr: Record<string, number> = p.link_sr ?? {};
       const next: Record<string, number[]> = {};
       const ids = Object.keys(lsr);
@@ -127,6 +141,30 @@ export function applyEvent(sid: string, scn: string, ev: { type: string; payload
         next[id] = [...prev, lsr[id]].slice(-60);
       }
       st.linkHist = next;
+      // per-NE 实例 KPI 时序(AMF 注册 / SMF PDU,cap 60)→ ②弹窗均质化比较曲线
+      const accumNe = (prevHist: Record<string, number[]>, cur: Record<string, number>): Record<string, number[]> => {
+        const h: Record<string, number[]> = {};
+        for (const ne of Object.keys(cur)) h[ne] = [...(prevHist[ne] ?? []), cur[ne]].slice(-60);
+        return h;
+      };
+      st.neRegSrHist = accumNe(st.neRegSrHist, p.ne_reg_sr ?? {});
+      st.nePduSrHist = accumNe(st.nePduSrHist, p.ne_pdu_sr ?? {});
+      break;
+    }
+    case "anomaly_detection": {
+      const d = ev.payload;
+      st.anomalyResult = {
+        degradedLinks: (d.degraded_links ?? []).map((x: { src: string; dst: string; min_sr: number | null; avg_sr: number | null; count: number | null }) => ({
+          src: x.src, dst: x.dst,
+          minSr: x.min_sr ?? null, avgSr: x.avg_sr ?? null, count: x.count ?? null,
+        })),
+        topNe: d.top_ne ?? null,
+        neFrequency: (d.ne_frequency ?? []).map((n: { ne_id: string; count: number; ratio: number }) => ({
+          neId: n.ne_id, count: n.count, ratio: n.ratio,
+        })),
+        neRegSr: d.ne_reg_sr ?? {},
+        nePduSr: d.ne_pdu_sr ?? {},
+      };
       break;
     }
     case "reasoning_step":

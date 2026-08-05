@@ -11,8 +11,8 @@ import type { NEInstance } from "../../data/types";
 /** 保留的 6 类核心网元(去掉 NRF/AUSF/NSSF) */
 const KEEP = new Set(["gNB", "AMF", "SMF", "UDM", "PCF", "UPF"]);
 
-/** 各类型列 x(左→右数据流 gNB→AMF→SMF→{UDM,PCF,UPF}) */
-const COL_X: Record<string, number> = { gNB: 100, AMF: 265, SMF: 440, UDM: 620, PCF: 620, UPF: 800 };
+/** 各类型列 x(左→右数据流 gNB→AMF→SMF→{UDM,PCF,UPF});加宽铺满画布,减少右侧空白 */
+const COL_X: Record<string, number> = { gNB: 110, AMF: 300, SMF: 495, UDM: 695, PCF: 695, UPF: 890 };
 
 /** 各类型实例的 y 序列(UDM/PCF 同列,上下错开) */
 const YS: Record<string, number[]> = {

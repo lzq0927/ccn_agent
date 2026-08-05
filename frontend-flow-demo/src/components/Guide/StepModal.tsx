@@ -33,21 +33,22 @@ export function StepModal({ scenario, state, round, circlePos, circleN, circles,
 
   // 弹窗尺寸 + 智能定位:在 右/左/下/上 四个候选位中,选「遮挡其它圆圈最少」的;
   // 同分则取离点击圆圈最近的。保证弹窗不挡住其它圆圈按钮。
+  // 弹窗整体下移(顶部圆圈/脑带 y≈15-62,clampY 下限 66 避开)+ 偏好右侧(少盖关键拓扑)。
   const W = 300;
-  const maxH = 452; // 加高(原 VH*0.55≈355),内容尽量完整
+  const maxH = 452; // 定位用标称高度(实际高度按内容自适应,≤ maxH)
   const clampX = (x: number) => Math.max(10, Math.min(VW - W - 10, x));
-  const clampY = (y: number) => Math.max(8, Math.min(VH - maxH + 30, y));
+  const clampY = (y: number) => Math.max(66, Math.min(VH - 80, y));
   const raw = [
-    { x: circlePos.x + 34, y: circlePos.y - maxH / 2 },       // 右
-    { x: circlePos.x - W - 34, y: circlePos.y - maxH / 2 },    // 左
-    { x: circlePos.x - W / 2, y: circlePos.y + 34 },           // 下
-    { x: circlePos.x - W / 2, y: circlePos.y - maxH - 34 },    // 上
+    { x: circlePos.x + 34, y: circlePos.y + 40, bias: -0.6 },        // 右(优先)
+    { x: circlePos.x - W - 34, y: circlePos.y + 40, bias: 0.3 },     // 左
+    { x: circlePos.x - W / 2, y: circlePos.y + 48, bias: 0 },        // 下
+    { x: circlePos.x - W / 2, y: circlePos.y - maxH - 34, bias: 0.2 }, // 上
   ];
   let best = { mx: clampX(raw[0].x), my: clampY(raw[0].y), score: 99, dist: 99 };
   for (const r of raw) {
     const mx = clampX(r.x);
     const my = clampY(r.y);
-    let score = 0;
+    let score = r.bias ?? 0;
     for (const c of circles) {
       if (Math.abs(c.x - circlePos.x) < 4 && Math.abs(c.y - circlePos.y) < 4) continue; // 跳过被点击的圆圈
       if (c.x >= mx && c.x <= mx + W && c.y >= my && c.y <= my + maxH) score++;
@@ -76,7 +77,7 @@ export function StepModal({ scenario, state, round, circlePos, circleN, circles,
           className="step-modal"
           style={{
             width: W,
-            height: maxH,
+            maxHeight: maxH,
             background: "rgba(10,14,26,0.96)",
             border: "1.5px solid #7B68EE",
             borderRadius: 12,

@@ -129,7 +129,7 @@ export function dispatchTargets(
     }
   }
 
-  // 2) 流控策略(flowControl:场景 D/E)— 锚点 NE(AMF/SMF)+ 措施
+  // 2) 流控策略(flowControl:场景 D)— 锚点 NE(AMF/SMF)+ 措施
   if (scenario.flowControl) {
     const fc = scenario.flowControl;
     const anchor = pos(fc.anchorNe);
@@ -153,7 +153,7 @@ export function dispatchTargets(
     }
   }
 
-  // 3) UE 侧 back-off(D/E/F):策略下发到用户终端 —— G 场景 UE Timer 由 AMF/SMF 返回,不单独指 UE
+  // 3) UE 侧 back-off:策略下发到用户终端 —— D 场景 UE Timer 由 AMF/SMF 返回,不单独指 UE
   const hasUeBackoff =
     scenario.stormMetrics?.udmCpu == null && (
       scenario.flowControl?.kind === "ue_backoff" ||
@@ -164,7 +164,7 @@ export function dispatchTargets(
     out.push({ id: "UE", label: "物联网终端(UE)", x: 30, y: 392, policy: "back-off timer 抑制反复上线", kind: "notify", color: KIND_COLOR.notify });
   }
 
-  // 4) F:三层并行(UE back-off + AMF NSSAI + SMF DNN)—— 目标 = 该类型中过载的 NE(无则取代表)
+  // 4) D:三层并行(UE back-off + AMF NSSAI + SMF DNN)—— 目标 = 该类型中过载的 NE(无则取代表)
   if (scenario.recoveryPlan) {
     for (const s of scenario.recoveryPlan.strategies) {
       if (s.layer === "UE") continue; // 已由 UE back-off 覆盖
@@ -197,7 +197,7 @@ export function dispatchTargets(
   return out;
 }
 
-/** F 场景各层策略的当前值(轮1 initialValue / 轮2 r2Values) */
+/** D 场景各层策略的当前值(轮1 initialValue / 轮2 r2Values) */
 function valueFor(scenario: Scenario, state: StoryState, layer: "AMF" | "SMF"): number {
   if (!scenario.recoveryPlan) return 0;
   if (state.round === 2) {
@@ -235,7 +235,7 @@ export function guideCallout(scenario: Scenario, state: StoryState): GuideCallou
     case 2:
       return {
         step, title: "异常检测", body: "KPI / CHR 双线并行检测,任一链路成功率跌破 99.5% 即触发根因分析;整网聚合对微损近乎无感,逐链路全面初筛方见异常。",
-        bullets: ["KPI 时空求解", "CHR 降噪聚类", "异常全面初筛", "CPU 过载告警(D/E/F)"],
+        bullets: ["KPI 时空求解", "CHR 降噪聚类", "异常全面初筛", "CPU 过载告警(D)"],
       };
     case 3:
       return {

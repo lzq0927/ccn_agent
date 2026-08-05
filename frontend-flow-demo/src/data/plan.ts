@@ -126,26 +126,11 @@ export const EXPLORATION: Record<string, ExplorationSpec> = {
       },
     ],
   },
-  F: {
-    gateScore: 0.32,
-    route: "autonomous",
-    gateVerdict: "置信度 0.32 · 信号模糊 · 3 策略并行 · 2 轮收敛",
-    iterations: [
-      {
-        round: 1,
-        data: "容器 CPU + UFDR 溯源 + APN/终端类型分类",
-        method: "分层接纳控制 · 3 策略并行下发(UE back-off + AMF NSSAI + SMF DNN)",
-        result: "iPhone 不支持 back-off → 立即重试放大风暴 · 失败反升 · 未收敛",
-        converged: false,
-      },
-      {
-        round: 2,
-        data: "终端类型分群(确认仅 iPhone 不支持 back-off)",
-        method: "终端类型感知调整 · 对 iPhone 不下发 back-off + AMF/SMF 限流微调",
-        result: "iPhone 由 AMF NSSAI 直接拦截 · 失败陡降 87% · 收敛",
-        converged: true,
-      },
-    ],
+  D: {
+    gateScore: 0.8,
+    route: "workflow",
+    gateVerdict: "置信度 0.80 · 确定性工作流 · UDM 过载协同限流(2 轮收敛)",
+    iterations: [],
   },
 };
 

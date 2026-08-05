@@ -161,7 +161,7 @@ export interface IsolationNote {
   summary: string;
 }
 
-/** UPF UFDR 溯源报表(场景 D/E,phase 4 定位弹窗) —— 流控溯源的关键证据 */
+/** UPF UFDR 溯源报表(场景 D,phase 4 定位弹窗) —— 流控溯源的关键证据 */
 export interface UfdrReport {
   nes: string[]; // 锚定 NE(UPF)
   sstSurge: number; // Requested NSSAI 中 SST=3(MIoT) 注册请求突增占比(0-100)
@@ -171,18 +171,18 @@ export interface UfdrReport {
   summary: string;
 }
 
-/** 流控策略(场景 D/E,phase 5 恢复弹窗) —— 溯源后的处置 */
+/** 流控策略(场景 D,phase 5 恢复弹窗) —— 溯源后的处置 */
 export interface FlowControl {
   kind: "ue_backoff" | "net_admission"; // D=UE 侧 back-off;E=网络侧限流
   anchorNe: string; // 锚定 NE(AMF / AMF+SMF)
   target: string; // 溯源对象描述
   measures: string[]; // 流控措施
-  ratio?: { nssai: number; apn: number; algo: string; basis?: string }; // E: AMF NSSAI / SMF APN 限流比例 + 算法 + 计算依据
+  ratio?: { nssai: number; apn: number; algo: string; basis?: string }; // AMF NSSAI / SMF APN 限流比例 + 算法 + 计算依据
   converged: boolean; // 是否收敛
   summary: string;
 }
 
-/** 单个恢复策略(场景 F:UE/AMF/SMF 三层并行下发) */
+/** 单个恢复策略(场景 D:UE/AMF/SMF 三层并行下发) */
 export interface RecoveryStrategy {
   layer: "UE" | "AMF" | "SMF"; // 下发层
   cn: string;
@@ -203,7 +203,7 @@ export interface RecoveryStrategy {
   explanation: string; // 一句话解释(为何这个值)
 }
 
-/** 一个 APN/DNN 的请求分布(场景 F 用户分类) */
+/** 一个 APN/DNN 的请求分布(场景 D 用户分类) */
 export interface ApnItem {
   id: string; // APN/DNN 名,如 "iot-platform"
   cn: string;
@@ -212,7 +212,7 @@ export interface ApnItem {
   anomalous: boolean; // 是否异常(风暴源)
 }
 
-/** 一种终端类型(场景 F 用户分类) */
+/** 一种终端类型(场景 D 用户分类) */
 export interface DeviceItem {
   id: string; // 如 "iphone"、"android"、"iot-cam"
   cn: string;
@@ -220,7 +220,7 @@ export interface DeviceItem {
   supportsBackoff: boolean; // 是否支持 back-off timer(iPhone=false)
 }
 
-/** 用户分类弹窗(场景 F,phase 4 推理发现:单 APN 异常 + iPhone 不支持 back-off) */
+/** 用户分类弹窗(场景 D,phase 4 推理发现:单 APN 异常 + iPhone 不支持 back-off) */
 export interface UserBreakdown {
   anchorNe: string; // 锚定 NE(UPF_1,与 UFDR 同)
   apns: ApnItem[]; // ~10 个 APN
@@ -230,7 +230,7 @@ export interface UserBreakdown {
   summary: string;
 }
 
-/** 两轮策略调整(场景 F 二轮相对首轮的差异) */
+/** 两轮策略调整(场景 D 二轮相对首轮的差异) */
 export interface RoundAdjustment {
   r1Note: string; // 首轮说明
   r2Note: string; // 二轮说明
@@ -238,29 +238,29 @@ export interface RoundAdjustment {
   r2Values: { layer: "UE" | "AMF" | "SMF"; value: number; note: string }[];
 }
 
-/** 场景 F 三层并行恢复计划(挂 Scenario.recoveryPlan) */
+/** 场景 D 三层并行恢复计划(挂 Scenario.recoveryPlan) */
 export interface RecoveryPlan {
   strategies: RecoveryStrategy[]; // 3 个:UE / AMF / SMF
-  breakdown?: UserBreakdown; // 用户分类(phase 4 揭示,F 用;G 可缺省)
+  breakdown?: UserBreakdown; // 用户分类(phase 4 揭示,D 可缺省)
   rounds: RoundAdjustment; // 两轮调整
 }
 
-/** 风暴冲击指标(场景 D/E/F/G,phase 2 过载告警 + 突增 KPI) */
+/** 风暴冲击指标(场景 D,phase 2 过载告警 + 突增 KPI) */
 export interface StormMetrics {
   amfCpu: number; // AMF 容器 CPU%(0-100)
   smfCpu: number; // SMF 容器 CPU%(0-100)
   regSurge: number; // 注册请求突增%(相对基线)
   sessionSurge: number; // PDU 会话建立突增%(相对基线)
   impact2c: string; // 流控扩散对 2C 手机的影响描述
-  /** 场景 G:过载点在 UDM(AMF/SMF 不过载) */
+  /** 场景 D:过载点在 UDM(AMF/SMF 不过载) */
   udmCpu?: number;
-  /** 场景 G:AMF/SMF → UDM 的消息数突增%(相对基线) */
+  /** 场景 D:AMF/SMF → UDM 的消息数突增%(相对基线) */
   msgToUdmSurge?: number;
-  /** 场景 G:故障的 AI 平台标识 */
+  /** 场景 D:故障的 AI 平台标识 */
   aiPlatform?: string;
 }
 
-/** 大模型故障报告(场景 D/E,phase 7 评估总结) */
+/** 大模型故障报告(场景 D,phase 7 评估总结) */
 export interface FaultReport {
   rootCause: string; // 根因
   phenomenon: string; // 故障现象
@@ -295,15 +295,15 @@ export interface Scenario {
   homogen?: HomogenResult;
   /** 隔离标注(场景 A/B/D,phase 5 弹窗) */
   isolation?: IsolationNote;
-  /** UPF UFDR 溯源报表(场景 D/E,phase 4 定位弹窗) */
+  /** UPF UFDR 溯源报表(场景 D,phase 4 定位弹窗) */
   ufdr?: UfdrReport;
-  /** 流控策略(场景 D/E,phase 5 恢复弹窗) */
+  /** 流控策略(场景 D,phase 5 恢复弹窗) */
   flowControl?: FlowControl;
-  /** 风暴冲击指标(场景 D/E,phase 2) */
+  /** 风暴冲击指标(场景 D,phase 2) */
   stormMetrics?: StormMetrics;
-  /** 大模型故障报告(场景 D/E,phase 7) */
+  /** 大模型故障报告(场景 D,phase 7) */
   faultReport?: FaultReport;
-  /** 三层并行恢复计划(场景 F:3 策略 × 2 轮 + 用户分类) */
+  /** 三层并行恢复计划(场景 D:3 策略 × 2 轮 + 用户分类) */
   recoveryPlan?: RecoveryPlan;
   fault: FaultSpec;
   truth: { elements: string[]; links: string[] };

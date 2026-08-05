@@ -8,7 +8,7 @@
 //
 //   LLM 参与模型(全场景统一):
 //     · Agent1(相位1)= LLM 多维校验数据
-//     · Agent2(相位2-5):A 全程算法(无 LLM);B 输出评估用 LLM;C 根因探索+输出评估用 LLM;D/E 溯源算法
+//     · Agent2(相位2-5):A 全程算法(无 LLM);B 输出评估用 LLM;C 根因探索+输出评估用 LLM;D 溯源算法
 //     · Agent3(相位7)= LLM 故障报告总结
 //   数据派生自 Scenario,确定性,不调后端。
 // ============================================================================
@@ -123,40 +123,18 @@ export function llmAnalysis(s: Scenario, phase: number): LlmAnalysis {
 
 /** 相位4 根因定位 + 输出评估 —— 按场景的 LLM/算法参与模型 */
 function phase4Analysis(s: Scenario, type: string, rootNe: string): LlmAnalysis {
-  // D/E:流控溯源算法(无 LLM)
+  // D:UDM 过载溯源算法(CHR SST=3/DNN + UFDR SUPI→AI 平台,无 LLM)
   if (s.id === "D") {
     return {
       method: "algo",
-      title: "注册风暴溯源算法",
+      title: "UDM 过载溯源 + 协同限流算法",
+      principle: "CHR 切片/DNN 占比 · UFDR SUPI 溯源 · CPU/消息线性推算",
       steps: [
-        { label: "CPU+信令溯源", text: "AMF/SMF 容器 CPU 过载 + AMF 注册/上行 NAS、SMF N11 突增 → 注册/会话风暴冲击。" },
-        { label: "终端溯源", text: "注册请求集中于物联终端(反复上线)→ 溯源到物联终端注册风暴,决策 UE 侧 back-off。" },
+        { label: "🧮 三点过载 + CHR", method: "algo", text: "AMF/SMF/UDM 三点 CPU 过载;CHR 显示 AMF 注册 SST=3 占 55%、SMF DNN=MIot.xx 占 58%。" },
+        { label: "🧮 UFDR SUPI 溯源", method: "algo", text: "用 CHR 中终端 SUPI 关联 UFDR:流量均发往 AI 平台 1、仅上行无下行 → 溯源 AI 平台 1 故障。" },
+        { label: "🧮 线性推算减量", method: "algo", text: "按 CPU/消息线性推算 Δmsg≈135,AMF:SMF=55:45 分配 → AMF 减 74、SMF 减 61,决策 AMF/SMF 协同限流 + 回 T3346/T3396。" },
       ],
-      verdict: "算法:溯源到物联终端注册风暴 · 决策 UE back-off(待执行)。",
-    };
-  }
-  if (s.id === "E") {
-    return {
-      method: "algo",
-      title: "二轮 UFDR 溯源算法",
-      steps: [
-        { label: "二轮 UFDR", text: "策略1(UE back-off)未收敛 → 二轮拉取 UPF UFDR:SST=3(MIoT) 注册突增 + 物联 DNN 突增。" },
-        { label: "接入点溯源", text: "二轮溯源定位 AMF(物联 NSSAI)/SMF(物联 APN),决策策略2 双通道准入限流。" },
-      ],
-      verdict: "算法:二轮溯源到 AMF/SMF · 决策策略2(待执行)。",
-    };
-  }
-  if (s.id === "F") {
-    return {
-      method: "algo",
-      title: "分层接纳溯源 + 用户分类算法",
-      principle: "UFDR 溯源 · APN/终端分类 · 分层接纳控制",
-      steps: [
-        { label: "🧮 UFDR + APN 分类", method: "algo", text: "CPU 过载 + UFDR 溯源 SST=3 + 物联平台 APN 异常(占 68%)→ 多 APN 中仅单一物联平台 APN 异常。" },
-        { label: "🧮 终端类型分群", method: "algo", text: "终端分类:iPhone 占 35% 且不支持 back-off timer,收到 Reg Reject 立即重试。" },
-        { label: "🤖 3 策略并行决策", method: "llm", text: "决策首轮 3 策略并行:UE back-off + AMF 限 NSSAI + SMF 限 DNN(接纳限流分层)。" },
-      ],
-      verdict: "算法:溯源到物联平台 APN + iPhone 终端异构 · 决策 3 策略并行(待执行)。",
+      verdict: "算法:溯源 AI 平台 1 → UDM 过载 · 决策 AMF/SMF 协同限流(待执行)。",
     };
   }
   // A:确定性工作流 · 均质化比较 + 故障聚合算法(全程算法,无 LLM)
@@ -213,34 +191,12 @@ function phase5Analysis(s: Scenario, rootNe: string, type: string): LlmAnalysis 
   if (s.id === "D") {
     return {
       method: "rule",
-      title: "流控策略 · UE 侧 back-off",
+      title: "流控策略 · AMF/SMF 协同限流(UDM 过载)",
       steps: [
-        { label: "Reg Reject", text: "AMF 对注册成功的物联终端发 Registration Reject。" },
-        { label: "back-off timer", text: "下发 back-off timer 抑制物联终端反复上线 → 注册冲击收敛。" },
+        { label: "首轮双策略", text: "向 AMF/SMF 下发 SUPI 列表 + 限 SST=3/DNN 接纳(ρ_AMF≈44%、ρ_SMF≈41%),流控拒绝回 T3346/T3396(10min)。" },
+        { label: "二轮差值重算", text: "首轮 UDM CPU 仅降至 78%(部分终端不支持定时器)→ 二轮按差值重算 Δmsg'≈50,不支持终端改由 AMF/SMF 直接拦截 → UDM 过载消除。" },
       ],
-      verdict: "规则:UE 侧 back-off 收敛 · 注册冲击下降。",
-    };
-  }
-  if (s.id === "E") {
-    return {
-      method: "rule",
-      title: "流控策略 · 网络侧准入控制(反压)",
-      steps: [
-        { label: "双通道限流", text: "20% UE 支持 back-off 不足以收敛 → AMF 限物联 NSSAI、SMF 限物联 APN/DNN。" },
-        { label: "反压比例算法", text: "两限制比例按容器容量/实时流量/CPU 负载反压自保流控、PID 实时调节 → 收敛。" },
-      ],
-      verdict: "规则:反压双通道限流收敛 · 正常用户上网恢复。",
-    };
-  }
-  if (s.id === "F") {
-    return {
-      method: "rule",
-      title: "流控策略 · 三层并行(终端类型感知)",
-      steps: [
-        { label: "首轮 3 策略全下", text: "UE back-off T=12s + AMF ρ_AMF=75% + SMF ρ_SMF=70% 并行下发;iPhone 忽略 back-off 立即重试,失败反升。" },
-        { label: "二轮排除 iPhone", text: "对 iPhone 不下发 back-off(由 AMF NSSAI 直接拦截)+ AMF ρ=57% / SMF ρ=52% 微调 → 失败陡降收敛。" },
-      ],
-      verdict: "规则:二轮终端类型感知调整 · 排除 iPhone back-off · 收敛。",
+      verdict: "规则:AMF/SMF 协同限流消除 UDM 过载 · AI 平台 1 恢复后取消流控。",
     };
   }
   return {
@@ -263,20 +219,16 @@ function phase7Analysis(s: Scenario): LlmAnalysis {
     A: `Agent 2 iFFusion 检测 AMF↔SMF 路径普遍劣化;均质化比较排除 AMF/SMF,故障聚合定位离群点 ${rootNe}(${roleOf(type)})。`,
     B: `Agent 2 检测 SMF 方向突降 + 终端噪声;首轮评估置信度不足回 Agent1,二轮 CHR 降噪排除终端噪声,5GSM#37 聚类锁定 ${rootNe}。`,
     C: `Agent 2 信号模糊;首轮大模型初判存疑回 Agent1,二轮用户分群追踪定位 gNB_2 物联终端群体异常(52% 失败),网络健康。`,
-    D: "Agent 2 检测 AMF/SMF CPU 过载 + 注册/会话突增,溯源到物联终端风暴;UE 侧 back-off(Reg Reject + back-off timer)。",
-    E: "Agent 2 检测 AMF/SMF CPU 过载 + 注册/会话突增;首轮 UE back-off 未收敛,二轮 UFDR 溯源 SST=3 + 物联 DNN,AMF 限 NSSAI + SMF 限 APN(反压比例算法)。",
-    F: "Agent 2 检测 AMF/SMF CPU 过载 + 注册/会话突增;UFDR 溯源物联平台 APN + 终端分类发现 iPhone 不支持 back-off,决策首轮 3 策略并行。",
+    D: "Agent 2 检测 AMF/SMF/UDM 三点 CPU 过载 + 注册/会话 KPI 降;CHR SST=3/DNN=MIot.xx + UFDR SUPI 溯源 AI 平台 1,线性推算减量决策 AMF/SMF 协同限流。",
   };
   const recovery: Record<string, string> = {
     A: `隔离 ${rootNe},流量切至健康实例接管,受影响 UE 无感恢复。`,
     B: `隔离 ${rootNe},会话切健康 SMF 接管,受影响 UE 重建会话。`,
     C: "群体异常独立于网络 NE,网络无需隔离;下发用户侧恢复(换路/重选)。",
-    D: "冲击收敛,2C 用户上网恢复。",
-    E: "反压双通道限流收敛,注册/会话请求下降,2C 用户上网恢复。",
-    F: "首轮 3 策略全下 iPhone back-off 失败反升;二轮排除 iPhone + 限流微调收敛,2C 用户上网恢复。",
+    D: "首轮 AMF/SMF 限 SST/DNN + 回 T3346/T3396(部分终端不支持,UDM 仅降至 78%);二轮差值重算后 UDM 过载消除,AI 平台 1 恢复取消流控。",
   };
   const skill: Record<string, string> = {
-    A: "均质化比较", B: "CHR 降噪", C: "用户分群追踪", D: "UFDR 流控溯源", E: "NSSAI/APN 准入控制", F: "终端类型感知的分层接纳控制",
+    A: "均质化比较", B: "CHR 降噪", C: "用户分群追踪", D: "AMF/SMF/UE 协同流控",
   };
   return {
     method: "llm",

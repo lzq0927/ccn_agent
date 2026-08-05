@@ -1,7 +1,7 @@
 // ============================================================================
 // KpiStrip —— 右栏底部 KPI 条(参考 frontend-flow,精简)
 //   实时:曲线只画到当前 simT(游标=现在,右侧未来不展示)。
-//   整网SR · AMF/SMF SR · NE CPU(过载)· 注册/会话请求数(storm)· 异常链路/过载网元。
+//   整网KPI · AMF/SMF KPI · NE CPU(过载)· 注册/会话请求数(storm)· 异常链路/过载网元。
 // ============================================================================
 
 import type { Scenario } from "../../data/types";
@@ -86,7 +86,7 @@ export function KpiStrip({ scenario, state }: { scenario: Scenario; state: Story
       {/* AMF注册成功率 / PDU会话建立成功率 */}
       <KpiCard title="AMF注册成功率" value={`${(amfSr * 100).toFixed(2)}%`} color="#60a5fa">{sparkOf(amfArr, "#60a5fa")}</KpiCard>
       <KpiCard title="PDU会话建立成功率" value={`${(smfSr * 100).toFixed(2)}%`} color="#a78bfa">{sparkOf(smfArr, "#a78bfa")}</KpiCard>
-      {/* NE CPU —— G 场景过载点在 UDM(AMF/SMF 正常);其余展示 AMF/SMF/UPF */}
+      {/* NE CPU —— D 场景过载点在 UDM(AMF/SMF 正常);其余展示 AMF/SMF/UPF */}
       <div style={{ flex: "1 1 20%", display: "flex", flexDirection: "column", padding: "3px 6px", borderLeft: "1px solid var(--border)" }}>
         <span style={{ fontSize: 8.5, color: "#7dd3fc", fontFamily: "var(--font-mono)", fontWeight: 700 }}>NE CPU{isStorm ? "(过载)" : ""}</span>
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1.5, justifyContent: "center" }}>

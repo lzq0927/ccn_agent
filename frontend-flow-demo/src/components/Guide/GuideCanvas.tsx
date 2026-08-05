@@ -1,7 +1,7 @@
 // ============================================================================
 // GuideCanvas —— 引导画布(全场景统一)
 //   核心:6 类网元(gNB/AMF/SMF/UDM/PCF/UPF)列流拓扑,各场景自身 fault 高亮(相位门控)。
-//   场景 G:在核心基础上叠加左侧 3 类 UE(AgentA/B/普通手机)+ 右侧 AI平台1/2,
+//   场景 D:在核心基础上叠加左侧 3 类 UE(AgentA/B/普通手机)+ 右侧 AI平台1/2,
 //           核心连线不变,加 UE→UPF、UPF→AI 上行连线;AI平台1/AgentA 故障 phase>=2 才显现。
 //   顶部空白带:🧠 高稳智能体 + 7 圆圈(不遮挡节点);点圆圈 → 弹窗。
 // ============================================================================
@@ -35,15 +35,21 @@ export const CIRCLES = [
   { n: 7, phase: 7, x: 825, y: 34, cn: "评估优化", desc: "Agent 3 评估:通过→沉淀;未通过→回Agent1" },
 ];
 
-/** G 专用叠加:3 类 UE(左)+ AI 平台(右) */
+/** D 专用叠加:3 类 UE(左,各自接入指定 gNB)+ AI 平台(右) */
 const UE_GROUPS = [
-  { label: "Agent A", desc: "→UPF→AI平台1", x: 46, y: 232, color: "#f59e0b", fault: true, upf: "UPF_1" },
-  { label: "Agent B", desc: "→UPF→AI平台2", x: 46, y: 362, color: "#38bdf8", fault: false, upf: "UPF_2" },
-  { label: "普通手机", desc: "→UPF→AI平台2", x: 46, y: 492, color: "#94a3b8", fault: false, upf: "UPF_3" },
+  { label: "Agent A", desc: "→gNB_1/2", x: 46, y: 232, color: "#f59e0b", fault: true, gnbs: ["gNB_1", "gNB_2"] },
+  { label: "Agent B", desc: "→gNB_1/2", x: 46, y: 362, color: "#38bdf8", fault: false, gnbs: ["gNB_1", "gNB_2"] },
+  { label: "普通手机", desc: "→gNB_1/2/3", x: 46, y: 492, color: "#94a3b8", fault: false, gnbs: ["gNB_1", "gNB_2", "gNB_3"] },
 ];
 const PLATFORMS = [
-  { id: "AI1", label: "AI平台1", x: 940, y: 292, fault: true },
-  { id: "AI2", label: "AI平台2", x: 940, y: 452, fault: false },
+  { id: "AI1", label: "AI平台1", x: 980, y: 292, fault: true },
+  { id: "AI2", label: "AI平台2", x: 980, y: 452, fault: false },
+];
+/** D 专用:gNB→AMF 接入关系(gNB_1/2→AMF_1/2,gNB_3→AMF_3) */
+const GNB_AMF_D: { gnb: string; amfs: string[] }[] = [
+  { gnb: "gNB_1", amfs: ["AMF_1", "AMF_2"] },
+  { gnb: "gNB_2", amfs: ["AMF_1", "AMF_2"] },
+  { gnb: "gNB_3", amfs: ["AMF_3"] },
 ];
 
 interface Props {
@@ -52,16 +58,37 @@ interface Props {
   stops: WalkStop[];
   curIdx: number;
   onCircleClick: (phase: number, pos: { x: number; y: number }, n: number) => void;
+  /** false=当前步执行中/停顿,闪烁停在当前步、不显示 👇;true/undefined=停顿后引导下一步 */
+  guideNext?: boolean;
 }
 
-function GuideCanvasBase({ scenario, state, stops, curIdx, onCircleClick }: Props) {
+function GuideCanvasBase({ scenario, state, stops, curIdx, onCircleClick, guideNext }: Props) {
   const cur = stops[curIdx];
   const nextStop = stops[curIdx + 1];
+  // 引导时机:holding(当前步执行中/刚完成停顿)→ 闪烁停在当前步、不显示👇;
+  //   停顿后才把闪烁/👇 移到下一步,避免「点完立刻跳到下一步」的错觉
+  const holding = guideNext === false;
+  const guidePhase = holding ? (cur?.phase ?? state.phaseIndex) : (nextStop?.phase ?? 99);
   const phase = state.phaseIndex;
   const [hover, setHover] = useState<number | null>(null);
 
-  const core = buildCoreTopo(scenario.realGraph);
-  const isG = scenario.id === "G";
+  const isD = scenario.id === "D";
+  const core0 = buildCoreTopo(scenario.realGraph);
+  // D 只画 1 个 UPF(UPF_1),去掉 UPF_2/UPF_3 节点与相关边
+  const core = isD
+    ? {
+        ...core0,
+        nodes: core0.nodes.filter((n) => n.type !== "UPF" || n.id === "UPF_1"),
+        nodeById: Object.fromEntries(Object.entries(core0.nodeById).filter(([id]) => id !== "UPF_2" && id !== "UPF_3")) as typeof core0.nodeById,
+        edges: core0.edges.filter((e) => {
+          if (e.id.includes("UPF_2") || e.id.includes("UPF_3")) return false;
+          // D 的 gNB→AMF 接入关系由叠加层按指定配对画,去掉核心层默认 gNB-AMF 边避免重复
+          const a = core0.nodeById[e.a], b = core0.nodeById[e.b];
+          if (a && b && ((a.type === "gNB" && b.type === "AMF") || (a.type === "AMF" && b.type === "gNB"))) return false;
+          return true;
+        }),
+      }
+    : core0;
   const kpi = getKpi(scenario);
   const simT = state.simT;
   const threshold = kpi.threshold;
@@ -108,7 +135,7 @@ function GuideCanvasBase({ scenario, state, stops, curIdx, onCircleClick }: Prop
       </defs>
 
       {/* DC 框(仅核心网;UE/AI 平台在框外) */}
-      <rect x={70} y={150} width={780} height={420} rx={14} fill="var(--accent-a12)" stroke="var(--twin-edge)" strokeDasharray="2 6" />
+      <rect x={70} y={150} width={880} height={420} rx={14} fill="var(--accent-a12)" stroke="var(--twin-edge)" strokeDasharray="2 6" />
       <text x={80} y={144} fill="var(--text-dim)" fontSize={11} fontFamily="var(--font-mono)" letterSpacing="0.16em">DC1 · 5GC SA CORE · {scenario.cn}</text>
 
       {/* 核心业务流边(淡底纹;劣化/根因边强调) */}
@@ -128,18 +155,26 @@ function GuideCanvasBase({ scenario, state, stops, curIdx, onCircleClick }: Prop
         })}
       </g>
 
-      {/* G 叠加:UE→UPF 上行连线(淡;AgentA 故障时红虚线) */}
-      {isG && UE_GROUPS.map((g) => {
-        const upf = core.nodeById[g.upf];
-        if (!upf) return null;
+      {/* D 叠加:UE→gNB 接入连线(AgentA/B→gNB_1/2,普通手机→gNB_1/2/3;AgentA 故障时红虚线) */}
+      {isD && UE_GROUPS.flatMap((g) => g.gnbs.map((gid) => {
+        const gn = core.nodeById[gid];
+        if (!gn) return null;
         const faultLink = g.fault && reveal;
-        const t = trim(g.x, g.y, upf.x, upf.y, 16, NR);
-        return <line key={`ue-${g.label}`} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={faultLink ? "rgba(239,68,68,0.55)" : "#566175"} strokeWidth={faultLink ? 1.6 : 1} opacity={faultLink ? 0.8 : 0.4} strokeDasharray={faultLink ? "5 4" : undefined} />;
-      })}
+        const t = trim(g.x, g.y, gn.x, gn.y, 16, NR);
+        return <line key={`ue-${g.label}-${gid}`} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke={faultLink ? "rgba(239,68,68,0.55)" : "#566175"} strokeWidth={faultLink ? 1.4 : 0.9} opacity={faultLink ? 0.8 : 0.4} strokeDasharray={faultLink ? "5 4" : undefined} />;
+      }))}
 
-      {/* G 叠加:UPF→AI 平台上行连线(UPF_3→AI1/AI2;AI1 故障时红虚线) */}
-      {isG && (() => {
-        const u = core.nodeById.UPF_3 ?? core.nodeById.UPF_2;
+      {/* D 叠加:gNB→AMF 接入(gNB_1/2→AMF_1/2,gNB_3→AMF_3) */}
+      {isD && GNB_AMF_D.flatMap(({ gnb, amfs }) => amfs.map((aid) => {
+        const g = core.nodeById[gnb], a = core.nodeById[aid];
+        if (!g || !a) return null;
+        const t = trim(g.x, g.y, a.x, a.y, NR, NR);
+        return <line key={`ga-${gnb}-${aid}`} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2} stroke="var(--accent-a28)" strokeWidth={1.1} opacity={0.45} />;
+      }))}
+
+      {/* D 叠加:UPF_1→AI 平台上行连线(AI1 故障时红虚线) */}
+      {isD && (() => {
+        const u = core.nodeById.UPF_1;
         if (!u) return null;
         return PLATFORMS.map((p) => {
           const faultLink = p.fault && reveal;
@@ -183,8 +218,8 @@ function GuideCanvasBase({ scenario, state, stops, curIdx, onCircleClick }: Prop
         })}
       </g>
 
-      {/* G 叠加:UE 分组(左) */}
-      {isG && UE_GROUPS.map((g) => {
+      {/* D 叠加:UE 分组(左) */}
+      {isD && UE_GROUPS.map((g) => {
         const faultShown = g.fault && reveal;
         return (
           <g key={g.label} transform={`translate(${g.x} ${g.y})`}>
@@ -196,8 +231,8 @@ function GuideCanvasBase({ scenario, state, stops, curIdx, onCircleClick }: Prop
         );
       })}
 
-      {/* G 叠加:AI 平台(右) */}
-      {isG && PLATFORMS.map((p) => {
+      {/* D 叠加:AI 平台(右) */}
+      {isD && PLATFORMS.map((p) => {
         const faultShown = p.fault && reveal;
         return (
           <g key={p.id} transform={`translate(${p.x} ${p.y})`}>
@@ -247,9 +282,8 @@ function GuideCanvasBase({ scenario, state, stops, curIdx, onCircleClick }: Prop
 
       {/* 7 圆圈 */}
       {CIRCLES.map((c) => {
-        const nextPhase = nextStop?.phase ?? 99;
-        const guided = c.phase === nextPhase;
-        const done = !guided && c.phase < nextPhase;
+        const guided = c.phase === guidePhase;
+        const done = !guided && c.phase < guidePhase;
         const far = !guided && !done;
         const col = guided ? "#38bdf8" : done ? "#2dd4bf" : "#7e8aa3";
         const isHover = hover === c.phase;
@@ -281,8 +315,8 @@ function GuideCanvasBase({ scenario, state, stops, curIdx, onCircleClick }: Prop
         );
       })()}
 
-      {/* 👇 引导 */}
-      {nextStop && (() => {
+      {/* 👇 引导(仅停顿后、引导下一步时显示) */}
+      {!holding && nextStop && (() => {
         const c = CIRCLES.find((x) => x.phase === nextStop.phase);
         if (!c) return null;
         return (

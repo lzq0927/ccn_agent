@@ -3,7 +3,7 @@
 //   · AnomalyPanel(②检测):KPI 曲线 + 过载告警 + CHR 分布(画出异常)
 //   · MatchPanel(③匹配):置信度 + 路由 + 为什么命中该策略(匹配逻辑)
 //   · ReasonPanel(④推理):推理步骤链 + 根因
-//   · DispatchPanel(⑤下发):3 策略(场景 F)+ 目标 + 当前轮参数
+//   · DispatchPanel(⑤下发):3 策略(场景 D)+ 目标 + 当前轮参数
 //   · EvalPanel(⑦评估):沉淀了什么 Skill / 优化什么(无真值对比)
 // ============================================================================
 
@@ -19,12 +19,12 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
   const kpi = getKpi(scenario);
   const simT = state.simT;
   const isStorm = scenario.fault.faultType === "iot_storm";
-  const live = state.liveKpi;  // LIVE 真实快照(有则优先用真实链路/SR;无则回落 DEMO 合成)
+  const live = state.liveKpi;  // LIVE 真实快照(有则优先用真实链路/KPI;无则回落 DEMO 合成)
   // 非风暴(A/B/C):无请求数突增 → 多条路径 KPI 突降 + (B/C)CHR 突增/分散
   if (!isStorm) return <NonStormAnomaly scenario={scenario} state={state} kpi={kpi} simT={simT} live={live} />;
   const graph = scenario.realGraph;
   const curI = Math.min(Math.max(Math.floor(simT) - 1, 0), 58);
-  // AMF / SMF 聚合 SR
+  // AMF / SMF 聚合 KPI
   const agg = (type: string) => {
     const ns = graph ? graph.nodes.filter((n) => n.type === type) : [];
     if (!ns.length) return kpi.overall;
@@ -37,12 +37,12 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
   const maxReg = Math.max(...regRate, 200);
   const maxSess = Math.max(...sessRate, 400);
   const visN = Math.max(3, curI + 2);
-  // LIVE:SR 用真实滚动历史(amfSrHist/smfSrHist),请求数用当前实时值铺平
+  // LIVE:KPI 用真实滚动历史(amfSrHist/smfSrHist),请求数用当前实时值铺平
   const liveAmf = live && state.amfSrHist && state.amfSrHist.length >= 2 ? state.amfSrHist : null;
   const liveSmf = live && state.smfSrHist && state.smfSrHist.length >= 2 ? state.smfSrHist : null;
   const liveReg = live ? Array.from({ length: Math.max(liveAmf?.length ?? 1, 1) }, () => live.iotRegRate + live.tocRegRate) : null;
   const liveSess = live ? Array.from({ length: Math.max(liveSmf?.length ?? 1, 1) }, () => live.iotSessRate + live.tocSessRate) : null;
-  // 风暴场景:故障窗口内 SR 合成下降(让曲线可见跌落)
+  // 风暴场景:故障窗口内 KPI 合成下降(让曲线可见跌落)
   const dipSr = (arr: number[]) => {
     if (!isStorm) return arr;
     const fs = kpi.faultStart, fe = kpi.faultEnd;
@@ -83,16 +83,28 @@ export function AnomalyPanel({ scenario, state }: { scenario: Scenario; state: S
 }
 
 /** 非风暴场景(A/B/C)异常检测:多条路径 KPI 突降 + (B/C)CHR 突增/分散。无请求数突增线。
- *  DEMO 画合成时序曲线;LIVE 用实时累积的每链路 SR 时序画曲线(逐步揭示,非瞬时)。 */
+ *  DEMO 画合成时序曲线;LIVE 用实时累积的每链路 KPI 时序画曲线(逐步揭示,非瞬时)。 */
 function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scenario; state: StoryState; kpi: ReturnType<typeof getKpi>; simT: number; live: StoryState["liveKpi"] }) {
   const graph = scenario.realGraph;
   const isC = scenario.id === "C";
   const chr = scenario.chrInsight; // B/C 有,A 无
   const showChr = chr && (scenario.id === "B" || isC);
 
+  // CHR 主导原因占比时序(突增曲线):故障窗内从基线 ~7% 升至 chr.share,恢复后缓降
+  const chrSeries: number[] = [];
+  if (chr) {
+    const fs = kpi.faultStart, fe = kpi.faultEnd, peak = chr.share ?? 60;
+    for (let i = 0; i < 60; i++) {
+      const t = i + 1;
+      if (t < fs - 1) chrSeries.push(6 + ((i * 7) % 4));                        // 基线噪声 6-9%
+      else if (t < fe) chrSeries.push(6 + (peak - 6) * Math.min(1, (t - fs + 2) / 4)); // 故障窗内升至峰值
+      else chrSeries.push(Math.max(6, peak - (t - fe) * 1.5));                   // 恢复缓降
+    }
+  }
+
   const PAL = ["#60a5fa", "#a78bfa", "#f472b6", "#facc15"];
 
-  // LIVE:从 state.linkHist(每链路 SR 时序)挑最劣化的几条画曲线 + 当前值条
+  // LIVE:从 state.linkHist(每链路 KPI 时序)挑最劣化的几条画曲线 + 当前值条
   const linkHist = state.linkHist ?? {};
   const livePaths: { label: string; series: number[]; color: string }[] = live
     ? Object.entries(linkHist)
@@ -113,6 +125,17 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
         .sort((p, q) => p.sr - q.sr)
         .slice(0, 4)
     : [];
+  // per-NE 实例 KPI 曲线(AMF 注册 / SMF PDU,均质化比较)—— LIVE 才有
+  const regPaths = live
+    ? Object.entries(state.neRegSrHist ?? {})
+        .map(([id, series], i) => ({ label: id, series, color: PAL[i % PAL.length] }))
+        .filter((p) => p.series.length >= 2)
+    : [];
+  const pduPaths = live
+    ? Object.entries(state.nePduSrHist ?? {})
+        .map(([id, series], i) => ({ label: id, series, color: PAL[i % PAL.length] }))
+        .filter((p) => p.series.length >= 2)
+    : [];
 
   // DEMO:挑要画的时序曲线(A/B=最劣化路径 top3;C=整网总体微跌)
   const visN = Math.max(3, Math.min(60, Math.floor(simT) + 1));
@@ -128,7 +151,7 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
     if (cand.length) {
       demoPaths = cand;
     } else {
-      demoPaths = [{ label: "整网总体 SR", series: kpi.overall, color: PAL[0] }];
+      demoPaths = [{ label: "整网总体 KPI", series: kpi.overall, color: PAL[0] }];
       noPathNote = "各链路均 ≥99.5% · 无明显路径异常 · 总体微跌 · 信号模糊";
     }
   }
@@ -157,10 +180,36 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
           </>
         )}
       </div>
+      {live && regPaths.length > 0 && (
+        <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(56,189,248,0.3)", background: "rgba(56,189,248,0.05)" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#7dd3fc", fontFamily: "var(--font-mono)", marginBottom: 4 }}>📊 AMF 实例注册成功率 · 均质化比较</div>
+          <MultiPathKpi paths={regPaths} threshold={kpi.threshold} visN={60} live />
+        </div>
+      )}
+      {live && pduPaths.length > 0 && (
+        <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.3)", background: "rgba(167,139,250,0.05)" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 4 }}>📊 SMF 实例 PDU 会话成功率 · 均质化比较</div>
+          <MultiPathKpi paths={pduPaths} threshold={kpi.threshold} visN={60} live />
+        </div>
+      )}
+      {live && state.anomalyResult && state.anomalyResult.degradedLinks.length > 0 && (
+        <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.06)" }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.fault, fontFamily: "var(--font-mono)", marginBottom: 5 }}>🔍 KPI 异常检测 · 工具结果{state.anomalyResult.topNe ? ` · 聚合定位 ${state.anomalyResult.topNe}` : ""}</div>
+          {state.anomalyResult.degradedLinks.slice(0, 4).map((l) => <SrBar key={`${l.src}-${l.dst}`} a={l.src} b={l.dst} sr={l.minSr ?? 1} />)}
+        </div>
+      )}
       {showChr && (
         <div style={{ marginTop: 8, padding: "8px 9px", borderRadius: 7, border: "1px solid rgba(167,139,250,0.4)", background: "rgba(167,139,250,0.07)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, color: "#c4b5fd", fontFamily: "var(--font-mono)", marginBottom: 5 }}>{isC ? "🟣 CHR 原因分散 · 需聚类收敛" : "🟣 CHR 突增 · 会话原因值集中"}</div>
-          <ChrBars chr={chr!} highlight={!isC} />
+          <ChrCurve series={chrSeries} visN={visN} color="#a78bfa" />
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <Donut share={chr!.share ?? 60} label={chr!.causeCode} sub={isC ? "聚类主因" : "主导原因"} color="#a78bfa" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {(chr!.related ?? []).length > 0
+                ? (chr!.related ?? []).map((r, i) => <Bar key={i} label={`${r.code} ${r.cn}`} share={r.share ?? 0} color="#64748b" />)
+                : <div style={{ fontSize: 10.5, color: "var(--text-mid)", lineHeight: 1.5 }}>{chr!.causeCn}</div>}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -170,7 +219,11 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
 /** 多路径 KPI 时序曲线。DEMO:裁剪到 visN(逐步揭示,固定 60 长度);
  *  LIVE(live=true):按每条 series 自身长度铺满全宽(滚动历史可变长,逐步累积)。 */
 function MultiPathKpi({ paths, threshold, visN, live }: { paths: { label: string; series: number[]; color: string }[]; threshold: number; visN: number; live?: boolean }) {
-  const W = 280, H = 72, yMin = 0.95;
+  const W = 280, H = 72;
+  // y 轴下限自适应:下探到数据最小值下一格(clamp [0.80,0.95])。固定 yMin=0.95 会把真实
+  // KPI≈0.90 的曲线全 clamp 贴底挤成一团,看不出「多条下跌」(场景A SMF_1→UPF_1 KPI≈0.899)。
+  const dataMin = paths.length ? Math.min(...paths.flatMap((p) => p.series)) : 0.95;
+  const yMin = Math.max(0.8, Math.min(0.95, Math.floor((dataMin - 0.01) * 20) / 20));
   const xAt = (i: number, len: number) => (i / Math.max(len - 1, 1)) * W;
   const yAt = (v: number) => { const c = Math.max(yMin, Math.min(1, v)); return H - 4 - ((c - yMin) / (1 - yMin)) * (H - 8); };
   const yTh = yAt(threshold);
@@ -202,27 +255,14 @@ function SrBar({ a, b, sr }: { a: string; b: string; sr: number }) {
     <div style={{ marginBottom: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
         <span style={{ color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{a} ↔ {b}</span>
-        <span style={{ color: col, fontWeight: 700, fontFamily: "var(--font-mono)" }}>SR {(sr * 100).toFixed(2)}%</span>
+        <span style={{ color: col, fontWeight: 700, fontFamily: "var(--font-mono)" }}>KPI {(sr * 100).toFixed(2)}%</span>
       </div>
       <div style={{ height: 4, borderRadius: 2, background: "rgba(148,163,184,0.15)", overflow: "hidden" }}><div style={{ height: "100%", width: `${Math.max(2, sr * 100)}%`, background: col }} /></div>
     </div>
   );
 }
 
-/** CHR 原因值条(主导 + 关联) */
-function ChrBars({ chr, highlight }: { chr: NonNullable<Scenario["chrInsight"]>; highlight: boolean }) {
-  const rel = chr.related ?? [];
-  const rows = [{ code: chr.causeCode, cn: chr.causeCn, share: chr.share ?? 60 }, ...rel];
-  return (
-    <div>
-      {rows.map((r, i) => (
-        <Bar key={i} label={`${r.code} ${r.cn}`} share={r.share ?? 0} color={i === 0 && highlight ? "#a78bfa" : "#64748b"} />
-      ))}
-    </div>
-  );
-}
-
-/** 双曲线(SR + 请求数),实时裁剪。live=true 时按数组自身长度铺满全宽(滚动历史可变长) */
+/** 双曲线(KPI + 请求数),实时裁剪。live=true 时按数组自身长度铺满全宽(滚动历史可变长) */
 function DualCurve({ sr, rate, mx, visN, srC, rateC, title, live }: { sr: number[]; rate: number[]; mx: number; visN: number; srC: string; rateC: string; title: string; live?: boolean }) {
   const W = 280, H = 48;
   const n = live ? Math.max(sr.length, 2) : 60;
@@ -233,7 +273,7 @@ function DualCurve({ sr, rate, mx, visN, srC, rateC, title, live }: { sr: number
     <div style={{ marginTop: 6 }}>
       <div style={{ fontSize: 10, color: "var(--text-faint)", fontFamily: "var(--font-mono)", marginBottom: 1, display: "flex", justifyContent: "space-between" }}>
         <span>{title}</span>
-        <span><span style={{ color: srC }}>■SR</span> <span style={{ color: rateC }}>■请求</span></span>
+        <span><span style={{ color: srC }}>■KPI</span> <span style={{ color: rateC }}>■请求</span></span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
         <polyline points={sr.slice(0, visN).map((v, i) => `${xAt(i).toFixed(1)},${ySr(v).toFixed(1)}`).join(" ")} fill="none" stroke={srC} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
@@ -263,12 +303,40 @@ function Donut({ share, label, sub, color }: { share: number; label: string; sub
   );
 }
 
+/** CHR 主导原因占比时序曲线(突增):故障窗内从基线升至峰值,带 30% 突增阈值线 */
+function ChrCurve({ series, visN, color }: { series: number[]; visN: number; color: string }) {
+  const W = 280, H = 40, yMax = 70;
+  const xAt = (i: number) => (i / 59) * W;
+  const yAt = (v: number) => H - 2 - (Math.min(v, yMax) / yMax) * (H - 4);
+  const thY = yAt(30);
+  const cur = Math.max(0, Math.min(visN, series.length) - 1);
+  return (
+    <div style={{ marginBottom: 6 }}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
+        <line x1={0} x2={W} y1={thY} y2={thY} stroke="rgba(245,158,11,0.5)" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+        <polyline points={series.slice(0, visN).map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ")} fill="none" stroke={color} strokeWidth={1.7} vectorEffect="non-scaling-stroke" />
+        {series.length > 0 && <circle cx={xAt(cur)} cy={yAt(series[cur])} r={2} fill={color} />}
+      </svg>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, fontFamily: "var(--font-mono)", marginTop: 1 }}>
+        <span style={{ color }}>■ 主导原因占比时序 · 突增</span>
+        <span style={{ color: "#fbbf24" }}>┄ 突增阈值 30%</span>
+      </div>
+    </div>
+  );
+}
+
 /* ————————————————————— ③ 策略匹配:为什么命中该策略 ————————————————————— */
+const PATTERN_CN: Record<string, string> = {
+  single_ne: "单网元故障", multi_ne: "多网元故障", all_type_ne: "同类型网元故障",
+  resource_pool: "资源池故障", dc: "数据中心故障", path_level: "路径级故障",
+  path_link: "链路故障", switch: "交换故障", normal: "正常",
+};
+
 export function MatchPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
-  // LIVE:用真 Agent 的置信度评估;DEMO:用场景手设 confidence
+  // LIVE:用真 Agent 置信度评估(通用分类法 slug → 中文,非 case-by-case);DEMO:用场景手设 confidence
   const lc = state.liveConfidence;
   const c = lc
-    ? { score: lc.score, route: lc.route as typeof scenario.confidence.route, patternName: lc.pattern || scenario.confidence.patternName }
+    ? { score: lc.score, route: lc.route as typeof scenario.confidence.route, patternName: PATTERN_CN[lc.pattern] ?? lc.pattern ?? "—" }
     : scenario.confidence;
   const rc = ROUTE_COLORS[c.route] ?? ROUTE_COLORS[scenario.confidence.route];
   const why = whyMatched(scenario);
@@ -292,7 +360,6 @@ export function MatchPanel({ scenario, state }: { scenario: Scenario; state: Sto
 /* ————————————————————— ④ 根因推理:推理步骤 + 根因 ————————————————————— */
 export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
   const all = state.reasoningSteps;
-  const root = state.rootCause;
   const scrollRef = useRef<HTMLDivElement>(null);
   // 逐步揭示:打开后一条条追加(分步骤展示最新),不一次性全出;每加一条滚到底
   const [shown, setShown] = useState(0);
@@ -306,7 +373,13 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
     }, 360);
     return () => clearInterval(id);
   }, [all.length]);
-  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [shown]);
+  useEffect(() => {
+    // rAF:等新步布局更新后再滚,确保滚轮稳定贴在最下方(显示最新一步)
+    const raf = requestAnimationFrame(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [shown]);
   const steps = all.slice(0, shown);
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5, display: "flex", flexDirection: "column", height: "100%" }}>
@@ -325,13 +398,7 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
           );
         })}
       </div>
-      {root.nes.length > 0 && (
-        <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.08)", textAlign: "center", flexShrink: 0 }}>
-          <div style={{ fontSize: 10, color: STATUS.faultGlow, fontFamily: "var(--font-mono)" }}>🎯 根因定位</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: STATUS.faultGlow, fontFamily: "var(--font-mono)", margin: "3px 0" }}>{root.nes.join(" · ")}</div>
-          {root.links.length > 0 && <div style={{ fontSize: 10.5, color: "var(--text-mid)" }}>{root.links.join(" · ")}</div>}
-        </div>
-      )}
+      {/* 根因不在本弹窗直接给出 —— 由推理链 conclusion 步承载(见上方 steps)*/}
       {scenario.chrInsight && (() => {
         const chr = scenario.chrInsight;
         const rel = chr.related ?? [];
@@ -428,15 +495,15 @@ export function EvalFailPanel({ scenario, state }: { scenario: Scenario; state: 
           {isG ? (
             <>
               <FailRow label="UDM CPU" val={`${udmCpu.toFixed(0)}%`} detail="过载告警未消除(>70%)" />
-              <FailRow label="AMF 注册 SR" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
-              <FailRow label="SMF PDU 会话 SR" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
+              <FailRow label="AMF 注册 KPI" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
+              <FailRow label="SMF PDU 会话 KPI" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
               {m?.msgToUdmSurge ? <FailRow label="AMF/SMF→UDM 消息" val={`仍偏高`} detail="未完全降下去" /> : null}
             </>
           ) : (
             <>
               <FailRow label="AMF CPU" val={`${amfCpu.toFixed(0)}%`} detail="过载告警未消除" />
               <FailRow label="SMF CPU" val={`${smfCpu.toFixed(0)}%`} detail="过载告警未消除" />
-              <FailRow label="注册/会话 SR" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
+              <FailRow label="注册/会话 KPI" val={`${(sr * 100).toFixed(1)}%`} detail="未恢复正常" />
             </>
           )}
         </div>
@@ -478,7 +545,7 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
           </div>
           {liveRep.amf_success_rate != null && (
             <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, fontFamily: "var(--font-mono)" }}>
-              AMF 注册 SR {(liveRep.amf_success_rate * 100).toFixed(2)}% · SMF PDU SR {(liveRep.smf_success_rate * 100).toFixed(2)}%
+              AMF 注册 KPI {(liveRep.amf_success_rate * 100).toFixed(2)}% · SMF PDU KPI {(liveRep.smf_success_rate * 100).toFixed(2)}%
             </div>
           )}
           {ce.truth && (
@@ -498,7 +565,7 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
   const recovered = sr >= kpi.threshold;
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
-      {/* 评估通过:精确/召回/F1 + 网络恢复 SR(与 CPU 无关,适用 A/B/C/D 等所有通过场景) */}
+      {/* 评估通过:精确/召回/F1 + 网络恢复 KPI(与 CPU 无关,适用 A/B/C/D 等所有通过场景) */}
       <div style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(34,197,94,0.4)", background: "rgba(34,197,94,0.06)", marginBottom: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: STATUS.healthy, fontFamily: "var(--font-mono)", marginBottom: 5 }}>✓ Agent3 评估 · 通过</div>
         <div style={{ display: "flex", gap: 12, fontSize: 12, fontFamily: "var(--font-mono)", flexWrap: "wrap" }}>
@@ -511,7 +578,7 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
             </>
           )}
         </div>
-        <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, fontFamily: "var(--font-mono)" }}>网络恢复 · 整网 SR <b style={{ color: srColor(sr) }}>{(sr * 100).toFixed(2)}%</b> {recovered ? "✓ ≥99.5%" : "· 恢复中"}</div>
+        <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, fontFamily: "var(--font-mono)" }}>网络恢复 · 整网 KPI <b style={{ color: srColor(sr) }}>{(sr * 100).toFixed(2)}%</b> {recovered ? "✓ ≥99.5%" : "· 恢复中"}</div>
       </div>
       {rep && (
         <div style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(45,212,191,0.4)", background: "rgba(45,212,191,0.06)", marginBottom: 8 }}>
@@ -529,6 +596,15 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
           </div>
           <div style={{ fontSize: 11, color: "var(--text-mid)", marginBottom: 5 }}>沉淀经验 · 回流 Agent 1/2</div>
           <div style={{ fontSize: 12, color: "var(--text-soft)", lineHeight: 1.55 }}>{sk.insight ?? sk.after}</div>
+        </div>
+      )}
+      {!sk && scenario.confidence.route === "workflow" && (
+        <div style={{ padding: "8px 10px", borderRadius: 7, border: "1px solid rgba(34,197,94,0.35)", background: "rgba(34,197,94,0.05)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: STATUS.healthy, padding: "2px 7px", borderRadius: 4, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.4)", fontFamily: "var(--font-mono)" }}>确定性工作流</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: "var(--text-bright)" }}>命中已知模式 · 无需沉淀 Skill</span>
+          </div>
+          <div style={{ fontSize: 11.5, color: "var(--text-mid)", lineHeight: 1.5 }}>该故障匹配确定性工作流,根因定位与恢复均为固定步骤,命中已知模式,不触发 Skill 更新或沉淀。</div>
         </div>
       )}
     </div>
@@ -565,7 +641,7 @@ function whyMatched(s: Scenario): string {
   const c = s.confidence;
   if (c.route === "workflow") {
     if (s.fault.faultType === "iot_storm" && s.stormMetrics?.udmCpu != null) {
-      return `检测到 AMF/SMF/UDM 容器 CPU 过载告警(均>85%)+ AMF/SMF→UDM 消息突增 + 注册/会话 SR 下降 = 典型「过载」模式。模式清晰,置信度 ${c.score.toFixed(2)} > 0.7 → 命中确定性工作流:在 AMF/SMF 侧限流消除过载,不走 LLM Loop。`;
+      return `检测到 AMF/SMF/UDM 容器 CPU 过载告警(均>85%)+ AMF/SMF→UDM 消息突增 + 注册/会话 KPI 下降 = 典型「过载」模式。模式清晰,置信度 ${c.score.toFixed(2)} > 0.7 → 命中确定性工作流:在 AMF/SMF 侧限流消除过载,不走 LLM Loop。`;
     }
     if (s.fault.faultType === "iot_storm") {
       return `检测到 AMF/SMF 容器 CPU 过载告警 + 大片 NE 同时异常 = 典型「过载风暴」模式。模式强度高、信号清晰,置信度 ${c.score.toFixed(2)} > 0.7 → 命中确定性工作流:直达根因(物联终端风暴),不走 LLM Loop。`;

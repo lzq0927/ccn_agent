@@ -74,19 +74,15 @@ function agentLabel(ph: number): string {
 function EvalFailCard({ scenario, state }: { scenario: Scenario; state: StoryState }) {
   const kpi = getKpi(scenario);
   const sr = sample(kpi.overall, state.simT);
-  // 具体原因(场景化)
-  const reason = scenario.id === "F"
-    ? "首轮 3 策略全下,但 iPhone 不支持 back-off timer → 收到 Reg Reject 立即重试,失败数反升"
-    : scenario.id === "E"
-      ? "首轮 UE back-off 仅约 20% 终端支持 → 冲击下降但未消除,过载未解除"
-      : "首轮恢复策略执行后,异常未完全消除";
+  // D(UDM 过载)首轮限流未完全消除:部分终端不支持 T3346/T3396 定时器
+  const reason = "首轮 AMF/SMF 协同限流 + 回 T3346/T3396,部分终端不支持定时器立即重试 → UDM CPU 仅降至 78%,过载未消除";
   return (
     <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 7, border: `1px solid ${STATUS.warning}88`, background: `${STATUS.warning}12` }}>
       <div style={{ fontSize: 12, fontWeight: 800, color: "#fbbf24", fontFamily: "var(--font-mono)", marginBottom: 4 }}>⚠ 评估未通过 · 网络未恢复</div>
       <div style={{ fontSize: 12, color: "var(--text-soft)", lineHeight: 1.55, marginBottom: 5 }}>{reason}</div>
       <div style={{ display: "flex", gap: 8, fontSize: 11, fontFamily: "var(--font-mono)" }}>
         <span style={{ color: "var(--text-mid)" }}>KPI 联动:</span>
-        <span style={{ color: sr < kpi.threshold ? STATUS.fault : STATUS.warning, fontWeight: 700 }}>整网 SR {(sr * 100).toFixed(2)}% &lt; {kpi.threshold * 100}%</span>
+        <span style={{ color: sr < kpi.threshold ? STATUS.fault : STATUS.warning, fontWeight: 700 }}>整网 KPI {(sr * 100).toFixed(2)}% &lt; {kpi.threshold * 100}%</span>
         <span style={{ color: "var(--text-mid)", marginLeft: "auto" }}>→ loop② 回 Agent1 补采 → 第二轮</span>
       </div>
     </div>

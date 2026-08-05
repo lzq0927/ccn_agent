@@ -63,7 +63,7 @@ export interface StoryState {
   cpuOverloadNe: string[]; // CPU 过载标注 NE(phase≥2,iot_storm 时为 AMF/SMF)
   ufdrPopup: UfdrReport | null; // UPF UFDR 溯源报表(phase 4)
   flowControlPopup: FlowControl | null; // 流控策略(phase 5)
-  recoveryPlan?: RecoveryPlan | null; // 三层并行恢复计划(场景 F,phase 4-5)
+  recoveryPlan?: RecoveryPlan | null; // 三层并行恢复计划(场景 D,phase 4-5)
 
   // —— SIM 实时仿真专属(DEMO 模式 undefined)——
   simNeCpu?: Record<string, number>; // 全网 NE CPU%(SIM 模式)
@@ -78,8 +78,20 @@ export interface StoryState {
   };
   amfSrHist?: number[]; // LIVE AMF 注册成功率滚动历史(sparkline)
   smfSrHist?: number[]; // LIVE SMF PDU 成功率滚动历史
-  /** LIVE 每条有向链路 SR 时序(画路径 KPI 曲线),key 如 "SMF_1->UPF_1" */
+  /** LIVE 每条有向链路 KPI 时序(画路径 KPI 曲线),key 如 "SMF_1->UPF_1" */
   linkHist?: Record<string, number[]>;
+  /** LIVE per-AMF 实例注册 KPI 时序(②弹窗均质化比较曲线) */
+  neRegSrHist?: Record<string, number[]>;
+  /** LIVE per-SMF 实例 PDU 会话 KPI 时序 */
+  nePduSrHist?: Record<string, number[]>;
+  /** LIVE ②异常检测真工具产出(analyze_kpi_anomalies + find_common_ne) */
+  anomalyResult?: {
+    degradedLinks: { src: string; dst: string; minSr: number | null; avgSr: number | null; count: number | null }[];
+    topNe: string | null;
+    neFrequency: { neId: string; count: number; ratio: number }[];
+    neRegSr: Record<string, number>;
+    nePduSr: Record<string, number>;
+  } | null;
   /** LIVE 真 Agent 置信度评估(DEMO 模式 undefined → 用 scenario.confidence) */
   liveConfidence?: { score: number; route: string; pattern: string };
 

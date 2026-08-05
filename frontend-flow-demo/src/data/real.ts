@@ -45,8 +45,8 @@ export interface ScenarioNarrative {
   flowControl?: FlowControl;
   /** 风暴冲击指标(场景 D/E) */
   stormMetrics?: StormMetrics;
-  /** 大模型故障报告(场景 D/E) */
+  /** 大模型故障报告(场景 D) */
   faultReport?: FaultReport;
-  /** 三层并行恢复计划(场景 F) */
+  /** 三层并行恢复计划(场景 D) */
   recoveryPlan?: RecoveryPlan;
 }
