@@ -5,7 +5,7 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
 
 from agents.shared.scenario_plugin import discover_plugins
 

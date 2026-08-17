@@ -60,21 +60,20 @@ def test_closed_loop_inject_diagnose_policy_evaluate():
     runner = _make_runner(bus)
 
     async def drive():
+        # 方案B:tick loop 按相位配额自动跑,_wait_segment 等当前段配额耗尽(自动 pause)。
         runner.start()
-        await asyncio.sleep(0.05)           # 让常驻循环先发若干 tick/kpi 事件
-        runner.pause()                      # 冻结常驻循环,改直接驱动引擎(确定性)
+        await runner._wait_segment()        # phase 1 数据采集段(12 tick)跑完
 
-        await runner.handle_inject_fault()  # 异常检测
-        for _ in range(14):                 # 故障 tick(充分填充滚动窗口)
-            runner.engine.advance_tick(runner.engine.sim_t + 1)
+        # ②异常检测:注入故障 + 跑异常段 + 真异常检测工具 → anomaly_detection(handle_inject_fault 内含 _wait_segment)
+        await runner.handle_inject_fault()
         _, fault_pdu = runner.engine._success_rates()  # noqa: SLF001
 
-        await runner.handle_diagnose()      # 诊断(桩 Agent)
-        await runner.handle_apply_policy()  # 下发策略(隔离 UPF_1 + 重选)
-        for _ in range(14):                 # 恢复 tick
-            runner.engine.advance_tick(runner.engine.sim_t + 1)
+        await runner.handle_match()         # ③策略匹配:真置信度评估 → confidence_assessment
+        await runner.handle_root()          # ④根因推理:真 Agent Loop → diagnosis_complete
+        await runner.handle_apply_policy()  # ⑤下发策略(隔离 UPF_1 + 重选)+ arm phase 5/6
+        await runner._wait_segment()        # 恢复段跑完 → SR 回升
 
-        await runner.handle_evaluate()      # 评估优化
+        await runner.handle_evaluate()      # ⑦评估优化
         await runner.stop()
         return fault_pdu
 
@@ -92,10 +91,20 @@ def test_closed_loop_inject_diagnose_policy_evaluate():
     assert "diagnosis_complete" in typeset
     assert "recovery_action" in typeset
     assert "evaluation_report" in typeset
+    assert "anomaly_detection" in typeset  # ②真异常检测工具产出
 
     # 诊断完成事件携带 UPF_1
     diag = next(p for t, p in bus.events if t == "diagnosis_complete")
     assert diag["fault_elements"] == ["UPF_1"]
+
+    # ②异常检测:真工具(analyze_kpi_anomalies + find_common_ne)→ 异常链路 + 聚合定位 UPF_1
+    anom = next(p for t, p in bus.events if t == "anomaly_detection")
+    assert anom["degraded_links"], "anomaly_detection should list degraded links"
+    assert anom["top_ne"] == "UPF_1"
+    # per-NE 实例 SR 已进 kpi_snapshot(AMF/SMF 实例维度)
+    snap = next(p for t, p in bus.events if t == "kpi_snapshot")
+    assert "ne_reg_sr" in snap and "ne_pdu_sr" in snap
+    assert any(k.startswith("AMF") for k in snap["ne_reg_sr"])
 
     # 闭环:策略为隔离 UPF_1 + 重选(真回灌引擎)
     assert runner.engine._ne_status["UPF_1"] == "down"  # noqa: SLF001

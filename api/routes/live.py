@@ -237,6 +237,10 @@ async def _runner_control(runner, action: str, payload: dict) -> None:
             runner.seek(int(payload.get("sim_t", 0)))
         elif action == "inject_fault":
             await runner.handle_inject_fault()
+        elif action == "match":
+            await runner.handle_match()
+        elif action == "root":
+            await runner.handle_root()
         elif action == "diagnose":
             await runner.handle_diagnose()
         elif action == "apply_policy":

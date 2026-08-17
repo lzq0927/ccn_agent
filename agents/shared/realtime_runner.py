@@ -31,6 +31,13 @@ _PHASE_NAMES = {
     4: "根因推理", 5: "下发策略", 6: "网络恢复", 7: "评估优化",
 }
 
+# 方案B · 相位门控配额(仿真秒):tick loop 每进入一个数据相位只跑该配额,
+# 跑完自动 pause,等下一次圆圈点击(inject_fault / apply_policy)resume 跑下一段。
+# 0 = 该相位不产出 tick(诊断 / 评估是读快照,不是数据相位)。
+#   - phase 1:正常数据采集段;phase 2:故障注入后异常段(SR 下降,需 ≥12 tick 稳定滚动窗口);
+#   - phase 5+6:策略回灌后恢复段(SR 回升过 0.99),由 apply_policy 合并 arm。
+_PHASE_QUOTA = {0: 0, 1: 12, 2: 14, 3: 0, 4: 0, 5: 10, 6: 12, 7: 0}
+
 
 @dataclass
 class _Ev:
@@ -95,6 +102,11 @@ class RealtimeLiveRunner:
         self._last_diagnosis: Any = None
         self._step_counter = 0
 
+        # 方案B · 相位配额门控状态
+        self._phase_budget = 0                       # 当前相位剩余 tick 配额;耗尽即 pause
+        self._phase_done: asyncio.Event = asyncio.Event()
+        self._phase_done.set()                       # 初始无 pending 段,wait 立即返回(防死等)
+
     # ------------------------------------------------------------------
     # 发布 / 状态
     # ------------------------------------------------------------------
@@ -123,6 +135,28 @@ class RealtimeLiveRunner:
         self._phase = phase
         self._publish("phase_change", {"phase": phase, "name": _PHASE_NAMES.get(phase, "")})
 
+    def _arm_phase(self, *phases: int) -> None:
+        """进入一个或多个数据相位:按 _PHASE_QUOTA 累加配额、清 done 信号、唤醒 tick loop。
+
+        配额 > 0 时 resume,loop 跑到配额耗尽自动 pause 并 set _phase_done;
+        配额 = 0(诊断/评估相位)不 resume,保持静默。本方法取代旧版「常驻 loop 不受控地跑到 sim_window」。
+        """
+        quota = sum(_PHASE_QUOTA.get(p, 0) for p in phases)
+        self._phase_budget = quota
+        self._phase_done.clear()
+        if quota > 0:
+            self.stepper.resume()
+
+    async def _wait_segment(self) -> None:
+        """等当前数据段跑完(配额耗尽 → loop set _phase_done);无 pending 段时立即返回。
+
+        带超时兜底(post_policy_settle + 5s),防止异常时序下死等。供 evaluate 在判恢复前
+        确认恢复段已产出,取代旧版固定 ``await asyncio.sleep(post_policy_settle)``。"""
+        try:
+            await asyncio.wait_for(self._phase_done.wait(), timeout=self.post_policy_settle + 5.0)
+        except asyncio.TimeoutError:
+            logger.warning("phase_done wait timed out at phase=%s sim_t=%s", self._phase, self.stepper.sim_t)
+
     # ------------------------------------------------------------------
     # 启动 / 常驻 tick 循环
     # ------------------------------------------------------------------
@@ -136,6 +170,7 @@ class RealtimeLiveRunner:
                 logger.exception("recorder.begin failed")
         self._set_state("simulating")
         self._set_phase(1)  # 数据采集
+        self._arm_phase(1)  # 跑数据采集段(配额跑完自动暂停,等点击 inject_fault)
         self._task = asyncio.create_task(self._tick_loop())
 
     async def _tick_loop(self) -> None:
@@ -147,7 +182,17 @@ class RealtimeLiveRunner:
                 if self.stepper._paused:  # noqa: SLF001
                     await asyncio.sleep(0.05)
                     continue
+                # 方案B · 相位门控:本相位配额跑完 → 自动暂停,等下一次点击 resume 跑下一段
+                if self._phase_budget <= 0:
+                    self.stepper.pause()
+                    self._phase_done.set()
+                    self._publish("phase_data_ready", {
+                        "phase": self._phase, "sim_t": self.stepper.sim_t,
+                    })
+                    await asyncio.sleep(0.05)
+                    continue
                 tctx = self.stepper.step(1)
+                self._phase_budget -= 1
                 t = tctx.sim_t
                 self.engine.round = self._round
                 try:
@@ -201,14 +246,30 @@ class RealtimeLiveRunner:
     def seek(self, sim_t: int) -> None:
         self.stepper.seek(sim_t)
 
+    def _snapshot_with_ne_sr(self) -> dict:
+        """引擎快照 + per-NE 实例 SR(供异常检测/置信度评估工具消费)。"""
+        snap = self.engine.snapshot_for_agent()
+        snap["ne_reg_sr"] = self.engine.ne_reg_sr
+        snap["ne_pdu_sr"] = self.engine.ne_pdu_sr
+        return snap
+
     async def handle_inject_fault(self) -> None:
         self.engine.inject_fault(self.scenario.fault_config)
         self._set_phase(2)  # 异常检测
-        # 故障告警会在后续 tick 由 engine 产出
+        self._arm_phase(2)  # 跑异常检测段(故障告警由后续 tick 产出,配额跑完自动暂停)
+        await self._wait_segment()  # 等异常段配额跑完,KPI/CHR 累积足
+        # 真异常检测:调 KPI 异常检测工具 → 异常链路/网元 → 推 anomaly_detection(②弹窗)
+        await self.diagnoser.emit_anomaly_detection(self._snapshot_with_ne_sr(), round=self._round)
 
-    async def handle_diagnose(self) -> None:
+    async def handle_match(self) -> None:
+        """③策略匹配:真置信度评估(assessor.assess,无 LLM)→ confidence_assessment。"""
+        self._set_phase(3)
+        self.diagnoser.emit_assessment(self._snapshot_with_ne_sr(), round=self._round)
+
+    async def handle_root(self) -> None:
+        """④根因推理:真 Agent Loop(FaultPerceptionAgent.diagnose)→ 推理链 + diagnosis_complete。"""
         self._set_state("diagnosing")
-        self._set_phase(3)  # 策略匹配
+        self._set_phase(4)
         self.diagnoser._step_n = 0  # noqa: SLF001
         agent, case_data = self.diagnoser.run_real_diagnosis(self.engine.snapshot_for_agent(), round=self._round)
         try:
@@ -218,13 +279,17 @@ class RealtimeLiveRunner:
             self._publish("error", {"source": "diagnoser", "code": "AGENT", "message": str(exc), "fatal": False})
             return
         self._last_diagnosis = result
-        self._set_phase(4)  # 根因推理
         self.diagnoser.emit_diagnosis_result(result, round=self._round)
         if self.recorder is not None:
             try:
                 self.recorder.record_event("diagnosis_complete", {"round": self._round})
             except Exception:  # noqa: BLE001
                 pass
+
+    async def handle_diagnose(self) -> None:
+        """向后兼容:等价于 match + root(旧 /control?action=diagnose 与旧测试入口)。"""
+        await self.handle_match()
+        await self.handle_root()
 
     async def handle_apply_policy(self) -> None:
         self._set_state("recovering")
@@ -251,12 +316,13 @@ class RealtimeLiveRunner:
                     logger.exception("record_recovery_action failed")
             await asyncio.sleep(self.recovery_action_delay)
         self._set_phase(6)  # 网络恢复(策略已回灌,后续 tick SR 回升)
+        self._arm_phase(5, 6)  # 跑恢复数据段(5+6 合并配额),配额跑完自动暂停,等点击 evaluate
 
     async def handle_evaluate(self) -> None:
         self._set_state("evaluating")
         self._set_phase(7)  # 评估优化
-        # 等常驻循环把策略效果刷进滚动窗口
-        await asyncio.sleep(self.post_policy_settle)
+        # 等恢复数据段跑完(配额耗尽)再判恢复——取代固定 settle
+        await self._wait_segment()
         recovered = self.engine.is_recovered()
 
         # 双轮场景:首轮弱策略未恢复 → 自动进二轮(重诊 + 精调策略)
@@ -273,9 +339,10 @@ class RealtimeLiveRunner:
                 "current_attempt": self._round - 1, "hint": "round2_refine",
             })
             self._publish("round_change", {"round": self._round})
-            await self.handle_diagnose()       # 二轮重诊
+            await self.handle_match()          # 二轮重评估
+            await self.handle_root()           # 二轮重诊
             await self.handle_apply_policy()   # 二轮精调策略
-            await asyncio.sleep(self.post_policy_settle)
+            await self._wait_segment()         # 等二轮恢复段跑完再判恢复
             recovered = self.engine.is_recovered()
 
         report = _build_evaluation(self.scenario, self._last_diagnosis, recovered, self._round, self.engine)

@@ -129,6 +129,10 @@ class RealtimeEngine:
         self._win_touch: deque[dict[str, int]] = deque(maxlen=_ROLLING_WINDOW)
         # 每有向链路逐 tick 的 (att,succ) 滚动窗口 → 稳定的局向 KPI(避免单 tick 小样本抖动)
         self._win_link: deque[dict[tuple[str, str], list[int]]] = deque(maxlen=_ROLLING_WINDOW)
+        # per-NE 实例的注册/PDU 端到端成功率滚动窗口(供前端②弹窗画 per-NE SR 曲线·均质化比较)。
+        # 每元素 = {ne_id: [att, succ]};仅 AMF 实例进 reg、SMF 实例进 pdu(主控 NF 维度)。
+        self._win_ne_reg: deque[dict[str, list[int]]] = deque(maxlen=_ROLLING_WINDOW)
+        self._win_ne_pdu: deque[dict[str, list[int]]] = deque(maxlen=_ROLLING_WINDOW)
 
         # 给 Agent 的累积缓冲
         self._kpi_link: deque[dict] = deque(maxlen=_KPI_BUFFER_LINK)
@@ -143,6 +147,11 @@ class RealtimeEngine:
         self._tick_touch: dict[str, int] = {}
         self._tick_link: dict[tuple[str, str], list[int]] = {}  # (s,d)->[att,succ]
         self._tick_chr: list[dict] = []
+        # per-NE 实例本 tick 的 att/succ(注册按 AMF、PDU 按 SMF 主控 NF)
+        self._tick_ne_reg_att: dict[str, int] = {}
+        self._tick_ne_reg_succ: dict[str, int] = {}
+        self._tick_ne_pdu_att: dict[str, int] = {}
+        self._tick_ne_pdu_succ: dict[str, int] = {}
 
     # ------------------------------------------------------------------
     # 初始化:按场景分布生成 UE 绑定(负载均衡,master/standby 感知)
@@ -207,6 +216,9 @@ class RealtimeEngine:
         self._win_reg.append((self._tick_reg_req, self._tick_reg_succ))
         self._win_pdu.append((self._tick_pdu_req, self._tick_pdu_succ))
         self._win_touch.append(dict(self._tick_touch))
+        # per-NE 实例 att/succ → 滚动窗口(仅本 tick 有请求的 NE 入窗;缺席 tick 不计入该 NE 的分母)
+        self._win_ne_reg.append({ne: [att, self._tick_ne_reg_succ.get(ne, 0)] for ne, att in self._tick_ne_reg_att.items()})
+        self._win_ne_pdu.append({ne: [att, self._tick_ne_pdu_succ.get(ne, 0)] for ne, att in self._tick_ne_pdu_att.items()})
         self._update_cpu()
         self._accumulate_kpi_rows(sim_t)
 
@@ -228,6 +240,10 @@ class RealtimeEngine:
         self._tick_touch = {}
         self._tick_link = {}
         self._tick_chr = []
+        self._tick_ne_reg_att = {}
+        self._tick_ne_reg_succ = {}
+        self._tick_ne_pdu_att = {}
+        self._tick_ne_pdu_succ = {}
 
     # ------------------------------------------------------------------
     # 到达模型
@@ -286,11 +302,17 @@ class RealtimeEngine:
         hops = self._materialize_hops(proc_name, binding)
         if not hops:
             return
-        # 请求计数:注册→AMF,PDU→SMF
+        # 请求计数:注册→AMF,PDU→SMF(含拥塞拒绝计 att;per-NE 实例同步计 att)
         if proc_name == "Registration":
             self._tick_reg_req += 1
+            amf = binding.ne.get("AMF", "")
+            if amf:
+                self._tick_ne_reg_att[amf] = self._tick_ne_reg_att.get(amf, 0) + 1
         else:
             self._tick_pdu_req += 1
+            smf = binding.ne.get("SMF", "")
+            if smf:
+                self._tick_ne_pdu_att[smf] = self._tick_ne_pdu_att.get(smf, 0) + 1
         # 拥塞准入:负责 NF(AMF/SMF)CPU 过载时按过载程度拒绝(风暴场景的 SR 下降来源)
         nf = binding.ne.get("AMF") if proc_name == "Registration" else binding.ne.get("SMF")
         cpu = self._ne_cpu.get(nf, 0.0) if nf else 0.0
@@ -346,11 +368,17 @@ class RealtimeEngine:
             self._push_hop(sim_t=sim_t, attempt_id=hop["attempt_id"], proc_name=proc_name,
                            binding=binding, hop_idx=hop_idx + 1, hops=hops, src=nsrc, dst=ndst, message=nmsg)
         elif success and is_last:
-            # 流程成功完成 → 计成功
+            # 流程成功完成 → 计成功(整条流程任一跳失败都不计;per-NE 实例同步计 succ)
             if proc_name == "Registration":
                 self._tick_reg_succ += 1
+                amf = binding.ne.get("AMF", "")
+                if amf:
+                    self._tick_ne_reg_succ[amf] = self._tick_ne_reg_succ.get(amf, 0) + 1
             else:
                 self._tick_pdu_succ += 1
+                smf = binding.ne.get("SMF", "")
+                if smf:
+                    self._tick_ne_pdu_succ[smf] = self._tick_ne_pdu_succ.get(smf, 0) + 1
         # 失败:流程中止(请求已计,成功不计)
 
     def _hop_outcome(self, src: str, dst: str, binding: UeBinding, proc_name: str) -> tuple[bool, bool]:
@@ -516,6 +544,16 @@ class RealtimeEngine:
         pdu_sr = sum(s for _, s in self._win_pdu) / pdu_req
         return reg_sr, pdu_sr
 
+    def _ne_success_rates(self, window: deque) -> dict[str, float]:
+        """per-NE 实例的端到端业务成功率(滚动窗口聚合 [att,succ] → succ/att)。"""
+        agg: dict[str, list[int]] = {}
+        for snap in window:
+            for ne, (att, succ) in snap.items():
+                a = agg.setdefault(ne, [0, 0])
+                a[0] += att
+                a[1] += succ
+        return {ne: (s / a if a else 1.0) for ne, (a, s) in agg.items()}
+
     def _update_cpu(self) -> None:
         # 按滚动窗口平均 touches 推 CPU(EMA 平滑,响应故障/策略)
         for ne_id, ne in self.topology.elements.items():
@@ -545,6 +583,9 @@ class RealtimeEngine:
             "link_anomalies": self._rolling_link_anomalies(),
             # 全部有向链路的滚动 SR(供前端按链路累积时序曲线,画「路径 KPI 曲线」)
             "link_sr": self._rolling_link_sr(),
+            # per-NE 实例端到端业务 SR(AMF 注册 / SMF PDU,供②弹窗均质化比较曲线)
+            "ne_reg_sr": self._ne_success_rates(self._win_ne_reg),
+            "ne_pdu_sr": self._ne_success_rates(self._win_ne_pdu),
         }
 
     def _rolling_link_sr(self) -> dict[str, float]:
@@ -571,6 +612,16 @@ class RealtimeEngine:
     @property
     def ne_cpu(self) -> dict[str, float]:
         return dict(self._ne_cpu)
+
+    @property
+    def ne_reg_sr(self) -> dict[str, float]:
+        """per-AMF 实例注册 SR(实时)。"""
+        return self._ne_success_rates(self._win_ne_reg)
+
+    @property
+    def ne_pdu_sr(self) -> dict[str, float]:
+        """per-SMF 实例 PDU 会话 SR(实时)。"""
+        return self._ne_success_rates(self._win_ne_pdu)
 
     def snapshot_for_agent(self) -> dict:
         """组装 Agent CaseData 材料(KPI/CHR/拓扑/真值)。
