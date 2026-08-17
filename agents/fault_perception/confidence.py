@@ -59,6 +59,9 @@ class FeatureSet:
     failed_supi_ratio: float = 0.0
     chr_failure_concentration: float = 0.0  # Gini of per-SUPI failure counts
     exploration_trigger: bool = False
+    # LIVE 运行时遥测特征(NF CPU 过载 → 业务激增/过载模式)
+    cpu_overload: bool = False
+    overloaded_ne_count: int = 0
 
 
 # Fault signature patterns for matching
@@ -187,7 +190,13 @@ class ConfidenceAssessor:
 
             affected_ratio = len(affected_set) / max(ne_count, 1)
 
-            if features.top_ne_dominance > 0.35 and affected_ratio < 0.25:
+            # 单网元判定:主导度为主,affected_ratio 为辅。退化链路的**对端伙伴**
+            # (如唯一 SMF 的下游 UPF/背景噪声)会把 affected 集撑大——主导度过半
+            # (>0.5)时单一根因结论不受伙伴噪声影响,只看 ratio 会把清晰单点误判
+            # 为 path_level/multi_ne 而错误导入探索。
+            if features.top_ne_dominance > 0.35 and (
+                affected_ratio < 0.25 or features.top_ne_dominance > 0.5
+            ):
                 features.pattern_match = "single_ne"
                 features.pattern_strength = features.top_ne_dominance
                 features.spatial_clarity = 0.8
@@ -269,6 +278,29 @@ class ConfidenceAssessor:
                 and not clear_single_ne
             )
 
+        # LIVE 运行时遥测:NF CPU 过载 → 业务激增/过载模式(修复「link KPI 无异常
+        # 但网络实际过载」被误判 normal 的盲区;设计态批量用例无 runtime_context,
+        # 此特征天然为空,不影响既有行为)。
+        rc = getattr(case_data, "runtime_context", None) or {}
+        ne_cpu = rc.get("ne_cpu", {}) or {}
+        overloaded = {
+            ne: c for ne, c in ne_cpu.items()
+            if c >= 80.0 and not str(ne).startswith("gNB")
+        }
+        if overloaded:
+            features.cpu_overload = True
+            features.overloaded_ne_count = len(overloaded)
+            # 过载是强而清晰的信号:覆盖 KPI 层模式(多 NF 全实例过载=业务激增冲击)
+            depth = min(1.0, (max(overloaded.values()) - 78.0) / 15.0)
+            features.pattern_match = "all_type_ne"
+            features.pattern_strength = max(0.6, depth)
+            features.spatial_clarity = 0.8
+            features.anomaly_severity = max(features.anomaly_severity, min(0.1, depth * 0.1))
+            features.ambiguity = 0.0
+            features.exploration_trigger = False
+            # 过载 NF 计入受影响集合
+            features.affected_ne_count = len(overloaded)
+
         return features
 
     def _compute_score(self, f: FeatureSet) -> float:
@@ -312,6 +344,12 @@ class ConfidenceAssessor:
             "single_ne": "link_fault_workflow",
             "normal": "normal_detection_workflow",
         }
+        if features.cpu_overload:
+            # NF 过载(业务激增)→ 确定性准入工作流(KPI 异常 + 失败类别归因);
+            # 仅 KPI 型 all_type_ne(非过载)仍走 agent loop / 探索
+            workflow_map["all_type_ne"] = "overload_admission_workflow"
+            skill_map = dict(skill_map)
+            skill_map["all_type_ne"] = ["admission_control", "all_type_ne_fault"]
 
         workflow = workflow_map.get(pattern) if route == Route.WORKFLOW else None
         skills = skill_map.get(pattern, ["single_ne_fault", "normal_detection"])

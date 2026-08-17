@@ -77,6 +77,13 @@ export interface EvalMetrics {
   f1: number;
   exactMatch: boolean;
   faultTypeMatch: boolean;
+  /** LIVE 真实闭环评估(后端 evaluation_report,字段为超集;DEMO 无) */
+  recovered?: boolean;
+  rounds?: number;
+  class_match?: boolean | null;
+  max_core_cpu?: number;
+  /** LIVE 规则式优化建议(后端 suggestion_type/content;DEMO 用上面的 suggestions) */
+  liveSuggestions?: { suggestion_type: string; content: string }[];
   category: "SUCCESS" | "PARTIAL_SUCCESS" | "FAILURE" | "FALSE_POSITIVE";
   traceAxes: {
     logicalCoherence: number;

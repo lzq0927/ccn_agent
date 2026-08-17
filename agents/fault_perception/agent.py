@@ -73,6 +73,13 @@ SUBMIT_DIAGNOSIS_SCHEMA = {
                 "type": "string",
                 "description": "Fault mode: 'link' or 'business'",
             },
+            "traffic_filter": {
+                "type": "object",
+                "description": (
+                    "For business/surge faults only: the traffic class driving the anomaly, "
+                    "e.g. {\"sst\": 3} or {\"dnn\": \"iot\"}. Omit for NE faults."
+                ),
+            },
             "confidence": {
                 "type": "number",
                 "description": "Your confidence in this diagnosis (0.0-1.0)",
@@ -306,6 +313,21 @@ class FaultPerceptionAgent:
         """Hermes-style agent loop: prompt -> LLM -> tools -> repeat."""
         from tools.registry import schemas_as_tool_objects, dispatch as tool_dispatch
 
+        # stub 模式(无 key / CC_LIVE_LLM_MODE=stub):LLM loop 不可用 →
+        # 走确定性工具链降级(与 LLM 同构的诊断,诚实且可离线复现)
+        from agents.shared.llm_client import effective_mode
+
+        if effective_mode(self.llm.config) == "stub":
+            from agents.fault_perception.deterministic_diagnoser import diagnose_deterministic
+
+            self._emit_progress("deterministic_mode", {"session_id": session_id})
+            result = await diagnose_deterministic(
+                case_data, assessment, session_id, assessment.route, self.progress_callback
+            )
+            result.route_taken = assessment.route
+            result.session_id = session_id
+            return result
+
         # Initialize context
         ctx = self.context_manager.initialize(
             case_data, assessment, assessment.route, max_iterations
@@ -481,6 +503,9 @@ class FaultPerceptionAgent:
     ) -> DiagnosisResult | None:
         """Parse diagnosis from submit_diagnosis tool arguments."""
         try:
+            traffic_filter = args.get("traffic_filter")
+            if not isinstance(traffic_filter, dict):
+                traffic_filter = None
             return DiagnosisResult(
                 session_id=session_id,
                 case_id=case_id,
@@ -491,6 +516,7 @@ class FaultPerceptionAgent:
                 confidence=float(args.get("confidence", 0.5)),
                 route_taken=Route.AUTONOMOUS,  # Will be overridden
                 status=SessionStatus.COMPLETED,
+                traffic_filter=traffic_filter,
             )
         except (ValueError, TypeError):
             return None

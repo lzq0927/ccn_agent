@@ -433,6 +433,25 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
 export function DispatchPanel({ scenario, state }: { scenario: Scenario; state: StoryState }) {
   const plan = scenario.recoveryPlan;
   const r = state.round;
+  // LIVE:后端通用规划器已下发真实策略 → 优先展示(带推导依据),DEMO 剧本计划仅兜底
+  if (state.recoveryActions.length > 0 && (state.recoveryActions[0] as { rationale?: string }).rationale) {
+    return (
+      <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
+        <div style={{ fontSize: 11, color: "#5eead4", fontWeight: 800, fontFamily: "var(--font-mono)", marginBottom: 6 }}>
+          🛡 恢复策略下发 · 第 {r} 轮 · 通用规划器(诊断+遥测推导)
+        </div>
+        {state.recoveryActions.map((a, i) => (
+          <div key={a.id} style={{ padding: "7px 9px", borderRadius: 7, border: "1px solid #a78bfa55", background: "#a78bfa0d", marginBottom: 6 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#a78bfa", fontFamily: "var(--font-mono)" }}>策略{i + 1} · {a.cn}</span>
+              {a.layer && <span style={{ fontSize: 10, color: "var(--text-mid)", fontFamily: "var(--font-mono)" }}>{a.layer}</span>}
+            </div>
+            {a.rationale && <div style={{ fontSize: 10.5, color: "var(--text-mid)", marginTop: 2 }}>{a.rationale}</div>}
+          </div>
+        ))}
+      </div>
+    );
+  }
   if (plan) {
     const values = r === 1 ? plan.strategies.map((s) => ({ layer: s.layer, value: s.initialValue })) : plan.rounds.r2Values;
     const note = r === 1 ? plan.rounds.r1Note : plan.rounds.r2Note;
@@ -551,6 +570,16 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
           {ce.truth && (
             <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 4 }}>
               诊断 <b style={{ color: "#c4b5fd" }}>{(ce.predicted ?? []).join(",") || "—"}</b> · 真值 <b style={{ color: "#7dd3fc" }}>{(ce.truth ?? []).join(",")}</b> {m.exact_match ? "✓ 精确匹配" : "~ 部分匹配"}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: "var(--text-mid)", marginTop: 4, fontFamily: "var(--font-mono)" }}>
+            诊断-恢复轮次 <b>{liveRep.rounds ?? 1}</b>{liveRep.class_match != null && <> · 类别命中 {liveRep.class_match ? "✓" : "✗"}</>}{liveRep.max_core_cpu != null && <> · 峰值CPU <b>{liveRep.max_core_cpu}%</b></>}
+          </div>
+          {(liveRep.liveSuggestions ?? liveRep.suggestions ?? []).length > 0 && (
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px dashed var(--border)" }}>
+              {((liveRep.liveSuggestions ?? liveRep.suggestions ?? []) as { suggestion_type: string; content: string }[]).slice(0, 3).map((sg, i) => (
+                <div key={i} style={{ fontSize: 10.5, color: "var(--text-mid)", lineHeight: 1.5 }}>↩ {sg.content}</div>
+              ))}
             </div>
           )}
         </div>

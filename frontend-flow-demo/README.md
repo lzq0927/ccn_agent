@@ -26,7 +26,7 @@ npm run lint       # tsc --noEmit
 
 > **DEMO 模式(默认)**:内置取自真实 `storage/cases` 的样本数据,确定性自动播放,展会现场 100% 可靠。
 >
-> **LIVE 模式(A~G)**:切到 LIVE 后接后端**真实消息级离散事件仿真**——注册/PDU 流程逐条消息执行,AMF 记注册成功率+请求数、SMF 记 PDU 成功率+请求数;点「异常检测」注入故障→「诊断」走真高稳智能体(MiniMax)→「下发策略」回灌仿真执行→「评估优化」检查恢复;数据按场景落盘 `storage/live_replay/{场景}/` 可回放。需后端 `uvicorn api.app:app --port 8000` + MiniMax key(见 `config/llm.local.yaml`)。
+> **LIVE 模式(A~G,真实闭环无剧本)**:接后端真实消息级离散事件仿真。三 Agent 真实接入:注入前 **Agent 1 影子自校验**(故障数据不合理自动调参);诊断走真高稳智能体(MiniMax;无 key 自动降级确定性工具链);恢复策略由**通用规划器**从「诊断+实时遥测」推导(隔离/重选/分层准入,带推导依据);恢复与否、需要几轮由仿真真实状态决定——误诊会真实不恢复并进入下一轮(≤3 轮),最终评估诚实报告。数据按场景落盘 `storage/live_replay/{场景}/` 可回放。需后端 `uvicorn api.app:app --port 8000` + MiniMax key(见 `config/llm.local.yaml`)。设计详见 `docs/live-real-closed-loop.md`。
 
 ## 操作
 

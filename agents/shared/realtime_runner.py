@@ -1,15 +1,22 @@
-"""RealtimeLiveRunner: 常驻实时仿真 + 点击触发的 LIVE 闭环 runner。
+"""RealtimeLiveRunner: 常驻实时仿真 + 点击触发的 LIVE 闭环 runner(**真实闭环版**)。
 
-与旧 ``LiveRunner``(脚本化桩,自动跑完阶段)不同,本 runner:
+与旧 ``LiveRunner``(脚本化桩)不同,本 runner:
   - 启动即进入**常驻 tick 循环**,驱动 ``RealtimeEngine`` 逐秒产出真实 KPI/CHR/告警
     并推 WS + 落盘(数据采集阶段:正常数据)。
   - 阶段推进由前端**点击圆圈**经 ``/control`` 触发:
-      inject_fault(异常检测) → diagnose(诊断) → apply_policy(下发策略) → evaluate(评估优化)
-  - 诊断走**真 ``FaultPerceptionAgent``**(经 LiveDiagnoser);策略经 policy_resolver
-    **真回灌引擎**(隔离/重选/流控),后续 tick 的 KPI 真实恢复(闭环)。
+      inject_fault(异常检测) → match(策略匹配) → root(根因推理)
+      → apply_policy(下发策略) → evaluate(评估优化)
+  - **三 Agent 真实接入**:
+      · Agent 1(数据生成):注入前影子自校验(``fault_validator``)——故障数据不合理
+        自动调参重试,通过才注入(与设计态 generate→validate→adjust 同构);
+      · Agent 2(故障感知):真 ``FaultPerceptionAgent``(经 LiveDiagnoser);
+      · Agent 3(评估优化):真值比对 + 恢复效果 + 优化建议(``live_report``)。
+  - **无剧本**:恢复策略由 ``policy_planner`` 从「诊断 + 遥测」通用推导;是否恢复、
+    需要几轮,由 ``RealtimeEngine`` 真实状态决定(误诊 → 打错对象 → 真不恢复 →
+    诚实进入下一轮或最终评估失败)。
 
 复用:``_SessionBus``、``LiveDataRecorder``、``EngineStepper``、``RealtimeEngine``、
-``LiveDiagnoser``、``resolve_policy_actions``。
+``LiveDiagnoser``、``policy_planner``、``fault_validator``、``live_report``。
 """
 from __future__ import annotations
 
@@ -20,7 +27,7 @@ from typing import Any, Optional
 
 from agents.simulation.engine_step import EngineStepper
 from agents.simulation.live_scenarios import LiveScenario
-from agents.simulation.policy_resolver import resolve_policy_actions
+from agents.simulation.policy_planner import build_plan_context, plan_recovery_actions
 from agents.simulation.realtime_engine import RealtimeEngine
 from agents.fault_perception.live_diagnoser import LiveDiagnoser
 
@@ -37,6 +44,9 @@ _PHASE_NAMES = {
 #   - phase 1:正常数据采集段;phase 2:故障注入后异常段(SR 下降,需 ≥12 tick 稳定滚动窗口);
 #   - phase 5+6:策略回灌后恢复段(SR 回升过 0.99),由 apply_policy 合并 arm。
 _PHASE_QUOTA = {0: 0, 1: 12, 2: 14, 3: 0, 4: 0, 5: 10, 6: 12, 7: 0}
+
+# 真实闭环:最多诊断-恢复轮数(反馈控制上限;达到仍未恢复 → 诚实评估失败)
+MAX_ROUNDS = 3
 
 
 @dataclass
@@ -59,7 +69,8 @@ class _RecorderPluginShim:
 
     @property
     def expected_round(self) -> int:
-        return self._scenario.expected_rounds
+        # 真实闭环:轮数由引擎状态决定,不再有剧本期望;0 = 未剧本化
+        return 0
 
     def build_topology(self) -> Any:
         return self._engine.topology
@@ -101,6 +112,10 @@ class RealtimeLiveRunner:
         self._round = 1
         self._last_diagnosis: Any = None
         self._step_counter = 0
+        # 真实闭环状态
+        self._isolated_by_policy: set[str] = set()   # 已被策略隔离的 NE(规划器防重复隔离)
+        self._sr_timeline: list[dict] = []           # 每轮判恢复时的引擎快照(评估用)
+        self._validated_fault: Any = None            # Agent 1 影子校验后的故障配置
 
         # 方案B · 相位配额门控状态
         self._phase_budget = 0                       # 当前相位剩余 tick 配额;耗尽即 pause
@@ -254,7 +269,20 @@ class RealtimeLiveRunner:
         return snap
 
     async def handle_inject_fault(self) -> None:
-        self.engine.inject_fault(self.scenario.fault_config)
+        # Agent 1(数据生成)实时形态:影子自校验 —— 故障数据不合理自动调参重试
+        from agents.simulation.fault_validator import validate_fault_spec
+
+        validated_fc, report = validate_fault_spec(
+            self.scenario, self.scenario.fault_config,
+            seed=hash(self.session_id) & 0xFFFF,
+        )
+        self._publish("data_validation", {
+            "passed": report.passed, "tries": report.tries,
+            "checks": report.checks, "adjustments": report.adjustments,
+        })
+        self._validated_fault = validated_fc
+
+        self.engine.inject_fault(validated_fc)
         self._set_phase(2)  # 异常检测
         self._arm_phase(2)  # 跑异常检测段(故障告警由后续 tick 产出,配额跑完自动暂停)
         await self._wait_segment()  # 等异常段配额跑完,KPI/CHR 累积足
@@ -293,23 +321,23 @@ class RealtimeLiveRunner:
 
     async def handle_apply_policy(self) -> None:
         self._set_state("recovering")
-        # 轮次感知:首轮用弱策略 recovery_actions_r1(若定义),二轮用完整 recovery_actions
-        actions = resolve_policy_actions(self.scenario, self._last_diagnosis, round_no=self._round)
-        self.engine.apply_policy(actions)
+        # 通用策略规划:从「诊断结果 + 引擎遥测」推导(无剧本配方)
+        ctx = build_plan_context(self.engine, isolated_by_policy=self._isolated_by_policy)
+        planned = plan_recovery_actions(self._last_diagnosis, ctx, round_no=self._round)
+        self.engine.apply_policy([p.policy for p in planned])
+        for a in planned:
+            if a.policy.kind == "isolate":
+                self._isolated_by_policy.add(a.policy.ne_id)
         self._set_phase(5)  # 下发策略
-        recipe = self.scenario.recovery_actions_r1 if (
-            self._round == 1 and self.scenario.recovery_actions_r1
-        ) else self.scenario.recovery_actions
-        for rec in recipe:
+        for a in planned:
             self._publish("recovery_action", {
-                "id": rec.get("id", ""), "cn": rec.get("cn", ""), "en": rec.get("en", ""),
-                "layer": rec.get("layer"), "ts": 0, "round": self._round,
+                "id": a.id, "cn": a.cn, "en": a.en, "layer": a.layer,
+                "rationale": a.rationale, "ts": 0, "round": self._round,
             })
             if self.recorder is not None:
                 try:
                     self.recorder.record_recovery_action(
-                        type("_A", (), {"id": rec.get("id", ""), "cn": rec.get("cn", ""),
-                                        "en": rec.get("en", ""), "layer": rec.get("layer")})(),
+                        type("_A", (), {"id": a.id, "cn": a.cn, "en": a.en, "layer": a.layer})(),
                         self._round,
                     )
                 except Exception:  # noqa: BLE001
@@ -324,29 +352,44 @@ class RealtimeLiveRunner:
         # 等恢复数据段跑完(配额耗尽)再判恢复——取代固定 settle
         await self._wait_segment()
         recovered = self.engine.is_recovered()
+        self._record_sr_point()
 
-        # 双轮场景:首轮弱策略未恢复 → 自动进二轮(重诊 + 精调策略)
-        if (
-            not recovered
-            and self._round < self.scenario.expected_rounds
-            and self.scenario.recovery_actions_r1 is not None
-            and (self._round == 1 or self.scenario.recovery_actions_r1)
-        ):
+        # 真实多轮闭环:未恢复 → 下一轮(再观察 → 重评估 → 重诊断 → 加强策略)。
+        # 无 expected_rounds 剧本:轮数由引擎真实状态驱动,上限 MAX_ROUNDS。
+        while not recovered and self._round < MAX_ROUNDS:
             self._round += 1
             self.engine.round = self._round
             self._publish("confidence_low", {
                 "score": float(getattr(self._last_diagnosis, "confidence", 0.0)) if self._last_diagnosis else 0.0,
-                "current_attempt": self._round - 1, "hint": "round2_refine",
+                "current_attempt": self._round - 1, "hint": "recovery_incomplete",
             })
-            self._publish("round_change", {"round": self._round})
-            await self.handle_match()          # 二轮重评估
-            await self.handle_root()           # 二轮重诊
-            await self.handle_apply_policy()   # 二轮精调策略
-            await self._wait_segment()         # 等二轮恢复段跑完再判恢复
+            self._publish("round_change", {"round": self._round, "reason": "recovery_incomplete"})
+            # 再观察一段真实数据(策略效果不足的新证据),然后完整重诊
+            self._set_phase(2)
+            self._arm_phase(2)
+            await self._wait_segment()
+            await self.diagnoser.emit_anomaly_detection(self._snapshot_with_ne_sr(), round=self._round)
+            await self.handle_match()          # 重置信度评估
+            await self.handle_root()           # 重诊断
+            await self.handle_apply_policy()   # 反馈加强策略(按当前 CPU/SR 差值重算)
+            await self._wait_segment()         # 等恢复段跑完再判恢复
             recovered = self.engine.is_recovered()
+            self._record_sr_point()
 
-        report = _build_evaluation(self.scenario, self._last_diagnosis, recovered, self._round, self.engine)
+        # Agent 3(评估优化)实时形态:真值比对 + 恢复效果 + 优化建议 + Skill 沉淀
+        from agents.evaluation.live_report import build_live_evaluation, build_skill_evolution
+
+        report = build_live_evaluation(
+            self._last_diagnosis,
+            self.engine.snapshot_for_agent()["ground_truth"],
+            self.engine,
+            recovered=recovered,
+            rounds_used=self._round,
+            sr_timeline=self._sr_timeline,
+            scenario_id=self.scenario.id,
+        )
         self._publish("evaluation_report", report)
+        self._publish("skill_evolved", build_skill_evolution(self._last_diagnosis, report))
         if self.recorder is not None:
             try:
                 self.recorder.record_evaluation(report)
@@ -364,26 +407,11 @@ class RealtimeLiveRunner:
             except Exception:  # noqa: BLE001
                 logger.exception("recorder.finalize failed")
 
-
-def _build_evaluation(scenario: LiveScenario, diagnosis: Any, recovered: bool, round_no: int, engine: Any = None) -> dict:
-    truth = sorted((scenario.fault_config.affected_ne_ids or set()))
-    pred = list(getattr(diagnosis, "fault_elements", []) or []) if diagnosis else []
-    tp = len(set(pred) & set(truth))
-    prec = tp / len(pred) if pred else (1.0 if not truth else 0.0)
-    rec = tp / len(truth) if truth else 1.0
-    f1 = 2 * prec * rec / (prec + rec) if (prec + rec) else 0.0
-    reg_sr = pdu_sr = None
-    if engine is not None:
-        reg_sr, pdu_sr = engine._success_rates()  # noqa: SLF001
-    return {
-        "metrics": {
-            "precision": round(prec, 3), "recall": round(rec, 3),
-            "f1": round(f1, 3), "exact_match": set(pred) == set(truth),
-        },
-        "recovered": recovered,
-        "amf_success_rate": round(reg_sr, 4) if reg_sr is not None else None,
-        "smf_success_rate": round(pdu_sr, 4) if pdu_sr is not None else None,
-        "trace_axes": {"overall": 0.9 if recovered else 0.6},
-        "suggestions": [],
-        "case_entry": {"scenario": scenario.id, "round": round_no, "predicted": pred, "truth": truth},
-    }
+    def _record_sr_point(self) -> None:
+        reg_sr, pdu_sr = self.engine._success_rates()  # noqa: SLF001
+        cpu = self.engine.ne_cpu
+        max_cpu = max((c for ne, c in cpu.items() if not str(ne).startswith("gNB")), default=0.0)
+        self._sr_timeline.append({
+            "round": self._round, "reg_sr": round(reg_sr, 4), "pdu_sr": round(pdu_sr, 4),
+            "max_core_cpu": round(max_cpu, 1),
+        })

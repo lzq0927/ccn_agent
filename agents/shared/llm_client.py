@@ -37,9 +37,18 @@ def _resolve_mode(config: LLMConfig) -> Literal["stub", "live"]:
         return env_override  # type: ignore[return-value]
     if config.mode in ("stub", "live"):
         return config.mode  # type: ignore[return-value]
-    if os.environ.get(config.api_key_env):
+    if os.environ.get(config.api_key_env) or config.api_key:
         return "live"
     return "stub"
+
+
+def effective_mode(config: LLMConfig) -> Literal["stub", "live"]:
+    """Public accessor for the resolved mode(stub=降级路径,live=真实 LLM)。"""
+    return _resolve_mode(config)
+
+
+class LLMStubModeError(RuntimeError):
+    """Raised when chat() is called in stub mode —— 调用方应走确定性降级路径。"""
 
 
 @dataclass
@@ -127,6 +136,13 @@ class LLMClient:
         retries: int = 3,
     ) -> LLMResponse:
         """Send a chat completion request."""
+        if effective_mode(self.config) == "stub":
+            # stub 模式不打真实请求:调用方(FaultPerceptionAgent 等)应先检查
+            # effective_mode 并走确定性降级;直接调用则快速失败,避免无 key 401 重试。
+            raise LLMStubModeError(
+                "LLM is in stub mode (no API key / CC_LIVE_LLM_MODE=stub); "
+                "use the deterministic fallback path instead"
+            )
         client = await self._ensure_client()
 
         body: dict[str, Any] = {

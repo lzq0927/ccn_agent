@@ -9,6 +9,12 @@ export interface RecoveryAction {
   id: string;
   cn: string;
   en: string;
+  /** LIVE:策略层(UE/AMF/SMF/网元类型);DEMO 无 */
+  layer?: string;
+  /** LIVE:通用规划器的推导依据;DEMO 无 */
+  rationale?: string;
+  /** LIVE:下发轮次 */
+  round?: number;
 }
 
 export interface GenerationCheck {
@@ -26,7 +32,7 @@ export interface StoryState {
   globalProgress: number; // 整轮进度 0..1
   simT: number; // 仿真时间戳 1..60(驱动 KPI 着色)
   loop: number; // 第几轮循环
-  round: 1 | 2; // Agent2 执行轮次(E 两轮:首轮 back-off 未收敛 / 二轮 NSSAI+APN 收敛)
+  round: number; // Agent2 执行轮次(LIVE 真实闭环:后端 round_change 驱动,可 >2)
   loopBackKind: "loop1" | "loop2" | null; // 评估/恢复未通过回 Agent1 的回路:B/C=loop①(⑤评估未通过,A2→A1)/ E=loop②(经 Agent3,A3→A1)
 
   // —— 数字孪生 ——

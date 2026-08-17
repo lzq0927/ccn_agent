@@ -119,6 +119,7 @@ class ContextManager:
             kpi_str += f"\n  ... ({len(link_rows)} total link entries)"
 
         chr_block = self._chr_failure_block(case_data.chr_records)
+        runtime_block = self._runtime_context_block(case_data)
 
         return f"""Please diagnose the fault in this 5GC case (ID: {case_data.case_id}).
 
@@ -130,7 +131,39 @@ class ContextManager:
 
 ## Process:
 {case_data.process_text[:500]}
-{chr_block}Analyze the data using the available tools and provide your diagnosis. Start by checking for KPI anomalies, then use the user-level CHR to confirm or rule out faults."""
+{chr_block}{runtime_block}Analyze the data using the available tools and provide your diagnosis. Start by checking for KPI anomalies, then use the user-level CHR to confirm or rule out faults."""
+
+    @staticmethod
+    def _runtime_context_block(case_data: CaseData, max_chars: int = 900) -> str:
+        """运行时遥测(CPU/到达率/失败类别归因)—— LIVE 用例附带;设计态为空。"""
+        rc = getattr(case_data, "runtime_context", None) or {}
+        if not rc:
+            return ""
+        ne_cpu = rc.get("ne_cpu", {}) or {}
+        hot = sorted(
+            ((ne, c) for ne, c in ne_cpu.items() if c >= 70), key=lambda x: -x[1]
+        )[:6]
+        arrivals = rc.get("arrivals_per_s", {}) or {}
+        stats = rc.get("traffic_class_stats", {}) or {}
+        dom = stats.get("dominant")
+        lines = ["\n## Runtime Telemetry (live network):"]
+        if hot:
+            lines.append("- NF CPU: " + ", ".join(f"{ne}={c:.0f}%" for ne, c in hot)
+                         + (" (>=80% = overload)" if any(c >= 80 for _, c in hot) else ""))
+        if arrivals:
+            lines.append(f"- Arrivals/s: reg={arrivals.get('reg')}, pdu={arrivals.get('pdu')}")
+        if dom:
+            lines.append(
+                f"- Failure attribution: dominant class {dom['key']} = {dom['fail_share']:.0%} "
+                f"of failures (baseline {dom.get('base_share', 0):.0%}, lift {dom.get('lift')})")
+        elif stats:
+            lines.append("- Failure attribution: no dominant traffic class")
+        lines.append(
+            "- If NFs are overloaded by one traffic class, diagnose a business/surge fault "
+            "(fault_mode=business, fault_type=path_session) and set traffic_filter accordingly "
+            "instead of isolating NEs.")
+        text = "\n".join(lines) + "\n\n"
+        return text[:max_chars]
 
     @staticmethod
     def _chr_failure_block(chr_records: list[dict], max_chars: int = 600) -> str:

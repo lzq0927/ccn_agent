@@ -78,8 +78,12 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
     setModalCirclePos(pos);
     setModalCircleN(n);
     if (isLive) {
-      // LIVE:直接定位到该相位(不动画穿过其他相位)+ 触发后端
-      const first = stops.findIndex((s) => s.phase === p);
+      // LIVE:定位到该相位的「当前轮次」停靠点(真实闭环轮次由后端 round_change 驱动,
+      // 二轮点③④⑤应命中二轮段而非首轮段)+ 触发后端
+      const curRound = state.round || 1;
+      let first = stops.findIndex((s) => s.phase === p && s.round === curRound);
+      if (first < 0) first = stops.findIndex((s) => s.phase === p && s.round === 2);
+      if (first < 0) first = stops.findIndex((s) => s.phase === p);
       const target = first >= 0 ? first : idx;
       setIdx(target);
       if (first >= 0) onSeekTime(stops[first].time);

@@ -25,8 +25,21 @@ type Mode = "demo" | "live";
 /** LIVE 事件覆盖到 DEMO 底板 —— 只覆盖后端确实推过的字段,其余保留确定性派生值。
  *  注意:phaseIndex 不取 live.phaseIndex —— 后端 phase_change 异步到达会滞后于点击,
  *  导致弹窗显示「上一个相位」(点异常检测显示数据采集…)。相位由圆圈点击直接驱动
- *  (GuidedStage 定位 demoClock → base.phaseIndex),后端只负责产出数据事件。 */
+ *  (GuidedStage 定位 demoClock → base.phaseIndex),后端只负责产出数据事件。
+ *  round 取 live(真实闭环:后端 round_change 驱动,可与 DEMO 剧本轮次不同)。 */
 function mergeLive(base: StoryState, live: LiveState): StoryState {
+  // Agent 1 影子自校验结果 → 覆盖 5 维校验灯的真实通过状态
+  const generationChecks = live.dataValidation
+    ? base.generationChecks.map((c) => {
+        const hit = live.dataValidation!.checks.find((v) => v.name === c.key);
+        return hit ? { ...c, passed: hit.passed } : c;
+      })
+    : base.generationChecks;
+  // 真实评估已到 → 「评估未通过」回路由真实结果驱动(recovered=false 且多轮)
+  const liveLoopBack =
+    live.activeEvaluation && live.activeEvaluation.recovered === false && (live.round ?? 1) > 1
+      ? ("loop2" as const)
+      : null;
   return {
     ...base,
     scenarioId: live.scenarioId || base.scenarioId,
@@ -49,6 +62,8 @@ function mergeLive(base: StoryState, live: LiveState): StoryState {
       ? live.recentSteps[live.recentSteps.length - 1]
       : base.currentStep,
     recoveryActions: live.recoveryActions.length ? live.recoveryActions : base.recoveryActions,
+    generationChecks,
+    loopBackKind: live.activeEvaluation ? liveLoopBack : base.loopBackKind,
     rootCause: live.activeDiagnosis
       ? { nes: live.activeDiagnosis.faultElements, links: base.rootCause.links }
       : base.rootCause,
@@ -156,6 +171,17 @@ export default function App() {
     if (stop) demoClock.seekGlobal(stop.time / demoClock.duration);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLive, scenario.id]);
+
+  // LIVE:真实闭环进入下一轮(round_change)→ 时间轴定位到该轮的「数据采集」停靠点
+  // (DEMO 底板作为展示骨架;数据/轮次/结果全部来自后端真实事件)
+  useEffect(() => {
+    if (!isLive || liveClock.state.round <= 1) return;
+    const stops = walkStops(scenario);
+    const stop = stops.find((s) => s.phase === 1 && s.round === liveClock.state.round)
+      ?? stops.find((s) => s.phase === 1);
+    if (stop) demoClock.seekGlobal(stop.time / demoClock.duration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, liveClock.state.round, scenario.id]);
 
   // LIVE:圆圈点击触发后端阶段(注入故障 / 诊断 / 下发策略 / 评估)
   const onPhaseTrigger = (phase: number) => {

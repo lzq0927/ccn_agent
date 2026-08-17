@@ -41,17 +41,37 @@ class _FakeAgent:
         )
 
 
-def _make_runner(bus, tmp_path=None, tick_interval=0.004, sim_window=10000):
+def _make_runner(bus, scenario=None, agent_cls=None, tmp_path=None,
+                 tick_interval=0.004, sim_window=10000):
     from agents.shared.realtime_runner import RealtimeLiveRunner
 
     runner = RealtimeLiveRunner(
-        session_id="sess_test", scenario=SCENARIO_A, bus=bus, storage=None,
+        session_id="sess_test", scenario=scenario or SCENARIO_A, bus=bus, storage=None,
         recorder=None, tick_interval=tick_interval, sim_window=sim_window,
         reasoning_step_delay=0.0, recovery_action_delay=0.0, post_policy_settle=0.0,
     )
+    agent_cls = agent_cls or _FakeAgent
     # 桩掉真 Agent 构造(注入 progress 回调,模拟真 Agent 的流式事件)
-    runner.diagnoser._build_agent = lambda: _FakeAgent(runner.diagnoser._on_progress)  # noqa: SLF001
+    runner.diagnoser._build_agent = lambda: agent_cls(runner.diagnoser._on_progress)  # noqa: SLF001
     return runner
+
+
+class _StubbornWrongAgent(_FakeAgent):
+    """每轮都误诊:坚持 SMF_2(真故障 UPF_1)→ 验证诚实多轮 + 诚实失败。"""
+
+    async def diagnose(self, case_data):
+        await super().diagnose(case_data)
+        from agents.shared.models import DiagnosisResult, ReasoningStep, SessionStatus
+
+        return DiagnosisResult(
+            session_id="fake", case_id=case_data.case_id,
+            fault_elements=["SMF_2"], fault_links=[],
+            fault_type="single_ne", fault_mode="link",
+            confidence=0.55, route_taken=Route.GUIDED,
+            reasoning_trace=[ReasoningStep(step_number=1, step_type="conclusion",
+                                           content="误诊:SMF_2(每轮坚持)")],
+            status=SessionStatus.COMPLETED,
+        )
 
 
 def test_closed_loop_inject_diagnose_policy_evaluate():
@@ -143,3 +163,110 @@ def test_control_actions_via_runner_pause_resume():
     paused, running = asyncio.run(drive())
     assert paused is True
     assert running is False
+
+
+def test_wrong_diagnosis_honest_multiround_failure():
+    """误诊诚实性:每轮误诊 SMF_2(真故障 UPF_1)→ 多轮真实未恢复 → 评估诚实失败。
+
+    验证无剧本:不因「场景应两轮成功」而伪造恢复;round_change/confidence_low
+    逐轮发出;MAX_ROUNDS 后收尾,recovered=False 且优化建议包含误报回流。
+    """
+    from agents.shared.realtime_runner import MAX_ROUNDS
+
+    bus = _CollectBus()
+    runner = _make_runner(bus, agent_cls=_StubbornWrongAgent)
+
+    async def drive():
+        runner.start()
+        await runner._wait_segment()
+        await runner.handle_inject_fault()
+        await runner.handle_match()
+        await runner.handle_root()
+        await runner.handle_apply_policy()
+        await runner.handle_evaluate()
+        await runner.stop()
+
+    asyncio.run(drive())
+
+    rounds = [p["round"] for t, p in bus.events if t == "round_change"]
+    assert rounds == list(range(2, MAX_ROUNDS + 1)), f"rounds should escalate to max: {rounds}"
+    assert any(t == "confidence_low" for t, _ in bus.events)
+
+    ev = next(p for t, p in bus.events if t == "evaluation_report")
+    assert ev["recovered"] is False, "wrong diagnosis must NOT report recovery"
+    assert ev["rounds"] == MAX_ROUNDS
+    assert ev["truth"] == ["UPF_1"] and "UPF_1" not in ev["predicted"]
+    # 优化建议:误报元素回流(skill_update)且包含未恢复难例(new_case)
+    kinds = {s["suggestion_type"] for s in ev["suggestions"]}
+    assert "skill_update" in kinds and "new_case" in kinds
+    # Skill 沉淀事件
+    skill = next(p for t, p in bus.events if t == "skill_evolved")
+    assert skill["kind"] == "NEW"
+
+
+def test_agent1_shadow_validation_event():
+    """Agent 1 影子自校验:注入时发 data_validation(5 维检查,纯规则)。"""
+    bus = _CollectBus()
+    runner = _make_runner(bus)
+
+    async def drive():
+        runner.start()
+        await runner._wait_segment()
+        await runner.handle_inject_fault()
+        await runner.stop()
+
+    asyncio.run(drive())
+    dv = next(p for t, p in bus.events if t == "data_validation")
+    assert dv["passed"] is True
+    names = {c["name"] for c in dv["checks"]}
+    assert names == {"kpi_consistency", "fault_manifestation", "topology_coherence",
+                     "process_validity", "label_correctness"}
+
+
+def test_storm_scenario_real_round_loop():
+    """风暴场景(D)真实闭环:诊断含类别过滤 → 准入限流策略 → 恢复 + 类别命中。"""
+    from agents.shared.models import DiagnosisResult, ReasoningStep, Route, SessionStatus
+    from agents.simulation.live_scenarios import SCENARIO_D
+
+    class _StormAgent:
+        def __init__(self, progress_callback=None):
+            self._cb = progress_callback
+
+        async def diagnose(self, case_data):
+            return DiagnosisResult(
+                session_id="fake", case_id=case_data.case_id,
+                fault_elements=["AMF_1", "AMF_2", "SMF_1"],
+                fault_links=[], fault_type="path_session", fault_mode="business",
+                confidence=0.78, route_taken=Route.WORKFLOW,
+                reasoning_trace=[ReasoningStep(step_number=1, step_type="conclusion",
+                                               content="业务激增(sst=3)过载 AMF/SMF")],
+                status=SessionStatus.COMPLETED, traffic_filter={"sst": 3},
+            )
+
+    bus = _CollectBus()
+    runner = _make_runner(bus, scenario=SCENARIO_D, agent_cls=_StormAgent)
+
+    async def drive():
+        runner.start()
+        await runner._wait_segment()
+        await runner.handle_inject_fault()
+        await runner.handle_match()
+        await runner.handle_root()
+        await runner.handle_apply_policy()
+        await runner.handle_evaluate()
+        await runner.stop()
+
+    asyncio.run(drive())
+
+    # 策略来自通用规划器:准入限流(UE back-off + AMF/SMF),无隔离
+    actions = [p for t, p in bus.events if t == "recovery_action"]
+    layers = {a["layer"] for a in actions}
+    assert {"UE", "AMF", "SMF"} <= layers, f"storm should use layered admission: {layers}"
+    assert all("隔离" not in a["cn"] for a in actions)
+    # 每条动作带 rationale(通用推导依据)
+    assert all(a.get("rationale") for a in actions)
+
+    ev = next(p for t, p in bus.events if t == "evaluation_report")
+    assert ev["recovered"] is True, f"storm should recover via admission control: {ev}"
+    assert ev["class_match"] is True  # 诊断类别过滤 sst=3 与真值 fault_classes 命中
+    assert ev["metrics"]["precision"] == 1.0

@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from simulator.chr_generator import CHRGenerator
-from simulator.models import FaultConfig, FaultPointType, NEType, Topology
+from simulator.models import FaultConfig, NEType, Topology
 from simulator.process import PROCESS_DEFINITIONS
 from simulator.subscriber import SubscriberRegistry
 
@@ -122,6 +122,7 @@ class RealtimeEngine:
         self.fault: Optional[FaultConfig] = None
         self._policies: list[PolicyAction] = []
         self._pending_alarms: list[dict] = []
+        self._loss_flt: dict = {}   # 故障丢损的业务类别过滤(空=全类别)
 
         # 滚动计数(每 tick 一格)
         self._win_reg: deque[tuple[int, int]] = deque(maxlen=_ROLLING_WINDOW)  # (req, succ)
@@ -133,6 +134,8 @@ class RealtimeEngine:
         # 每元素 = {ne_id: [att, succ]};仅 AMF 实例进 reg、SMF 实例进 pdu(主控 NF 维度)。
         self._win_ne_reg: deque[dict[str, list[int]]] = deque(maxlen=_ROLLING_WINDOW)
         self._win_ne_pdu: deque[dict[str, list[int]]] = deque(maxlen=_ROLLING_WINDOW)
+        # 流控拒绝滚动窗口(每 tick (backoff, admission),供 KPI 快照观测流控效果)
+        self._win_rejects: deque[tuple[int, int]] = deque(maxlen=_ROLLING_WINDOW)
 
         # 给 Agent 的累积缓冲
         self._kpi_link: deque[dict] = deque(maxlen=_KPI_BUFFER_LINK)
@@ -144,6 +147,8 @@ class RealtimeEngine:
         self._tick_pdu_req = self._tick_pdu_succ = 0
         self._tick_iot_reg = self._tick_toc_reg = 0
         self._tick_iot_sess = self._tick_toc_sess = 0
+        self._tick_backoff_rejects = 0       # UE back-off 抑制的到达(未产生请求)
+        self._tick_admission_rejects = 0     # AMF/SMF 准入拒绝(计请求不计成功)
         self._tick_touch: dict[str, int] = {}
         self._tick_link: dict[tuple[str, str], list[int]] = {}  # (s,d)->[att,succ]
         self._tick_chr: list[dict] = []
@@ -194,18 +199,14 @@ class RealtimeEngine:
         self.sim_t = sim_t
         self._reset_tick_accums()
 
-        # 1) 生成到达:注册 + PDU 各按 λ(受故障/策略调制)
-        reg_n, pdu_n, iot_reg, toc_reg, iot_sess, toc_sess = self._arrivals_for_tick()
-        self._tick_iot_reg, self._tick_toc_reg = iot_reg, toc_reg
-        self._tick_iot_sess, self._tick_toc_sess = iot_sess, toc_sess
-
-        bindings = self.bindings
-        for _ in range(reg_n):
-            b = self._rng.choice(bindings)
-            self._spawn_attempt(b, "Registration")
-        for _ in range(pdu_n):
-            b = self._rng.choice(bindings)
-            self._spawn_attempt(b, "PDU_Session_Establishment")
+        # 1) 生成到达:按业务类别 λ(受故障激增调制;流控在逐条发起时执行)
+        arrivals = self._arrivals_for_tick()
+        self._tick_iot_reg = sum(1 for b, p in arrivals if p == "Registration" and b.sst == 3)
+        self._tick_toc_reg = sum(1 for b, p in arrivals if p == "Registration" and b.sst != 3)
+        self._tick_iot_sess = sum(1 for b, p in arrivals if p != "Registration" and b.sst == 3)
+        self._tick_toc_sess = sum(1 for b, p in arrivals if p != "Registration" and b.sst != 3)
+        for binding, proc_name in arrivals:
+            self._spawn_attempt(binding, proc_name)
 
         # 2) 排空事件堆:逐跳处理本 tick 内全部信令消息
         while self._heap and self._heap[0][0] < sim_t + 1:
@@ -216,6 +217,7 @@ class RealtimeEngine:
         self._win_reg.append((self._tick_reg_req, self._tick_reg_succ))
         self._win_pdu.append((self._tick_pdu_req, self._tick_pdu_succ))
         self._win_touch.append(dict(self._tick_touch))
+        self._win_rejects.append((self._tick_backoff_rejects, self._tick_admission_rejects))
         # per-NE 实例 att/succ → 滚动窗口(仅本 tick 有请求的 NE 入窗;缺席 tick 不计入该 NE 的分母)
         self._win_ne_reg.append({ne: [att, self._tick_ne_reg_succ.get(ne, 0)] for ne, att in self._tick_ne_reg_att.items()})
         self._win_ne_pdu.append({ne: [att, self._tick_ne_pdu_succ.get(ne, 0)] for ne, att in self._tick_ne_pdu_att.items()})
@@ -237,6 +239,8 @@ class RealtimeEngine:
         self._tick_pdu_req = self._tick_pdu_succ = 0
         self._tick_iot_reg = self._tick_toc_reg = 0
         self._tick_iot_sess = self._tick_toc_sess = 0
+        self._tick_backoff_rejects = 0
+        self._tick_admission_rejects = 0
         self._tick_touch = {}
         self._tick_link = {}
         self._tick_chr = []
@@ -246,49 +250,75 @@ class RealtimeEngine:
         self._tick_ne_pdu_succ = {}
 
     # ------------------------------------------------------------------
-    # 到达模型
+    # 到达模型(按业务类别)
     # ------------------------------------------------------------------
-    def _arrivals_for_tick(self) -> tuple[int, int, int, int, int, int]:
+    def _class_bindings(self) -> dict[tuple[int, str], list[UeBinding]]:
+        """按业务类别 (sst, dnn) 分组 UE 绑定(到达生成 / 类别归因共用)。"""
+        classes: dict[tuple[int, str], list[UeBinding]] = {}
+        for b in self.bindings:
+            classes.setdefault((b.sst, b.dnn), []).append(b)
+        return classes
+
+    @staticmethod
+    def _matches_flt(binding: UeBinding, flt: dict) -> bool:
+        """策略/激增过滤器是否命中该 UE 的业务画像(sst/dnn/device_type)。"""
+        if not flt:
+            return True
+        attrs = {"sst": binding.sst, "dnn": binding.dnn, "device_type": binding.device_type}
+        return all(attrs.get(k) == v for k, v in flt.items())
+
+    def _surge_multiplier(self, binding: UeBinding) -> float:
+        """故障激增倍数:仅 surge_filter 命中的类别激增(空过滤器=全体)。"""
+        if self.fault and self.fault.surge_multiplier > 1.0:
+            if self._matches_flt(binding, self.fault.surge_filter or {}):
+                return self.fault.surge_multiplier
+        return 1.0
+
+    def _ue_backoff_ratio(self, binding: UeBinding) -> float:
+        """UE 层 back-off 对该终端的实际抑制比(不支持 back-off 的终端为 0)。"""
+        if not binding.supports_backoff:
+            return 0.0
+        ratio = 0.0
+        for p in self._policies:
+            if p.kind != "flow_control" or p.layer != "UE":
+                continue
+            if self._matches_flt(binding, p.flt):
+                ratio = max(ratio, p.ratio)
+        return min(ratio, 0.98)
+
+    def _nf_admission_ratio(self, binding: UeBinding, proc_name: str) -> float:
+        """AMF(注册)/SMF(PDU)网络侧准入抑制比(flt 命中即全效,与终端支持无关)。"""
+        layer = "AMF" if proc_name == "Registration" else "SMF"
+        ratio = 0.0
+        for p in self._policies:
+            if p.kind != "flow_control" or p.layer != layer:
+                continue
+            if self._matches_flt(binding, p.flt):
+                ratio = max(ratio, p.ratio)
+        return min(ratio, 0.98)
+
+    def _arrivals_for_tick(self) -> list[tuple[UeBinding, str]]:
+        """按业务类别生成到达:λ_c = base_λ × 类别占比 × 激增倍数。
+
+        flow_control 不在 λ 层削减——UE back-off / AMF·SMF 准入在 _spawn_attempt
+        逐条执行(终端是否支持 back-off、准入拒绝是否计请求,均按真实语义)。
+        返回 [(binding, proc_name)] 待发起列表(已打散)。
+        """
         scen = self.scenario
         base_reg = float(getattr(scen, "base_reg_lambda", 14.0)) if scen else 14.0
         base_pdu = float(getattr(scen, "base_pdu_lambda", 26.0)) if scen else 26.0
-        iot_ratio = float(getattr(scen, "iot_ratio", 0.0)) if scen else 0.0
+        total = max(1, len(self.bindings))
 
-        # iot_storm 故障:物联网到达激增
-        storm_mult = 1.0
-        if self.fault and self.fault.fault_point_type == FaultPointType.PATH_SESSION and getattr(scen, "is_storm", False):
-            storm_mult = 8.0
-        # flow_control 策略:按 ratio 削减匹配到达
-        reg_throttle, pdu_throttle = self._compute_throttle()
-
-        iot_reg_lambda = base_reg * iot_ratio * storm_mult * (1 - reg_throttle)
-        toc_reg_lambda = base_reg * (1 - iot_ratio) * (1 - reg_throttle)
-        iot_sess_lambda = base_pdu * iot_ratio * storm_mult * (1 - pdu_throttle)
-        toc_sess_lambda = base_pdu * (1 - iot_ratio) * (1 - pdu_throttle)
-
-        iot_reg = self._poisson(iot_reg_lambda)
-        toc_reg = self._poisson(toc_reg_lambda)
-        iot_sess = self._poisson(iot_sess_lambda)
-        toc_sess = self._poisson(toc_sess_lambda)
-        return iot_reg + toc_reg, iot_sess + toc_sess, iot_reg, toc_reg, iot_sess, toc_sess
-
-    def _compute_throttle(self) -> tuple[float, float]:
-        """返回 (reg 削减比, pdu 削减比)——取最强匹配的 flow_control。
-
-        UE back-off 同时削减注册与 PDU 到达;AMF NSSAI 削注册;SMF DNN 削 PDU。
-        """
-        reg_th = pdu_th = 0.0
-        for p in self._policies:
-            if p.kind != "flow_control":
-                continue
-            if p.layer == "UE":
-                reg_th = max(reg_th, p.ratio)
-                pdu_th = max(pdu_th, p.ratio)
-            elif p.layer == "AMF":
-                reg_th = max(reg_th, p.ratio)
-            elif p.layer == "SMF":
-                pdu_th = max(pdu_th, p.ratio)
-        return reg_th, pdu_th
+        arrivals: list[tuple[UeBinding, str]] = []
+        for (sst, dnn), members in self._class_bindings().items():
+            share = len(members) / total
+            surge = self._surge_multiplier(members[0])
+            for _ in range(self._poisson(base_reg * share * surge)):
+                arrivals.append((self._rng.choice(members), "Registration"))
+            for _ in range(self._poisson(base_pdu * share * surge)):
+                arrivals.append((self._rng.choice(members), "PDU_Session_Establishment"))
+        self._rng.shuffle(arrivals)
+        return arrivals
 
     def _poisson(self, lam: float) -> int:
         if lam <= 0:
@@ -299,10 +329,23 @@ class RealtimeEngine:
     # 事件处理:一条信令跳
     # ------------------------------------------------------------------
     def _spawn_attempt(self, binding: UeBinding, proc_name: str) -> None:
+        # 0) UE back-off:终端自身抑制(不产生请求;不支持 back-off 的终端不受影响)
+        if self._rng.random() < self._ue_backoff_ratio(binding):
+            self._tick_backoff_rejects += 1
+            return
         hops = self._materialize_hops(proc_name, binding)
         if not hops:
             return
-        # 请求计数:注册→AMF,PDU→SMF(含拥塞拒绝计 att;per-NE 实例同步计 att)
+        nf = binding.ne.get("AMF") if proc_name == "Registration" else binding.ne.get("SMF")
+        # 1) 网络侧准入(策略 flow_control,AMF NSSAI / SMF DNN):flt 命中即按 ratio 拒绝。
+        #    **有意准入拒绝不计入服务 SR**(单独观测 admission_rejects;与拥塞失败区分);
+        #    出一条 CHR 供归因。
+        if nf and self._rng.random() < self._nf_admission_ratio(binding, proc_name):
+            self._tick_admission_rejects += 1
+            self._emit_chr(self.sim_t, binding, proc_name, 0, binding.ue_id, nf,
+                           "Admission Reject", True)
+            return
+        # 请求计数:注册→AMF,PDU→SMF(拥塞拒绝计 att;per-NE 实例同步计 att)
         if proc_name == "Registration":
             self._tick_reg_req += 1
             amf = binding.ne.get("AMF", "")
@@ -313,8 +356,7 @@ class RealtimeEngine:
             smf = binding.ne.get("SMF", "")
             if smf:
                 self._tick_ne_pdu_att[smf] = self._tick_ne_pdu_att.get(smf, 0) + 1
-        # 拥塞准入:负责 NF(AMF/SMF)CPU 过载时按过载程度拒绝(风暴场景的 SR 下降来源)
-        nf = binding.ne.get("AMF") if proc_name == "Registration" else binding.ne.get("SMF")
+        # 2) 拥塞准入:负责 NF(AMF/SMF)CPU 过载时按过载程度拒绝(风暴场景的 SR 下降来源)
         cpu = self._ne_cpu.get(nf, 0.0) if nf else 0.0
         if cpu >= 80 and self._rng.random() < (cpu - 80) / 120:
             # 拥塞拒绝:计请求(已在上面),不计成功;在 NF 的接纳自环链路记一笔失败,
@@ -384,23 +426,25 @@ class RealtimeEngine:
     def _hop_outcome(self, src: str, dst: str, binding: UeBinding, proc_name: str) -> tuple[bool, bool]:
         """判定一跳成功/失败 + 是否命中故障(供 CHR cause code)。
 
-        背景噪声压到极低(无线 0.0003 / SBI 0.0001),避免 10~12 跳相乘后健康流程
-        成功率被错误压低;健康流程成功率 ≈ 0.998,与现网一致。
+        背景噪声压到现网真实水平(无线 0.0001 / SBI 0.00005,单跳 ≥99.99%),
+        使健康窗口 SR(≈0.999)稳定高于恢复判定线 0.99 —— 否则小样本尾部抖动
+        会让「已恢复」状态来回翻转;故障期的 SR 下降完全来自故障/拥塞本身。
         """
         ue_id = binding.ue_id
         # UE 无线跳:背景噪声
         if src == ue_id or dst == ue_id:
-            return self._rng.random() > 0.0003, False
+            return self._rng.random() > 0.0001, False
         # 任一 NE 宕机 → 失败
         if self._ne_status.get(src) == "down" or self._ne_status.get(dst) == "down":
             return False, True
-        # degraded NE(link/single_ne 故障):按 loss 丢损
+        # degraded NE(link/single_ne 故障):按 loss 丢损(可按业务类别过滤——
+        # 如 gNB 仅对物联终端群体异常,loss_filter={"sst": 3})
         for ne_id in (src, dst):
             loss = self._ne_loss.get(ne_id)
-            if loss and self._rng.random() < loss:
+            if loss and self._matches_flt(binding, self._loss_flt) and self._rng.random() < loss:
                 return False, True
         # 背景噪声
-        return self._rng.random() > 0.0001, False
+        return self._rng.random() > 0.00005, False
 
     # ------------------------------------------------------------------
     # CHR / KPI 累积
@@ -471,17 +515,17 @@ class RealtimeEngine:
     def inject_fault(self, fc: FaultConfig) -> None:
         self.fault = fc
         affected = set(fc.affected_ne_ids or [])
-        is_storm = fc.fault_point_type == FaultPointType.PATH_SESSION and bool(
-            getattr(self.scenario, "is_storm", False)
-        )
-        if not is_storm:
-            # 单网元 / 链路类:per-hop 丢损(degraded);极端 loss 视为 down
+        is_surge = fc.surge_multiplier > 1.0
+        self._loss_flt = dict(fc.loss_filter or {})
+        if not is_surge:
+            # 单网元 / 链路类:per-hop 丢损(degraded);极端 loss 视为 down。
+            # loss_filter 非空时仅匹配类别丢损(如 gNB 仅对物联终端群体异常)。
             for ne_id in affected:
                 self._ne_loss[ne_id] = max(self._ne_loss.get(ne_id, 0.0), fc.loss_rate)
-                if fc.loss_rate >= 0.5:
+                if fc.loss_rate >= 0.5 and not self._loss_flt:
                     self._ne_status[ne_id] = "down"
-        # iot_storm 不设 per-hop loss:靠 storm_mult 抬升到达 → AMF/SMF CPU 过载
-        # → _spawn_attempt 的拥塞准入拒绝(产生适度的 SR 下降 + 拥塞 CHR,而非灾难性丢包)
+        # 业务激增类不设 per-hop loss:靠 surge_multiplier 抬升匹配类别到达
+        # → AMF/SMF CPU 过载 → _spawn_attempt 的拥塞准入拒绝(适度 SR 下降 + 拥塞 CHR)
         self._pending_alarms.append({
             "sim_t": self.sim_t, "ne_id": sorted(affected)[0] if affected else "",
             "severity": "major", "category": "fault_injected",
@@ -579,6 +623,9 @@ class RealtimeEngine:
             "iot_sess_rate": self._tick_iot_sess, "toc_sess_rate": self._tick_toc_sess,
             "amf_cpu": round(amf_cpu, 2), "smf_cpu": round(smf_cpu, 2),
             "ne_cpu": dict(self._ne_cpu),
+            # 流控观测(滚动窗口内累计):UE back-off 抑制数 / AMF·SMF 准入拒绝数
+            "backoff_rejects": sum(b for b, _ in self._win_rejects),
+            "admission_rejects": sum(a for _, a in self._win_rejects),
             # 局向异常:用滚动窗口聚合(稳定),非单 tick 小样本(否则会闪烁/漏显)
             "link_anomalies": self._rolling_link_anomalies(),
             # 全部有向链路的滚动 SR(供前端按链路累积时序曲线,画「路径 KPI 曲线」)
@@ -623,21 +670,136 @@ class RealtimeEngine:
         """per-SMF 实例 PDU 会话 SR(实时)。"""
         return self._ne_success_rates(self._win_ne_pdu)
 
+    # ------------------------------------------------------------------
+    # 运行时遥测(供 Agent / 策略规划器消费;不含任何真值泄漏)
+    # ------------------------------------------------------------------
+    def traffic_class_stats(self, window: int = 300) -> dict:
+        """CHR 失败 × UE 绑定 → 失败类别归因(sst/dnn/device_type/gNB)。
+
+        失败份额来自 CHR 失败记录;"基线份额"取绑定分布(健康 CHR 仅 3% 采样,
+        不能当分母)。主导类别 = 失败份额 > 0.5 且相对基线放大 > 1.5 且失败数 ≥ 20。
+        """
+        recs = list(self._chr_buffer)[-window:]
+        fails = [r for r in recs if r.get("outcome") == "failure"]
+        by_ue = {b.ue_id: b for b in self.bindings}
+        total = len(fails)
+
+        def _attr_buckets(attr_fn) -> list[dict]:
+            counts: dict[str, int] = {}
+            for r in fails:
+                b = by_ue.get(r.get("ue_id", ""))
+                key = attr_fn(b) if b else "?"
+                counts[key] = counts.get(key, 0) + 1
+            base: dict[str, int] = {}
+            support: dict[str, int] = {}
+            for b in self.bindings:
+                k = attr_fn(b)
+                base[k] = base.get(k, 0) + 1
+                if b.supports_backoff:
+                    support[k] = support.get(k, 0) + 1
+            out = []
+            for key, n in sorted(counts.items(), key=lambda kv: -kv[1]):
+                base_share = base.get(key, 0) / max(1, len(self.bindings))
+                out.append({
+                    "key": key, "fails": n, "fail_share": round(n / max(total, 1), 3),
+                    "base_share": round(base_share, 3),
+                    "lift": round((n / max(total, 1)) / max(base_share, 1e-6), 2),
+                    "backoff_support": round(support.get(key, 0) / max(1, base.get(key, 1)), 3),
+                })
+            return out
+
+        classes = {
+            "sst": _attr_buckets(lambda b: f"sst={b.sst}"),
+            "dnn": _attr_buckets(lambda b: f"dnn={b.dnn}"),
+            "device_type": _attr_buckets(lambda b: b.device_type),
+            "gNB": _attr_buckets(lambda b: b.ne.get("gNB", "?")),
+        }
+        dominant = None
+        if total >= 20:
+            for dim, buckets in classes.items():
+                top = buckets[0]
+                # 主导判据:失败份额过半,**且高于该类别基线占比 + 0.1**
+                # (多数类场景 lift 天然有界,直接用「份额−基线差值」;
+                #  可区分「激增类别」与「按基线分布的普通故障」)。
+                threshold = max(0.5, top["base_share"] + 0.1)
+                if top["fail_share"] > threshold:
+                    flt_key = {"sst": "sst", "dnn": "dnn", "device_type": "device_type",
+                               "gNB": "gNB"}[dim]
+                    raw = top["key"].split("=", 1)[1] if "=" in top["key"] else top["key"]
+                    val = int(raw) if flt_key == "sst" else raw
+                    dominant = {
+                        "dim": dim, "key": top["key"], "flt": {flt_key: val},
+                        "fail_share": top["fail_share"], "lift": top["lift"],
+                        "base_share": top["base_share"],
+                        "backoff_support": top.get("backoff_support", 1.0),
+                    }
+                    break
+        return {"fail_total": total, "classes": classes, "dominant": dominant}
+
+    def load_reduction_hint(self, target_cpu: float = 75.0) -> dict[str, float]:
+        """各准入层要把「进入网络的消息量」削减多少才能把 CPU 压回目标线。
+
+        ratio = (virtual_cpu - target) / (virtual_cpu - base):按线性负载模型反解。
+        virtual_cpu 用**未截断**的负载投影(base + coeff×touches,可超 100)——
+        实测 CPU 在 100% 饱和后不再增长,直接用会严重低估所需削减量。
+        下游 NF(UDM/PCF…)过载同样由上游 AMF/SMF 准入消化(必经入口)。
+        """
+        def _worst_virtual(ne_type: NEType) -> float:
+            worst = 0.0
+            for n in self.topology.get_elements_by_type(ne_type):
+                avg_touch = sum(w.get(n.id, 0) for w in self._win_touch) / max(1, len(self._win_touch))
+                worst = max(worst, _BASE_CPU[ne_type.value] + _CPU_PER_TOUCH[ne_type.value] * avg_touch)
+            return worst
+
+        ingress_need = 0.0
+        for ne_type in (NEType.AMF, NEType.SMF, NEType.UDM, NEType.PCF, NEType.AUSF):
+            virtual = _worst_virtual(ne_type)
+            base = max(_BASE_CPU[ne_type.value], 1.0)
+            if virtual > target_cpu:
+                ingress_need = max(ingress_need, (virtual - target_cpu) / max(virtual - base, 1e-6))
+        return {
+            "AMF": round(min(ingress_need, 0.95), 3),
+            "SMF": round(min(ingress_need, 0.95), 3),
+        }
+
+    def active_flow_controls(self) -> list[dict]:
+        """当前生效的 flow_control 策略(规划器做轮次叠加折算用)。"""
+        return [
+            {"layer": p.layer, "ratio": p.ratio, "flt": dict(p.flt)}
+            for p in self._policies if p.kind == "flow_control"
+        ]
+
+    def runtime_context(self) -> dict:
+        """Agent 可见的运行时遥测(CPU / 到达率 / 失败类别归因 / 准入提示)。"""
+        win = list(self._win_reg)[-6:]
+        reg_arr = sum(r for r, _ in win) / max(1, len(win))
+        win_p = list(self._win_pdu)[-6:]
+        pdu_arr = sum(r for r, _ in win_p) / max(1, len(win_p))
+        return {
+            "ne_cpu": dict(self._ne_cpu),
+            "arrivals_per_s": {"reg": round(reg_arr, 1), "pdu": round(pdu_arr, 1)},
+            "traffic_class_stats": self.traffic_class_stats(),
+            "load_reduction_hint": self.load_reduction_hint(),
+        }
+
     def snapshot_for_agent(self) -> dict:
-        """组装 Agent CaseData 材料(KPI/CHR/拓扑/真值)。
+        """组装 Agent CaseData 材料(KPI/CHR/拓扑/真值 + 运行时遥测)。
 
         link KPI 取最近 ~6 tick 的稳定(SR 已按滚动窗口聚合,非单 tick 抖动)行,
         兼顾 anomaly_ratio 不被过度稀释与时序特征;session 级保留全部。
         """
-        ground_truth = {"fault_elements": [], "fault_links": []}
+        ground_truth = {"fault_elements": [], "fault_links": [], "fault_classes": []}
         if self.fault:
             ground_truth["fault_elements"] = sorted(self.fault.affected_ne_ids or [])
+            if self.fault.surge_filter:
+                ground_truth["fault_classes"] = [dict(self.fault.surge_filter)]
         return {
             "kpi_rows": list(self._kpi_link)[-90:] + list(self._kpi_trace),
             "chr_records": list(self._chr_buffer),
             "topology_text": render_topo_text(self.topology),
             "process_text": _PROCESS_TEXT,
             "ground_truth": ground_truth,
+            "runtime_context": self.runtime_context(),
         }
 
     def _materialize_hops(self, proc_name: str, binding: UeBinding) -> list[tuple[str, str, str]]:

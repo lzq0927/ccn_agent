@@ -49,7 +49,7 @@ class LiveDiagnoser:
     # 真 Agent 路径
     # ------------------------------------------------------------------
     def _case_data(self, snapshot: dict, round: int = 1) -> Any:
-        """从引擎快照组装 CaseData(KPI/CHR/拓扑/真值)—— assess / diagnose 共用。"""
+        """从引擎快照组装 CaseData(KPI/CHR/拓扑/真值 + 运行时遥测)。"""
         from agents.shared.models import CaseData
 
         return CaseData(
@@ -59,6 +59,7 @@ class LiveDiagnoser:
             process_text=snapshot.get("process_text", ""),
             ground_truth=snapshot.get("ground_truth", {}),
             chr_records=list(snapshot.get("chr_records", [])),
+            runtime_context=dict(snapshot.get("runtime_context", {}) or {}),
         )
 
     def run_real_diagnosis(self, snapshot: dict, round: int = 1) -> Any:
@@ -147,9 +148,17 @@ class LiveDiagnoser:
                 "breakdown": {}, "matched_patterns": ev.get("patterns", []), "round": 0,
             })
         elif etype == "tool_call":
+            text = f"🔧 调用工具 {ev.get('tool', '')}"
+            preview = (ev.get("result_preview") or "").strip()
+            if preview:
+                text += f" → {preview[:180]}"
             self.bus.publish("reasoning_step", {
-                "n": self._next_n(), "type": "tool_call",
-                "text": f"🔧 调用工具 {ev.get('tool', '')}", "round": 0,
+                "n": self._next_n(), "type": "tool_call", "text": text, "round": 0,
+            })
+        elif etype == "deterministic_mode":
+            self.bus.publish("reasoning_step", {
+                "n": self._next_n(), "type": "thinking",
+                "text": "▸ LLM 未配置(stub 模式)→ 确定性工具链诊断", "round": 0,
             })
         elif etype in ("workflow_start", "exploration_start"):
             label = "确定性工作流" if etype == "workflow_start" else "自主探索"

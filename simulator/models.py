@@ -108,6 +108,14 @@ class FaultConfig:
     affected_switch: str = ""
     # Resolved affected sessions (UE IDs) for PATH_SESSION
     affected_sessions: set = field(default_factory=set)
+    # Business-surge knobs (LIVE): arrival multiplier and the traffic class that
+    # surges (e.g. {"sst": 3}). Empty filter = all classes surge equally.
+    surge_multiplier: float = 1.0
+    surge_filter: dict = field(default_factory=dict)
+    # Per-class NE loss (LIVE): affected NEs only lose traffic of the matching
+    # class (e.g. {"sst": 3} = NE misbehaves only for that subscriber group).
+    # Empty filter = all classes lose equally.
+    loss_filter: dict = field(default_factory=dict)
 
 
 @dataclass

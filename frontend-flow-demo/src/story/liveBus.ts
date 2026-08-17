@@ -19,7 +19,8 @@ export interface LiveState {
   runnerState: RunnerState;
   phaseIndex: number;
   progress: number;
-  round: 1 | 2;
+  /** 当前诊断-恢复轮次(真实闭环:由后端 round_change 驱动,非剧本) */
+  round: number;
   simT: number;
   simNeCpu: Record<string, number>;
   liveKpi: LiveKpi | null;
@@ -39,11 +40,25 @@ export interface LiveState {
     nePduSr: Record<string, number>;
   } | null;
   recentSteps: ReasonStep[];
+  /** 当前轮的恢复策略(通用规划器推导;round_change 时重置) */
   recoveryActions: RecoveryAction[];
+  /** 全部轮次的恢复策略(按时间序,带轮次标签) */
+  allRecoveryActions: RecoveryAction[];
   activeDiagnosis: { faultElements: string[]; faultType: string; confidence: number; route: string } | null;
   activeEvaluation: EvalMetrics | null;
   /** LIVE Agent 的置信度评估(confidence_assessment 事件) */
   confidence: { score: number; route: string; pattern: string } | null;
+  /** Agent 1 影子自校验结果(data_validation 事件,注入时发) */
+  dataValidation: {
+    passed: boolean;
+    tries: number;
+    checks: { name: string; passed: boolean; note: string }[];
+    adjustments: string[];
+  } | null;
+  /** 未恢复 → 下一轮的提示(confidence_low 事件,真实闭环) */
+  lowConfidence: { score: number; attempt: number; hint: string } | null;
+  /** Agent 3 Skill 沉淀(skill_evolved 事件) */
+  skillEvolved: { kind: string; route: string; skillId: string; insight: string } | null;
   userBreakdown: UserBreakdown | null;
   error: { source: string; message: string; fatal: boolean } | null;
 }
@@ -74,9 +89,13 @@ const _initial = (sid: string, scn: string): LiveState => ({
   anomalyResult: null,
   recentSteps: [],
   recoveryActions: [],
+  allRecoveryActions: [],
   activeDiagnosis: null,
   activeEvaluation: null,
   confidence: null,
+  dataValidation: null,
+  lowConfidence: null,
+  skillEvolved: null,
   userBreakdown: null,
   error: null,
 });
@@ -188,20 +207,51 @@ export function applyEvent(sid: string, scn: string, ev: { type: string; payload
       };
       st.phaseIndex = 4;
       break;
-    case "recovery_action":
-      st.recoveryActions.push({
+    case "recovery_action": {
+      const action: RecoveryAction = {
         id: ev.payload.id,
         cn: ev.payload.cn,
         en: ev.payload.en,
-      });
+        layer: ev.payload.layer,
+        rationale: ev.payload.rationale,
+        round: ev.payload.round ?? st.round,
+      };
+      st.recoveryActions.push(action);
+      st.allRecoveryActions.push(action);
       st.phaseIndex = 5;
+      break;
+    }
+    case "round_change":
+      // 真实闭环:未恢复 → 下一轮(重观察→重诊→加强策略);重置当前轮策略列表
+      st.round = ev.payload.round ?? st.round + 1;
+      st.recoveryActions = [];
+      break;
+    case "confidence_low":
+      st.lowConfidence = {
+        score: ev.payload.score ?? 0,
+        attempt: ev.payload.current_attempt ?? 0,
+        hint: ev.payload.hint ?? "",
+      };
+      break;
+    case "data_validation":
+      st.dataValidation = {
+        passed: !!ev.payload.passed,
+        tries: ev.payload.tries ?? 1,
+        checks: ev.payload.checks ?? [],
+        adjustments: ev.payload.adjustments ?? [],
+      };
       break;
     case "evaluation_report":
       st.activeEvaluation = ev.payload;
       st.phaseIndex = 7;
       break;
     case "skill_evolved":
-      // 暂合入 evaluation
+      st.skillEvolved = {
+        kind: ev.payload.kind ?? "UPDATE",
+        route: ev.payload.route ?? "",
+        skillId: ev.payload.skill_id ?? "",
+        insight: ev.payload.insight ?? "",
+      };
       break;
     case "user_breakdown":
       st.userBreakdown = ev.payload as UserBreakdown;

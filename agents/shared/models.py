@@ -145,6 +145,10 @@ class CaseData:
     ground_truth: dict  # {fault_elements: [...], fault_links: [...]}
     metadata: Optional[CaseMetadata] = None
     chr_records: list[dict] = field(default_factory=list)  # free5GC-faithful CHR rows
+    # 实时遥测上下文(LIVE 用;设计态批量用例为空 —— 消费方需容错):
+    # {"ne_cpu": {ne_id: pct}, "arrivals_per_s": {...}, "traffic_class_stats": {...},
+    #  "load_reduction_hint": {"AMF": r, "SMF": r}}
+    runtime_context: dict = field(default_factory=dict)
 
 
 def parse_chr_jsonl(text: str) -> list[dict]:
@@ -207,6 +211,9 @@ class DiagnosisResult:
     tokens_used: int = 0
     llm_model: str = ""
     status: SessionStatus = SessionStatus.COMPLETED
+    # 业务类故障的激增类别过滤(如 {"sst": 3});网元类故障为空。
+    # 供策略规划器派生准入过滤、评估器做类别命中比对。
+    traffic_filter: Optional[dict] = None
 
 
 # ---------------------------------------------------------------------------
