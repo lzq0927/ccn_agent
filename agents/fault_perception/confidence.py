@@ -192,26 +192,79 @@ class ConfidenceAssessor:
 
             affected_ratio = len(affected_set) / max(ne_count, 1)
 
+            # 均质化铁证(通用,先于计数类模式判定):受影响 NE 中存在「全路径退化」
+            # 的**离群根因**—— 端到端流程归因下,网元故障会传导为前端 AMF↔SMF
+            # 普遍劣化(计数 top 常是受害汇聚点),但真根因的自身全部链路退化。
+            # 判据:独占率 ≥0.9,且 (a) 与次高拉开 ≥0.2(唯一离群),或 (b) 并列时
+            # 由 **CHR 失败共因 NF**(失败跳的物理位置)破并列。
+            # 命中即判 single_ne 并提升强度/空间清晰度 → 路由确定性工作流秒级定位。
+            # (无离群的全类型同退化 = 真 all_type_ne,不触发本判据。)
+            try:
+                from tools.kpi_analyzer import degradation_exclusivity, isolated_by_policy
+
+                _excluded = isolated_by_policy(case_data)
+                excl_ranked = sorted(
+                    ((degradation_exclusivity(link_rows, ne)[0], ne)
+                     for ne in affected_set if ne not in _excluded),
+                    reverse=True,
+                )
+                if excl_ranked:
+                    features.ne_exclusivity = excl_ranked[0][0]
+                    top_excl_ne = excl_ranked[0][1]
+                    second_excl = excl_ranked[1][0] if len(excl_ranked) > 1 else 0.0
+                    decisive = False
+                    if excl_ranked[0][0] >= 0.9 and excl_ranked[0][0] - second_excl >= 0.2:
+                        decisive = True
+                    elif excl_ranked[0][0] >= 0.9:
+                        # 并列离群:CHR 失败共因 NF(失败跳物理位置)破并列
+                        from collections import Counter as _Counter
+
+                        fail_nes: _Counter = _Counter()
+                        for r in case_data.chr_records:
+                            if r.get("outcome") != "failure":
+                                continue
+                            for key in ("nf_src", "nf_dst"):
+                                ne = str(r.get(key, ""))
+                                if ne and not ne.startswith("UE"):
+                                    fail_nes[ne] += 1
+                        in_running = [ne for ex, ne in excl_ranked if ex >= 0.9]
+                        if fail_nes:
+                            best = max(fail_nes.items(), key=lambda kv: kv[1])[0]
+                            if best in in_running:
+                                top_excl_ne = best
+                                decisive = True
+                    if decisive:
+                        features.pattern_match = "single_ne"
+                        features.pattern_strength = 0.85
+                        features.spatial_clarity = 0.9
+                        features.top_ne_dominance = max(
+                            features.top_ne_dominance,
+                            ne_appearances.get(top_excl_ne, 0) / max(len(anomalies) * 2, 1),
+                        )
+            except Exception:  # noqa: BLE001
+                logger.exception("degradation-exclusivity rule failed")
+
             # 单网元判定:主导度为主,affected_ratio 为辅。退化链路的**对端伙伴**
             # (如唯一 SMF 的下游 UPF/背景噪声)会把 affected 集撑大——主导度过半
             # (>0.5)时单一根因结论不受伙伴噪声影响,只看 ratio 会把清晰单点误判
             # 为 path_level/multi_ne 而错误导入探索。
-            if features.top_ne_dominance > 0.35 and (
+            # (若上方均质化铁证已判 single_ne,本链整体跳过,防止计数类模式覆盖。)
+            if features.pattern_match == "single_ne":
+                pass
+            elif features.top_ne_dominance > 0.35 and (
                 affected_ratio < 0.25 or features.top_ne_dominance > 0.5
             ):
                 features.pattern_match = "single_ne"
                 features.pattern_strength = features.top_ne_dominance
                 features.spatial_clarity = 0.8
-                # 均质化铁证:top NE 的**全部**路径都退化(独占率 ≥0.85)——
-                # 共性排除后唯一离群,确定性可判 → 提升强度/空间清晰度,
-                # 让这类信号路由到确定性工作流(秒级定位)而非 LLM 探索。
+                # 单网元 + top NE 全路径退化(独占率 ≥0.85)同样视为确定性铁证
                 try:
                     from tools.kpi_analyzer import degradation_exclusivity
 
-                    top_id = max(ne_appearances, key=lambda k: ne_appearances[k])
-                    excl, _ = degradation_exclusivity(link_rows, top_id)
-                    features.ne_exclusivity = excl
-                    if excl >= 0.85:
+                    if features.ne_exclusivity <= 0:
+                        top_id = max(ne_appearances, key=lambda k: ne_appearances[k])
+                        features.ne_exclusivity = degradation_exclusivity(link_rows, top_id)[0]
+                    if features.ne_exclusivity >= 0.85:
                         features.pattern_strength = max(features.pattern_strength, 0.85)
                         features.spatial_clarity = max(features.spatial_clarity, 0.9)
                 except Exception:  # noqa: BLE001

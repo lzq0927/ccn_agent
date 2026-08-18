@@ -117,19 +117,28 @@ async def find_common_ne(degraded_pairs: list[str]) -> str:
 
 def degradation_exclusivity(link_rows: list[dict], ne_id: str,
                             threshold: float = 0.995) -> tuple[float, int]:
-    """候选 NE 的「全路径退化独占率」= 该 NE 涉及的退化链路 / 该 NE 涉及的全部链路。
+    """候选 NE 的「全路径退化独占率」(无向口径)= 该 NE 的退化路径 / 全部路径。
 
     均质化比较原则的通用实现:真根因 NE 的**所有**路径都退化(独占率→1.0);
     「共享链路的对端」(如退化路径上仅剩的 SMF/AMF)只有到根因的路径退化,
     到其它 NF 的路径健康(独占率低)。用于退化链路端点计数并列时区分根因
     与受害者(workflow 引擎 / 确定性诊断器 / 探索器共用)。
+
+    无向合并:(s→d) 与 (d→s) 视为同一条路径,任一方向退化即该路径退化 ——
+    失败流程的回程不发送,有向口径会把根因的独占率稀释一半。
     """
-    involved = [r for r in link_rows
-                if str(r.get("src", "")) == ne_id or str(r.get("dst", "")) == ne_id]
-    if not involved:
+    pair_degraded: dict[frozenset, bool] = {}
+    for r in link_rows:
+        s, d = str(r.get("src", "")), str(r.get("dst", ""))
+        if ne_id not in (s, d) or s == d:
+            continue
+        key = frozenset((s, d))
+        degraded = float(r.get("success_rate", 1.0)) < threshold
+        pair_degraded[key] = pair_degraded.get(key, False) or degraded
+    if not pair_degraded:
         return 0.0, 0
-    degraded = [r for r in involved if float(r.get("success_rate", 1.0)) < threshold]
-    return len(degraded) / len(involved), len(involved)
+    n_degraded = sum(1 for v in pair_degraded.values() if v)
+    return n_degraded / len(pair_degraded), len(pair_degraded)
 
 
 async def get_kpi_summary(kpi_rows: list[dict]) -> str:
@@ -209,3 +218,14 @@ register(
     },
     handler=get_kpi_summary,
 )
+
+def isolated_by_policy(case_data_or_ctx) -> set:
+    """读取「已被恢复策略隔离的 NE」集合(诊断证据计算应排除 —— 它们的失败
+    是策略效应而非原始故障,否则误诊隔离错 NE 后其独占率虚高,二轮重诊会
+    自我强化同一个错误)。runtime_context 由 LIVE runner 注入;批量路径为空。"""
+    rc = getattr(case_data_or_ctx, "runtime_context", None)
+    if isinstance(case_data_or_ctx, dict):
+        rc = case_data_or_ctx.get("runtime_context")
+    if not rc:
+        return set()
+    return {str(ne) for ne in (rc.get("isolated_by_policy") or [])}

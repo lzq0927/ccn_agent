@@ -93,7 +93,8 @@ async def correlated_failure_graph(chr_records: list[dict], top_k: int = 15) -> 
     else:
         pattern = "concentrated"
 
-    evidence = largest[:top_k]
+    # evidence:hub 显著(星型)时以 hub 为主(噪声组件混入 largest 会稀释融合)
+    evidence = [hub_ne] if hub_share >= 0.4 else largest[:top_k]
     confidence = round(min(max(hub_share, degree_gini), 1.0), 4)
 
     return json.dumps(

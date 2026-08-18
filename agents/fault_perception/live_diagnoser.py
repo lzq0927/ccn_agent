@@ -133,6 +133,26 @@ class LiveDiagnoser:
                 ne_res = json.loads(ne_raw)
                 top_ne = ne_res.get("top_ne")
                 ne_frequency = ne_res.get("ne_frequency", []) or []
+                # 均质化重判:端到端流程归因下,计数 top 常是受害汇聚点(如 AMF/SMF),
+                # 用「全路径退化独占率」把聚合定位指向真根因(与④同一判据)
+                try:
+                    from tools.kpi_analyzer import degradation_exclusivity
+
+                    counts = {f.get("ne_id"): f.get("count", 0) for f in ne_frequency}
+                    scored = sorted(
+                        ((degradation_exclusivity(kpi_rows, ne)[0], ne)
+                         for ne in counts if ne and not str(ne).startswith("UE")),
+                        key=lambda x: (-x[0], -counts.get(x[0], 0)),
+                    )
+                    if (
+                        scored
+                        and scored[0][0] >= 0.6
+                        and (len(scored) < 2 or scored[0][0] - scored[1][0] >= 0.2)
+                        and scored[0][1] != top_ne
+                    ):
+                        top_ne = scored[0][1]
+                except Exception:  # noqa: BLE001
+                    logger.exception("anomaly top_ne exclusivity refine failed")
         except Exception:  # noqa: BLE001
             logger.exception("anomaly detection tools failed")
 

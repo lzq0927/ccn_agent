@@ -116,6 +116,11 @@ class FaultConfig:
     # class (e.g. {"sst": 3} = NE misbehaves only for that subscriber group).
     # Empty filter = all classes lose equally.
     loss_filter: dict = field(default_factory=dict)
+    # Loss scope (LIVE): "all_hops" = loss on every hop involving the NE (core
+    # link fault); "ue_hops" = loss only on the UE<->NE radio hops (access-side
+    # group anomaly — core link KPI stays healthy, failures surface in CHR/
+    # session SR only).
+    loss_scope: str = "all_hops"
 
 
 @dataclass

@@ -50,6 +50,7 @@ def _fc(
     surge: float = 1.0,
     surge_filter: dict | None = None,
     loss_filter: dict | None = None,
+    loss_scope: str = "all_hops",
 ) -> FaultConfig:
     """构造 LIVE 故障配置。fault_start/duration 置宽窗(注入时刻由点击决定)。
 
@@ -63,6 +64,7 @@ def _fc(
         surge_multiplier=surge,
         surge_filter=dict(surge_filter or {}),
         loss_filter=dict(loss_filter or {}),
+        loss_scope=loss_scope,
     )
 
 
@@ -89,8 +91,8 @@ SCENARIO_B = LiveScenario(
     label_en="SMF_1 FAULT · GUIDED",
     short_intro="SMF_1 链路微损叠加终端噪声,KPI 仅微损;CHR 降噪排除终端后定位网络根因",
     route_expectation="guided",
-    fault_config=_fc(FaultPointType.SINGLE_NE, FaultMode.LINK, {"SMF_1"}, 0.02),
-    ue_count=60, iot_ratio=0.0, terminal_noise=0.04,
+    fault_config=_fc(FaultPointType.SINGLE_NE, FaultMode.LINK, {"SMF_1"}, 0.008),
+    ue_count=120, iot_ratio=0.0, terminal_noise=0.04,
     kpi_columns=list(_KPI_BASE),
 )
 
@@ -104,7 +106,7 @@ SCENARIO_C = LiveScenario(
     short_intro="gNB_2 仅对物联终端群体异常(ToC 正常);用户侧重选至邻区 gNB 恢复",
     route_expectation="autonomous",
     fault_config=_fc(FaultPointType.SINGLE_NE, FaultMode.BUSINESS, {"gNB_2"}, 0.35,
-                     loss_filter={"sst": 3}),
+                     loss_filter={"sst": 3}, loss_scope="ue_hops"),
     ue_count=40, iot_ratio=0.5,
     kpi_columns=list(_KPI_BASE),
 )

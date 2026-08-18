@@ -84,6 +84,17 @@ def _evaluate_shadow(fc: FaultConfig, engine: RealtimeEngine, topology_ids: set[
     if is_surge:
         manifested = bool(core_overload)
         note = f"激增类:核心 NF CPU {sorted((round(cpu[n],1), n) for n in core_overload)[:4]}"
+    elif getattr(fc, "loss_scope", "all_hops") == "ue_hops":
+        # 接入侧群体故障(ue_hops):核心链路 KPI 不染 —— 显形于 CHR 失败集中
+        # 于受影响 NE(gNB)与会话 SR 下降
+        affected = set(fc.affected_ne_ids or set())
+        chr_hits = sum(
+            1 for c in chr_fails
+            if str(c.get("nf_src", "")) in affected or str(c.get("nf_dst", "")) in affected
+        )
+        manifested = (chr_hits >= 10 and chr_hits >= 0.6 * len(chr_fails)) or min_sr < _SR_FLOOR
+        note = (f"接入侧类:CHR 失败 {chr_hits}/{len(chr_fails)} 集中于 {affected},"
+                f"会话 SR reg={reg_sr:.3f} pdu={pdu_sr:.3f}")
     else:
         affected_links = [r for r in degraded
                           if r.get("src") in (fc.affected_ne_ids or set())

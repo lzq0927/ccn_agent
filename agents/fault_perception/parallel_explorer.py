@@ -134,11 +134,49 @@ class ParallelExplorer:
 
         tasks = [sweep_kpi(a) for a in _KPI_DETECTORS]
         chr_tasks = [run_chr(a) for a in _CHR_DETECTORS] if chr_records else []
+
+        # 均质化独占率 detector(通用):「全路径退化」的离群根因 —— 端到端流程
+        # 归因下,网元故障会把前端路径染成普遍劣化,但真根因自身全部链路退化。
+        # 作为独立 finding 进入贝叶斯融合(与统计/ML 检测器互证)。
+        async def run_exclusivity() -> dict:
+            from collections import Counter
+
+            from tools.kpi_analyzer import degradation_exclusivity, isolated_by_policy
+
+            _excluded = isolated_by_policy(case_data)
+            link_rows = [r for r in kpi_rows if str(r.get("level", "")) == "link"]
+            app: Counter = Counter()
+            for r in link_rows:
+                if float(r.get("success_rate", 1.0)) < 0.995:
+                    app[str(r.get("src", ""))] += 1
+                    app[str(r.get("dst", ""))] += 1
+            candidates = [ne for ne, c in app.items()
+                          if c >= 2 and not ne.startswith("UE") and ne not in _excluded]
+            ranked = sorted(
+                ((degradation_exclusivity(link_rows, ne)[0], ne) for ne in candidates),
+                reverse=True,
+            )
+            if ranked and ranked[0][0] >= 0.6:
+                # top-2 进证据(微损小样本下独占率有波动,交给贝叶斯融合定权)
+                return {
+                    "algorithm": "degradation_exclusivity",
+                    "data_view": "link_kpi",
+                    "evidence_elements": [ne for _, ne in ranked[:2]],
+                    "confidence": round(ranked[0][0], 3),
+                }
+            return {
+                "algorithm": "degradation_exclusivity",
+                "data_view": "link_kpi",
+                "evidence_elements": [],
+                "confidence": 0.0,
+            }
+
+        tasks.append(run_exclusivity())
         results = await asyncio.gather(*tasks, *chr_tasks, return_exceptions=False)
 
-        findings: list[dict] = list(results[: len(_KPI_DETECTORS)])
+        findings: list[dict] = list(results[: len(_KPI_DETECTORS) + 1])
         patterns: dict[str, str] = {}
-        for res in results[len(_KPI_DETECTORS) :]:
+        for res in results[len(_KPI_DETECTORS) + 1 :]:
             finding, pattern = res  # type: ignore[misc]
             findings.append(finding)
             patterns[finding["algorithm"]] = pattern

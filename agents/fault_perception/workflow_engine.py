@@ -99,8 +99,12 @@ class WorkflowEngine:
         # 全部退化路径、或微损故障各端点计数接近),用「全路径退化独占率」区分
         # 根因(自身全部路径退化)与受害者(仅与根因共享的路径退化)。
         if top_ne and degraded_pairs:
+            from tools.kpi_analyzer import isolated_by_policy
+
             ne_frequency = ne_data.get("ne_frequency", []) or []
-            candidates = [c.get("ne_id") for c in ne_frequency if c.get("ne_id")]
+            _excluded = isolated_by_policy(case_data)
+            candidates = [c.get("ne_id") for c in ne_frequency
+                          if c.get("ne_id") and c.get("ne_id") not in _excluded]
             link_rows = [r for r in case_data.kpi_rows if str(r.get("level", "")) == "link"]
             scored = [(ne, *degradation_exclusivity(link_rows, ne)) for ne in candidates]
             counts = {c.get("ne_id"): c.get("count", 0) for c in ne_frequency}

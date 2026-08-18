@@ -146,7 +146,11 @@ async def diagnose_deterministic(
         # 均质化比较:退化链路端点并列时(如仅剩一个 SMF 承载全部退化路径,
         # 或微损故障各端点计数接近),用「全路径退化独占率」区分根因(自身全部
         # 路径退化)与受害者(仅与根因共享的路径退化)。候选 = 退化端点全集。
-        candidates = [f.get("ne_id") for f in ne_frequency if f.get("ne_id")]
+        from tools.kpi_analyzer import isolated_by_policy
+
+        _excluded = isolated_by_policy(case_data)
+        candidates = [f.get("ne_id") for f in ne_frequency
+                      if f.get("ne_id") and f.get("ne_id") not in _excluded]
         link_rows = [r for r in kpi_rows if str(r.get("level", "")) == "link"]
         scored = [(ne, *_degradation_exclusivity(link_rows, ne)) for ne in candidates]
         scored.sort(key=lambda x: (-x[1], -freq.get(x[0], 0)))

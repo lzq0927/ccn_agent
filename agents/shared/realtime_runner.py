@@ -323,13 +323,18 @@ class RealtimeLiveRunner:
             # ④弹窗真实数据:CHR 洞察(原因值分布/共因 NF/类别归因)+ 均质化比较
             # (实例级对比 + 判定)——诊断开始前发布,弹窗先有真实内容
             self._publish("chr_insight", {
-                **self.engine.chr_insight(), "round": self._round,
+                **self.engine.chr_insight(exclude=self._isolated_by_policy),
+                "round": self._round,
             })
             self._publish("homogen_report", {
-                **self.engine.homogen_report(), "round": self._round,
+                **self.engine.homogen_report(exclude=self._isolated_by_policy),
+                "round": self._round,
             })
             self.diagnoser._step_n = 0  # noqa: SLF001
-            agent, case_data = self.diagnoser.run_real_diagnosis(self.engine.snapshot_for_agent(), round=self._round)
+            snap = self.engine.snapshot_for_agent()
+            # 诊断证据排除「已被策略隔离的 NE」(策略效应非原始故障,防误诊自我强化)
+            snap["runtime_context"]["isolated_by_policy"] = sorted(self._isolated_by_policy)
+            agent, case_data = self.diagnoser.run_real_diagnosis(snap, round=self._round)
             try:
                 result = await agent.diagnose(case_data)
             except Exception as exc:  # noqa: BLE001

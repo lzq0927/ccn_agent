@@ -95,7 +95,11 @@ async def ue_failure_concentration(chr_records: list[dict], top_k: int = 10) -> 
         {"ne": ne, "failures": cnt, "share": round(cnt / ne_total, 3)}
         for ne, cnt in per_ne.most_common(top_k)
     ]
-    evidence = [ne for ne, _ in per_ne.most_common(top_k)]
+    # evidence 只取显著 NE:份额 ≥ top 一半(背景噪声元素计数 1-2,
+    # 混入会稀释贝叶斯融合,把真根因挤下 posterior 榜首)
+    _top_cnt = per_ne.most_common(1)[0][1] if per_ne else 0
+    evidence = [ne for ne, cnt in per_ne.most_common(top_k)
+                if _top_cnt and cnt >= max(_top_cnt / 2, 2)]
     confidence = round(min(max(top_ne_share, gini_supi), 1.0), 4)
 
     return json.dumps(

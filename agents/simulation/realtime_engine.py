@@ -126,6 +126,7 @@ class RealtimeEngine:
         self._policies: list[PolicyAction] = []
         self._pending_alarms: list[dict] = []
         self._loss_flt: dict = {}   # 故障丢损的业务类别过滤(空=全类别)
+        self._loss_scope: str = "all_hops"  # 丢损作用域(ue_hops=仅接入侧无线跳)
 
         # 滚动计数(每 tick 一格)
         self._win_reg: deque[tuple[int, int]] = deque(maxlen=_ROLLING_WINDOW)  # (req, succ)
@@ -393,16 +394,11 @@ class RealtimeEngine:
 
         success, fault_hit = self._hop_outcome(src, dst, binding, proc_name)
 
-        # 触碰 NE(CPU 负载)+ 局向计数
+        # 触碰 NE(CPU 负载)。链路 KPI 不在此逐跳记 —— 改为端到端流程归因
+        # (见 _mark_flow_links):链路 SR = 经过该链路的**流程**成功率。
         for ne_id in (src, dst):
             if ne_id and ne_id != ue_id and ne_id in self._ne_cpu:
                 self._tick_touch[ne_id] = self._tick_touch.get(ne_id, 0) + 1
-        if src != ue_id and dst != ue_id:
-            key = (src, dst)
-            att_succ = self._tick_link.setdefault(key, [0, 0])
-            att_succ[0] += 1
-            if success:
-                att_succ[1] += 1
 
         # CHR(free5GC 风格,与 Agent 工具一致)
         self._emit_chr(sim_t, binding, proc_name, hop_idx, src, dst, message, fault_hit)
@@ -413,7 +409,8 @@ class RealtimeEngine:
             self._push_hop(sim_t=sim_t, attempt_id=hop["attempt_id"], proc_name=proc_name,
                            binding=binding, hop_idx=hop_idx + 1, hops=hops, src=nsrc, dst=ndst, message=nmsg)
         elif success and is_last:
-            # 流程成功完成 → 计成功(整条流程任一跳失败都不计;per-NE 实例同步计 succ)
+            # 流程成功 → 全路径链路记成功(端到端归因)
+            self._mark_flow_links(hops, binding.ue_id, 0, len(hops) - 1, success=True)
             if proc_name == "Registration":
                 self._tick_reg_succ += 1
                 amf = binding.ne.get("AMF", "")
@@ -424,7 +421,36 @@ class RealtimeEngine:
                 smf = binding.ne.get("SMF", "")
                 if smf:
                     self._tick_ne_pdu_succ[smf] = self._tick_ne_pdu_succ.get(smf, 0) + 1
-        # 失败:流程中止(请求已计,成功不计)
+        else:
+            # 流程在某跳失败 → **失败跳本身必记** + 回程中的**核心 NF 间**链路记失败:
+            # 网元侧故障(如 UPF_1 微损)会传导为前端 AMF↔SMF 信令路径普遍劣化
+            # (会话失败经 N11 结果回报显现),而故障点之前的 SMF↔UDM/PCF 腿保持健康。
+            # 回程不含 gNB 跳(接入侧失败在本跳已记,回程不再染)。
+            # —— 与 DEMO「均质化比较:AMF/SMF 共性排除 + SMF-UDM 正常旁证」现象一致。
+            # 失败发生在接入侧无线跳(ue_hops 类故障)→ 核心网链路 KPI 不染
+            # (网络健康,失败只在 CHR / 会话 SR 显形)
+            failing_ue_hop = hops[hop_idx][0] == binding.ue_id or hops[hop_idx][1] == binding.ue_id
+            if not failing_ue_hop:
+                self._mark_flow_links(hops, binding.ue_id, hop_idx, hop_idx, success=False)
+                self._mark_flow_links(hops, binding.ue_id, hop_idx + 1, len(hops) - 1,
+                                      success=False, include_gnb=False)
+
+    def _mark_flow_links(self, hops, ue_id: str, from_idx: int, to_idx: int,
+                         success: bool, include_gnb: bool = True) -> None:
+        """端到端流程归因:链路 att/succ 按整条流程结果记账。
+
+        UE 跳不计入;include_gnb=False 时跳过 gNB 跳(失败回程不染接入侧)。
+        """
+        for i in range(max(from_idx, 0), min(to_idx + 1, len(hops))):
+            s, d, _ = hops[i]
+            if s == ue_id or d == ue_id:
+                continue
+            if not include_gnb and (s.startswith("gNB") or d.startswith("gNB")):
+                continue
+            att_succ = self._tick_link.setdefault((s, d), [0, 0])
+            att_succ[0] += 1
+            if success:
+                att_succ[1] += 1
 
     def _hop_outcome(self, src: str, dst: str, binding: UeBinding, proc_name: str) -> tuple[bool, bool]:
         """判定一跳成功/失败 + 是否命中故障(供 CHR cause code)。
@@ -434,18 +460,24 @@ class RealtimeEngine:
         会让「已恢复」状态来回翻转;故障期的 SR 下降完全来自故障/拥塞本身。
         """
         ue_id = binding.ue_id
+        is_ue_hop = src == ue_id or dst == ue_id
+        # degraded NE(link/single_ne 故障):按 loss 丢损 —— 可按业务类别过滤
+        # (如 gNB 仅对物联终端群体异常),可限定作用域(ue_hops=仅接入侧无线跳,
+        # 核心链路 KPI 保持健康 —— 终端群体类故障;all_hops=含 NE 间链路)。
+        for ne_id in (src, dst):
+            loss = self._ne_loss.get(ne_id)
+            if not loss:
+                continue
+            if self._loss_scope == "ue_hops" and not is_ue_hop:
+                continue
+            if self._matches_flt(binding, self._loss_flt) and self._rng.random() < loss:
+                return False, True
         # UE 无线跳:背景噪声
-        if src == ue_id or dst == ue_id:
+        if is_ue_hop:
             return self._rng.random() > 0.0001, False
         # 任一 NE 宕机 → 失败
         if self._ne_status.get(src) == "down" or self._ne_status.get(dst) == "down":
             return False, True
-        # degraded NE(link/single_ne 故障):按 loss 丢损(可按业务类别过滤——
-        # 如 gNB 仅对物联终端群体异常,loss_filter={"sst": 3})
-        for ne_id in (src, dst):
-            loss = self._ne_loss.get(ne_id)
-            if loss and self._matches_flt(binding, self._loss_flt) and self._rng.random() < loss:
-                return False, True
         # 背景噪声
         return self._rng.random() > 0.00005, False
 
@@ -520,6 +552,7 @@ class RealtimeEngine:
         affected = set(fc.affected_ne_ids or [])
         is_surge = fc.surge_multiplier > 1.0
         self._loss_flt = dict(fc.loss_filter or {})
+        self._loss_scope = getattr(fc, "loss_scope", "all_hops") or "all_hops"
         if not is_surge:
             # 单网元 / 链路类:per-hop 丢损(degraded);极端 loss 视为 down。
             # loss_filter 非空时仅匹配类别丢损(如 gNB 仅对物联终端群体异常)。
@@ -812,7 +845,7 @@ class RealtimeEngine:
         scored.sort(key=lambda x: (-x["exclusivity"], -x["links"]))
         return scored[:top]
 
-    def chr_insight(self, window: int = 400) -> dict:
+    def chr_insight(self, window: int = 400, exclude: set[str] | None = None) -> dict:
         """④ CHR 洞察(真实数据):失败原因值分布 + 共因 NF + 类别归因。
 
         与 DEMO chrInsight 弹窗同语义,但全部由真实 CHR 记录推导:
@@ -824,7 +857,10 @@ class RealtimeEngine:
         from collections import Counter
 
         recs = list(self._chr_buffer)[-window:]
-        fails = [r for r in recs if r.get("outcome") == "failure"]
+        _ex = exclude or set()
+        fails = [r for r in recs if r.get("outcome") == "failure"
+                 and str(r.get("nf_src", "")) not in _ex
+                 and str(r.get("nf_dst", "")) not in _ex]
         total = len(recs)
 
         def _cause_label(r: dict) -> str:
@@ -864,7 +900,7 @@ class RealtimeEngine:
             } if dom else None,
         }
 
-    def homogen_report(self) -> dict:
+    def homogen_report(self, exclude: set[str] | None = None) -> dict:
         """④ 均质化比较(真实数据):按 NE 类型的实例级对比 + 判定。
 
         与 DEMO homogenPopup 同语义,由真实遥测推导:
@@ -873,10 +909,11 @@ class RealtimeEngine:
           partial(部分劣化,待其它证据);
         - anchor: 均质化独占率排名榜首(根因)。
         """
+        _ex = exclude or set()
         reg_sr = self.ne_reg_sr
         pdu_sr = self.ne_pdu_sr
         link_sr = self._rolling_link_sr()
-        ranking = self.ne_degradation_ranking()
+        ranking = [r for r in self.ne_degradation_ranking() if r["ne"] not in _ex]
         anchor = ranking[0]["ne"] if ranking else None
         anchor_excl = ranking[0]["exclusivity"] if ranking else 0.0
 
@@ -886,20 +923,33 @@ class RealtimeEngine:
             "UPF": "UPF 实例 · 用户面路径", "PCF": "PCF 实例 · 策略路径",
             "UDM": "UDM 实例 · 签约路径", "gNB": "gNB 实例 · 接入路径",
         }
-        for ne_type in (NEType.AMF, NEType.SMF, NEType.UPF, NEType.PCF, NEType.UDM, NEType.gNB):
+        degraded_nes = set()
+        for pair_key, v in link_sr.items():   # 键为 "src->dst" 字符串
+            if v < 0.995:
+                s, _, d = pair_key.partition("->")
+                degraded_nes.add(s)
+                degraded_nes.add(d)
+
+        def _inst(ne_type: NEType) -> tuple[str, list[dict]]:
             t = ne_type.value
             instances = []
             for n in self.topology.get_elements_by_type(ne_type):
-                if t == "AMF":
-                    sr = reg_sr.get(n.id)
-                elif t == "SMF":
-                    sr = pdu_sr.get(n.id)
-                else:
-                    srs = [v for k, v in link_sr.items() if n.id in k]
-                    sr = min(srs) if srs else None
+                # 维度:主控业务 SR(AMF=注册 / SMF=PDU)+ 自身链路最小 SR
+                # (端到端流程归因下,网元故障会传导劣化前端 AMF↔SMF 链路)
+                flow_sr = reg_sr.get(n.id) if t == "AMF" else pdu_sr.get(n.id) if t == "SMF" else None
+                link_min = min((v for k, v in link_sr.items() if n.id in k), default=None)
+                cands = [x for x in (flow_sr, link_min) if x is not None]
+                sr = min(cands) if cands else None
                 anomalous = sr is not None and sr < 0.995
                 instances.append({"id": n.id, "anomalous": anomalous,
                                   "sr": round(sr, 4) if sr is not None else None})
+            return t, instances
+
+        for ne_type in (NEType.AMF, NEType.SMF, NEType.UPF, NEType.gNB):
+            t, instances = _inst(ne_type)
+            instances = [i for i in instances if i["id"] not in _ex]
+            if not instances:
+                continue
             if not any(i["anomalous"] for i in instances):
                 continue
             n_anom = sum(1 for i in instances if i["anomalous"])
@@ -912,6 +962,28 @@ class RealtimeEngine:
             rounds.append({
                 "type": labels[t], "instances": instances,
                 "verdict": verdict, "note": note,
+            })
+
+        # 健康旁证轮:受影响流程路径上的后端组(UDM/PCF)与退化 NE 相邻但全部健康
+        # → 故障排除原则的正面证据(DEMO「SMF-UDM 正常 → 排除」同款)。
+        for ne_type in (NEType.UDM, NEType.PCF):
+            t, instances = _inst(ne_type)
+            instances = [i for i in instances if i["id"] not in _ex]
+            if not instances or any(i["anomalous"] for i in instances) or not degraded_nes:
+                continue
+            link_pairs = [
+                tuple(pk.split("->")) for pk in link_sr if "->" in pk
+            ]
+            adjacent = any(
+                (n.id == s and d in degraded_nes) or (n.id == d and s in degraded_nes)
+                for n in self.topology.get_elements_by_type(ne_type)
+                for s, d in link_pairs
+            )
+            if not adjacent:
+                continue
+            rounds.append({
+                "type": labels[t], "instances": instances,
+                "verdict": "normal", "note": f"{t} 通信正常 → 排除(故障排除旁证)",
             })
 
         return {
