@@ -160,9 +160,10 @@ export function AgentLoop({ state }: { state: StoryState }) {
       <TrunkRev x1={BOTROW[1].x - HW} x2={BOTROW[2].x + HW} y={R2Y} status={st(6)} />
 
       {/* loop①:B/C 首轮⑤评估未通过 → 回 Agent1 补采(Agent2 内部回路)
-          大弧线:⑤下落 → 沿底部左行 → 左侧边缘上升 → 从左侧指入 Agent1(箭头向右,避开盒子与文字) */}
+          大弧线:⑤下落 → 底部左行 → 左缘上升 → 圆角转向,留 ~20px 水平进箭段,
+          箭头水平指入 Agent1 左边缘(盒中心高度);整线沿画布边缘,避开盒子与文字 */}
       <LoopLine
-        d={`M ${BOTROW[1].x} ${R2Y + NH + 4} C ${BOTROW[1].x} 708, 140 710, 60 664 C 6 630, 6 154, 13 154`}
+        d={`M ${BOTROW[1].x} ${R2Y + NH + 4} C ${BOTROW[1].x} 712, 110 712, 30 666 C 2 636, -8 154, 13 154`}
         color={RETRY} marker={"url(#al-ar)"} on={l1}
         label={"① ⑤评估未通过 → 回 Agent1 补采"} lx={230} ly={704}
       />
