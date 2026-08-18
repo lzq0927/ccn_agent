@@ -91,11 +91,19 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
       return;
     }
     let i = idx + 1;
-    while (i < stops.length && stops[i].phase !== p) i++;
+    // 轮次感知:两轮场景优先命中「当前轮」的下一次该相位(二轮点④应回放二轮推理,
+    // 而不是倒回一轮);当前轮之后没有 → 任意轮的下一次 → 当前轮的首次 → 该相位首次
+    const curRound = state.round || 1;
+    while (i < stops.length && !(stops[i].phase === p && stops[i].round === curRound)) i++;
+    if (i >= stops.length) {
+      i = idx + 1;
+      while (i < stops.length && stops[i].phase !== p) i++;
+    }
     if (i < stops.length) {
       advanceTo(i);
     } else {
-      const first = stops.findIndex((s) => s.phase === p);
+      const firstCur = stops.findIndex((s) => s.phase === p && s.round === curRound);
+      const first = firstCur >= 0 ? firstCur : stops.findIndex((s) => s.phase === p);
       if (first >= 0) { setIdx(first); onSeekTime(stops[first].time); }
     }
     onPhaseTrigger?.(p);
@@ -136,10 +144,19 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
             </span>
           </div>
         </div>
-        {/* 当前案例介绍(全宽一行,悬停看全文) */}
+        {/* 当前案例介绍(两行留白,悬停看全文) */}
         <div
           title={scenario.intro ?? scenario.tagline}
-          style={{ padding: "5px 14px 7px", fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          style={{
+            padding: "4px 14px 7px",
+            fontSize: 10.5,
+            color: "var(--ink-3)",
+            lineHeight: 1.6,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
         >
           {scenario.intro ?? scenario.tagline}
         </div>

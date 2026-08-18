@@ -1,9 +1,10 @@
 // ============================================================================
 // AgentLoop —— 高稳智能体内部闭环(3 Agent + Agent2 内部 6 步 + 置信度门 + 3 回环)
 //   Studio 视觉:去辉光滤镜;层次 = 描边加重 + 语义色 + 表面提级;
+//   流水线框 = 透明底 + 发丝虚线(不做下沉黑底);盒子/字号整体放大适配左栏实宽;
 //   步节点:pending=发丝线 / active=靛蓝描边+wash / done=绿描边;
 //   回环线:语义色细虚线(amber=重试回路 / green=沉淀回流);粒子小而无光。
-//   逻辑(推进状态机/布局常量)与旧版完全一致。
+//   逻辑(推进状态机)与旧版完全一致。
 // ============================================================================
 
 import { motion } from "framer-motion";
@@ -13,29 +14,29 @@ import type { StoryState } from "../../story/types";
 const W = 780;
 const H = 740;
 
-const A1 = { x: 15, y: 120, w: 170, h: 80, cx: 100, color: "#6f9fd8", cn: "Agent 1", sub: "数据采集" };
-const A2 = { x: 265, y: 120, w: 200, h: 80, cx: 365, color: "#7d8af2", cn: "Agent 2", sub: "故障感知" };
-const A3 = { x: 595, y: 120, w: 170, h: 80, cx: 680, color: "#35b57c", cn: "Agent 3", sub: "评估优化" };
+const A1 = { x: 14, y: 108, w: 176, h: 94, cx: 102, color: "#6f9fd8", cn: "Agent 1", sub: "数据采集" };
+const A2 = { x: 264, y: 108, w: 212, h: 94, cx: 370, color: "#7d8af2", cn: "Agent 2", sub: "故障感知" };
+const A3 = { x: 594, y: 108, w: 172, h: 94, cx: 680, color: "#35b57c", cn: "Agent 3", sub: "评估优化" };
 
-const HW = 58;
-const NH = 38;
-const GHW = 36;
-const GH = 40;
-const R1Y = 370;
-const R2Y = 590;
+const HW = 66;   // 步节点半宽
+const NH = 44;   // 步节点半高
+const GHW = 40;  // 置信度门半宽
+const GH = 46;   // 置信度门半高
+const R1Y = 382; // 上排步 y
+const R2Y = 606; // 下排步 y
 
 type SeqStep = { kind: "step"; n: number; x: number };
 
 const GATE_X = 610;
 const TOPROW: SeqStep[] = [
-  { kind: "step", n: 1, x: 90 },
-  { kind: "step", n: 2, x: 280 },
-  { kind: "step", n: 3, x: 460 },
+  { kind: "step", n: 1, x: 92 },
+  { kind: "step", n: 2, x: 282 },
+  { kind: "step", n: 3, x: 462 },
 ];
 const BOTROW: SeqStep[] = [
   { kind: "step", n: 4, x: 610 },
-  { kind: "step", n: 5, x: 390 },
-  { kind: "step", n: 6, x: 170 },
+  { kind: "step", n: 5, x: 392 },
+  { kind: "step", n: 6, x: 172 },
 ];
 
 const ACTIVE = "#7d8af2";   // 靛蓝:活动步
@@ -100,8 +101,8 @@ export function AgentLoop({ state }: { state: StoryState }) {
       </defs>
 
       {/* 顶部回环弧 */}
-      <LoopLine d={"M " + A3.cx + " " + A3.y + " C " + A3.cx + " 65, " + A2.cx + " 65, " + A2.cx + " " + A2.y} color={SINK} marker={"url(#al-as)"} on={l3} label={"③ 恢复成功 → 沉淀/优化 skill"} lx={(A3.cx + A2.cx) / 2} ly={55} />
-      <LoopLine d={"M " + (A3.cx - 16) + " " + A3.y + " C " + (A3.cx - 16) + " 28, " + (A1.cx + 16) + " 28, " + (A1.cx + 16) + " " + A1.y} color={RETRY} marker={"url(#al-ar)"} on={l2} label={"② 恢复后未恢复 → Agent1 第二轮"} lx={(A3.cx + A1.cx) / 2} ly={18} />
+      <LoopLine d={"M " + A3.cx + " " + A3.y + " C " + A3.cx + " 62, " + A2.cx + " 62, " + A2.cx + " " + A2.y} color={SINK} marker={"url(#al-as)"} on={l3} label={"③ 恢复成功 → 沉淀/优化 skill"} lx={(A3.cx + A2.cx) / 2} ly={56} />
+      <LoopLine d={"M " + (A3.cx - 18) + " " + A3.y + " C " + (A3.cx - 18) + " 24, " + (A1.cx + 18) + " 24, " + (A1.cx + 18) + " " + A1.y} color={RETRY} marker={"url(#al-ar)"} on={l2} label={"② 恢复后未恢复 → Agent1 第二轮"} lx={(A3.cx + A1.cx) / 2} ly={18} />
 
       {/* Agent 盒子 */}
       <AgentBox a={A1} on={activeAgent === 1} icon={<RadarMark />} />
@@ -112,22 +113,22 @@ export function AgentLoop({ state }: { state: StoryState }) {
       <FlowArrow x1={A1.x + A1.w} x2={A2.x} y={A1.y + A1.h / 2} label={"遥测数据"} active={phase >= 2} />
       <FlowArrow x1={A2.x + A2.w} x2={A3.x} y={A2.y + A2.h / 2} label={"结果"} active={phase >= 6} />
 
-      {/* A2 -> pipeline (dim when A2 not active) */}
-      <line x1={A2.cx} y1={A2.y + A2.h} x2={A2.cx} y2={250} stroke={activeAgent === 2 ? ACTIVE_HI : "var(--line-3)"} strokeWidth={activeAgent === 2 ? 1.8 : 1.1} strokeLinecap="round" markerEnd={activeAgent === 2 ? "url(#al-a)" : undefined} className={activeAgent === 2 ? "flow-dash" : undefined} />
-      <text x={28} y={246} fontSize={12} fontWeight={600} fill="var(--ink-2)" fontFamily="var(--font-sans)">故障感知 · 内部六步</text>
-      <text x={148} y={246} fontSize={8.5} fill="var(--ink-4)" fontFamily="var(--font-sans)" letterSpacing="0.06em">AGENT 2 PIPELINE</text>
+      {/* A2 -> 子步骤框(dim when A2 not active) */}
+      <line x1={A2.cx} y1={A2.y + A2.h} x2={A2.cx} y2={261} stroke={activeAgent === 2 ? ACTIVE_HI : "var(--line-3)"} strokeWidth={activeAgent === 2 ? 1.8 : 1.1} strokeLinecap="round" markerEnd={activeAgent === 2 ? "url(#al-a)" : undefined} className={activeAgent === 2 ? "flow-dash" : undefined} />
 
-      {/* 两轮徽标:首轮 / 二轮(琥珀呼应 loop②) */}
+      {/* 子步骤框:轻靛蓝洗底 + 发丝实线 —— 表明是 Agent 2 内部的子流程(不做黑色下沉底) */}
+      <rect x={28} y={262} width={724} height={400} rx={12} fill="var(--accent-wash)" stroke="var(--line-2)" strokeWidth={1} />
+      <text x={48} y={292} fontSize={13.5} fontWeight={600} fill="var(--ink-2)" fontFamily="var(--font-sans)">Agent 2 · 内部六步</text>
+      <text x={178} y={292} fontSize={9.5} fill="var(--ink-4)" fontFamily="var(--font-sans)" letterSpacing="0.06em">SUB-PIPELINE</text>
+
+      {/* 两轮徽标:首轮 / 二轮(琥珀呼应 loop②),嵌在子步骤框右上 */}
       {state.route === "autonomous" && (
-        <g transform="translate(640, 244)">
-          <rect x={-56} y={-11} width={112} height={20} rx={5} fill={isR2 ? RETRY + "16" : "var(--bg2)"} stroke={isR2 ? RETRY + "88" : "var(--line-2)"} strokeWidth={1} />
-          <circle cx={-44} cy={-1} r={2.6} fill={isR2 ? RETRY : ACTIVE} />
-          <text x={8} y={2.5} textAnchor="middle" fontSize={10.5} fontWeight={600} fill={isR2 ? RETRY : "var(--ink-2)"} fontFamily="var(--font-sans)">{isR2 ? "第 ② 轮 · ROUND 2" : "第 ① 轮 · ROUND 1"}</text>
+        <g transform="translate(648, 288)">
+          <rect x={-62} y={-12} width={124} height={22} rx={5} fill={isR2 ? RETRY + "16" : "var(--bg2)"} stroke={isR2 ? RETRY + "88" : "var(--line-2)"} strokeWidth={1} />
+          <circle cx={-49} cy={-1} r={2.8} fill={isR2 ? RETRY : ACTIVE} />
+          <text x={9} y={3} textAnchor="middle" fontSize={11.5} fontWeight={500} fill={isR2 ? RETRY : "var(--ink-2)"} fontFamily="var(--font-sans)">{isR2 ? "第 ② 轮 · ROUND 2" : "第 ① 轮 · ROUND 1"}</text>
         </g>
       )}
-
-      {/* pipeline frame */}
-      <rect x={28} y={260} width={724} height={380} rx={12} fill="var(--bg-inset)" stroke="var(--line-2)" strokeWidth={1} strokeDasharray="2 6" />
 
       {/* nodes 先画(底层) */}
       {TOPROW.map((item) => (<Step key={"s" + item.n} x={item.x} y={R1Y} n={item.n} status={st(item.n)} />))}
@@ -158,8 +159,12 @@ export function AgentLoop({ state }: { state: StoryState }) {
       <TrunkRev x1={BOTROW[0].x - HW} x2={BOTROW[1].x + HW} y={R2Y} status={st(5)} />
       <TrunkRev x1={BOTROW[1].x - HW} x2={BOTROW[2].x + HW} y={R2Y} status={st(6)} />
 
-      {/* loop①:B/C 首轮⑤评估未通过 → 回 Agent1 补采(Agent2 内部回路) */}
-      <LoopLine d={"M " + BOTROW[1].x + " " + (R2Y + NH) + " C " + BOTROW[1].x + " 680, 5 680, 5 " + (A1.y + A1.h)} color={RETRY} marker={"url(#al-ar)"} on={l1} label={"① ⑤评估未通过 → 回 Agent1 补采"} lx={(BOTROW[1].x + 5) / 2} ly={672} />
+      {/* loop①:B/C 首轮⑤评估未通过 → 回 Agent1 补采(Agent2 内部回路;圆角肘形:下落→左行→升入 A1) */}
+      <LoopLine
+        d={`M ${BOTROW[1].x} ${R2Y + NH + 4} C ${BOTROW[1].x} 692, 384 706, 348 706 L 66 706 C 34 706, 22 694, 22 664 L 22 ${A1.y + A1.h + 12}`}
+        color={RETRY} marker={"url(#al-ar)"} on={l1}
+        label={"① ⑤评估未通过 → 回 Agent1 补采"} lx={200} ly={706}
+      />
     </svg>
   );
 }
@@ -168,28 +173,28 @@ export function AgentLoop({ state }: { state: StoryState }) {
 function RadarMark() {
   return (
     <g fill="none" strokeLinecap="round">
-      <path d="M -6 5 A 8 8 0 0 1 6 5" strokeWidth="1.5" opacity="0.55" />
-      <path d="M -3.5 5 A 5 5 0 0 1 3.5 5" strokeWidth="1.5" opacity="0.8" />
-      <circle cx="0" cy="-4" r="1.8" strokeWidth="0" fill="currentColor" />
-      <line x1="0" y1="-2" x2="0" y2="5" strokeWidth="1.3" />
+      <path d="M -7.5 6 A 10 10 0 0 1 7.5 6" strokeWidth="1.6" opacity="0.55" />
+      <path d="M -4.4 6 A 6.2 6.2 0 0 1 4.4 6" strokeWidth="1.6" opacity="0.8" />
+      <circle cx="0" cy="-5" r="2.2" strokeWidth="0" fill="currentColor" />
+      <line x1="0" y1="-2.5" x2="0" y2="6" strokeWidth="1.4" />
     </g>
   );
 }
 function BrainMark() {
   return (
-    <g fill="none" strokeWidth="1.4" strokeLinejoin="round" strokeLinecap="round">
-      <path d="M0,-8 C-3.4,-8 -5.6,-5.6 -5.6,-3 C-7.2,-2.2 -8,-0.6 -7.6,1.2 C-7,3.4 -4.8,4.6 -2.6,4.4 C-1.6,6 0,6.8 1.8,6.8 C3.6,6.8 5.2,6 6,4.4 C8.2,4.6 9.8,3.2 10,1.4 C10.2,-0.4 9,-2 7.4,-2.6 C7,-5.6 4.8,-8 0,-8 Z" />
-      <path d="M0,-6.5 L0,5.5" strokeWidth="1" opacity="0.65" />
-      <path d="M-3.6,-2.6 C-2.6,-2 -2.6,0 -3.6,0.6" strokeWidth="1" opacity="0.65" />
-      <path d="M3.6,-2.6 C2.6,-2 2.6,0 3.6,0.6" strokeWidth="1" opacity="0.65" />
+    <g fill="none" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round">
+      <path d="M0,-9.5 C-4,-9.5 -6.6,-6.7 -6.6,-3.6 C-8.5,-2.6 -9.4,-0.7 -9,1.4 C-8.3,4 -5.7,5.4 -3.1,5.2 C-1.9,7.1 0,8 2.1,8 C4.2,8 6.1,7.1 7.1,5.2 C9.7,5.4 11.6,3.8 11.8,1.7 C12,-0.4 10.6,-2.4 8.7,-3.1 C8.3,-6.6 5.7,-9.5 0,-9.5 Z" />
+      <path d="M0,-7.8 L0,6.6" strokeWidth="1.1" opacity="0.65" />
+      <path d="M-4.3,-3.1 C-3.1,-2.4 -3.1,0 -4.3,0.7" strokeWidth="1.1" opacity="0.65" />
+      <path d="M4.3,-3.1 C3.1,-2.4 3.1,0 3.3,0.7" strokeWidth="1.1" opacity="0.65" />
     </g>
   );
 }
 function CheckMark() {
   return (
     <g fill="none" strokeLinecap="round" strokeLinejoin="round">
-      <circle r="7.4" strokeWidth="1.4" />
-      <path d="M-3.4 0.2 L-1 2.8 L3.6 -2.4" strokeWidth="1.6" />
+      <circle r="8.8" strokeWidth="1.5" />
+      <path d="M-4 0.2 L-1.2 3.2 L4.2 -2.8" strokeWidth="1.7" />
     </g>
   );
 }
@@ -197,12 +202,12 @@ function CheckMark() {
 function AgentBox({ a, on, icon }: { a: typeof A1; on: boolean; icon: React.ReactNode }) {
   return (
     <g transform={"translate(" + a.x + " " + a.y + ")"}>
-      {on && <rect x={-4} y={-4} width={a.w + 8} height={a.h + 8} rx={12} fill="none" stroke={a.color} strokeWidth="1" className="breathe" opacity={0.6} />}
+      {on && <rect x={-4} y={-4} width={a.w + 8} height={a.h + 8} rx={13} fill="none" stroke={a.color} strokeWidth="1" className="breathe" opacity={0.6} />}
       <rect x={0} y={0} width={a.w} height={a.h} rx={10} fill={on ? a.color + "14" : "var(--bg2)"} stroke={on ? a.color : "var(--line-2)"} strokeWidth={on ? 1.6 : 1} />
-      <g transform="translate(20 40)" color={on ? a.color : "var(--ink-4)"}>{icon}</g>
-      <text x={40} y={35} fontSize={15} fontWeight={600} fill={on ? "var(--ink-1)" : "var(--ink-2)"} fontFamily="var(--font-display)">{a.cn}</text>
-      <text x={40} y={56} fontSize={12} fontWeight={400} fill={on ? a.color : "var(--ink-4)"} fontFamily="var(--font-sans)">{a.sub}</text>
-      {on && <motion.circle cx={a.w - 14} cy={16} r={3.4} fill={a.color} animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 1.6, repeat: Infinity }} />}
+      <g transform="translate(24 47)" color={on ? a.color : "var(--ink-4)"}>{icon}</g>
+      <text x={48} y={42} fontSize={17.5} fontWeight={600} fill={on ? "var(--ink-1)" : "var(--ink-2)"} fontFamily="var(--font-display)">{a.cn}</text>
+      <text x={48} y={65} fontSize={12.5} fontWeight={400} fill={on ? a.color : "var(--ink-4)"} fontFamily="var(--font-sans)">{a.sub}</text>
+      {on && <motion.circle cx={a.w - 15} cy={17} r={3.6} fill={a.color} animate={{ opacity: [1, 0.35, 1] }} transition={{ duration: 1.6, repeat: Infinity }} />}
     </g>
   );
 }
@@ -212,7 +217,7 @@ function FlowArrow({ x1, x2, y, label, active }: { x1: number; x2: number; y: nu
   return (
     <g opacity={active ? 1 : 0.45}>
       <line x1={x1} y1={y} x2={x2 - 8} y2={y} stroke={active ? ACTIVE_HI : "var(--line-3)"} strokeWidth={active ? 1.6 : 1.1} strokeLinecap="round" className={active ? "flow-dash" : undefined} markerEnd={active ? "url(#al-a)" : undefined} />
-      <text x={(x1 + x2) / 2} y={y - 7} textAnchor="middle" fontSize={10} fill="var(--ink-4)" fontFamily="var(--font-sans)">{label}</text>
+      <text x={(x1 + x2) / 2} y={y - 8} textAnchor="middle" fontSize={11} fill="var(--ink-4)" fontFamily="var(--font-sans)">{label}</text>
     </g>
   );
 }
@@ -252,15 +257,15 @@ function Step({ x, y, n, status }: { x: number; y: number; n: number; status: St
   const step = PIPELINE[n - 1];
   const isActive = status === "active";
   const done = status === "done";
-  const fill = isActive ? ACTIVE + "16" : done ? DONE + "0d" : "var(--bg2)";
+  const fill = isActive ? ACTIVE + "16" : done ? DONE + "0d" : "var(--bg1)";
   const stroke = isActive ? ACTIVE : done ? DONE + "88" : "var(--line-2)";
   return (
     <g transform={"translate(" + x + " " + y + ")"} opacity={status === "pending" ? 0.62 : 1}>
       {isActive && <rect x={-HW - 5} y={-NH - 5} width={(HW + 5) * 2} height={(NH + 5) * 2} rx={11} fill="none" stroke={ACTIVE} strokeWidth="1" className="breathe" opacity={0.55} />}
       <rect x={-HW} y={-NH} width={HW * 2} height={NH * 2} rx={9} fill={fill} stroke={stroke} strokeWidth={isActive ? 1.8 : 1.1} />
-      <text x={-HW + 12} y={-NH + 23} fontSize={18} fontWeight={500} fill={isActive ? ACTIVE_HI : done ? DONE : "var(--ink-4)"} fontFamily="var(--font-mono)">{n}</text>
-      <text x={8} y={-NH + 22} textAnchor="middle" fontSize={14} fontWeight={600} fill={isActive ? "var(--ink-1)" : done ? "var(--ink-2)" : "var(--ink-3)"} fontFamily="var(--font-display)">{step.cn}</text>
-      <text x={0} y={NH - 8} textAnchor="middle" fontSize={10.5} fill={done ? DONE : "var(--ink-4)"} fontFamily="var(--font-sans)">{step.skill.cn}</text>
+      <text x={-HW + 14} y={-NH + 30} fontSize={20} fontWeight={500} fill={isActive ? ACTIVE_HI : done ? DONE : "var(--ink-4)"} fontFamily="var(--font-mono)">{n}</text>
+      <text x={10} y={-NH + 28} textAnchor="middle" fontSize={16} fontWeight={600} fill={isActive ? "var(--ink-1)" : done ? "var(--ink-2)" : "var(--ink-3)"} fontFamily="var(--font-display)">{step.cn}</text>
+      <text x={0} y={NH - 11} textAnchor="middle" fontSize={11.5} fill={done ? DONE : "var(--ink-4)"} fontFamily="var(--font-sans)">{step.skill.cn}</text>
     </g>
   );
 }
@@ -269,13 +274,13 @@ function Gate({ x, y, status }: { x: number; y: number; status: Status }) {
   const isActive = status === "active";
   const done = status === "done";
   const color = isActive ? "#d9a13c" : done ? DONE : "var(--line-2)";
-  const fill = isActive ? "#d9a13c14" : done ? DONE + "0d" : "var(--bg2)";
+  const fill = isActive ? "#d9a13c14" : done ? DONE + "0d" : "var(--bg1)";
   return (
     <g transform={"translate(" + x + " " + y + ")"}>
-      {isActive && <rect x={-GHW - 7} y={-GH - 7} width={(GHW + 7) * 2} height={(GH + 7) * 2} rx={9} fill="none" stroke="#d9a13c" strokeWidth="1" className="breathe" opacity={0.55} />}
+      {isActive && <rect x={-GHW - 8} y={-GH - 8} width={(GHW + 8) * 2} height={(GH + 8) * 2} rx={9} fill="none" stroke="#d9a13c" strokeWidth="1" className="breathe" opacity={0.55} />}
       <motion.polygon points={"0," + (-GH) + " " + GHW + ",0 0," + GH + " " + (-GHW) + ",0"} fill={fill} stroke={color} strokeWidth={isActive ? 1.8 : 1.1} animate={isActive ? { scale: [1, 1.035, 1] } : { scale: 1 }} transition={isActive ? { duration: 2.2, repeat: Infinity } : { duration: 0 }} style={{ transformOrigin: "center", transformBox: "fill-box" }} />
-      <text x={0} y={-3} textAnchor="middle" fontSize={12} fontWeight={600} fill={isActive ? "#eec26b" : done ? "var(--ink-2)" : "var(--ink-3)"} fontFamily="var(--font-display)">{GATE.cn}</text>
-      <text x={0} y={13} textAnchor="middle" fontSize={8.5} fill="var(--ink-4)" fontFamily="var(--font-sans)" letterSpacing="0.05em">{GATE.en}</text>
+      <text x={0} y={-3} textAnchor="middle" fontSize={13.5} fontWeight={600} fill={isActive ? "#eec26b" : done ? "var(--ink-2)" : "var(--ink-3)"} fontFamily="var(--font-display)">{GATE.cn}</text>
+      <text x={0} y={15} textAnchor="middle" fontSize={9.5} fill="var(--ink-4)" fontFamily="var(--font-sans)" letterSpacing="0.05em">{GATE.en}</text>
     </g>
   );
 }
@@ -286,8 +291,8 @@ function LoopLine({ d, color, marker, on, label, lx, ly }: { d: string; color: s
       <path d={d} fill="none" stroke={on ? color : "var(--line-3)"} strokeWidth={on ? 1.8 : 1.1} strokeLinecap="round" className={on ? "flow-dash" : undefined} markerEnd={on ? marker : undefined} />
       {on && (<circle r={3} fill={color}><animateMotion dur="3.6s" repeatCount="indefinite" path={d} /></circle>)}
       <g transform={"translate(" + lx + " " + ly + ")"} opacity={on ? 1 : 0.5}>
-        <rect x={-150} y={-11} width={300} height={20} rx={5} fill={on ? color + "10" : "var(--bg2)"} stroke={on ? color + "44" : "var(--line)"} strokeWidth={1} />
-        <text x={0} y={3.5} textAnchor="middle" fontSize={11.5} fontWeight={500} fill={on ? color : "var(--ink-4)"} fontFamily="var(--font-sans)">{label}</text>
+        <rect x={-162} y={-12} width={324} height={22} rx={5} fill={on ? color + "10" : "var(--bg2)"} stroke={on ? color + "44" : "var(--line)"} strokeWidth={1} />
+        <text x={0} y={3.5} textAnchor="middle" fontSize={12} fontWeight={500} fill={on ? color : "var(--ink-4)"} fontFamily="var(--font-sans)">{label}</text>
       </g>
     </g>
   );

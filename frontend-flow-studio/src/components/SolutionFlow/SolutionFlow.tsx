@@ -62,7 +62,7 @@ function BrainBox({ state }: { state: StoryState }) {
         borderRadius: "var(--radius-card)",
         padding: "9px 10px",
         border: `1px solid ${active ? "var(--accent)" : "var(--line)"}`,
-        background: active ? "var(--accent-wash)" : "var(--bg-inset)",
+        background: active ? "var(--accent-wash)" : "transparent",
         transition: "border-color var(--dur-2) ease, background var(--dur-2) ease",
       }}
     >

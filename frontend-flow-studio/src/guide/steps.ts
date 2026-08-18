@@ -118,15 +118,11 @@ export function dispatchTargets(
   };
   const out: DispatchTarget[] = [];
 
-  // 1) 隔离 + 接管(isolation:场景 A/B 等)
+  // 1) 隔离(isolation:场景 A/B 等)—— 策略只下发给根因网元本身(接管由池内自动完成,不单独下发)
   if (scenario.isolation) {
     const iso = scenario.isolation;
     const p = pos(iso.isolateNe);
-    if (p) out.push({ id: iso.isolateNe, label: iso.isolateNe, x: p.x, y: p.y, policy: "隔离摘除负载", kind: "isolate", color: KIND_COLOR.isolate });
-    for (const f of iso.failoverTo) {
-      const pf = pos(f);
-      if (pf) out.push({ id: f, label: f, x: pf.x, y: pf.y, policy: "接管流量", kind: "failover", color: KIND_COLOR.failover });
-    }
+    if (p) out.push({ id: iso.isolateNe, label: iso.isolateNe, x: p.x, y: p.y, policy: `隔离 ${iso.isolateNe} · 流量切 ${iso.failoverTo.join("/")}`, kind: "isolate", color: KIND_COLOR.isolate });
   }
 
   // 2) 流控策略(flowControl:场景 D)— 锚点 NE(AMF/SMF)+ 措施
@@ -186,11 +182,23 @@ export function dispatchTargets(
     }
   }
 
-  // 5) C 场景(无线群体异常):策略 = 通知 gNB_2 下 UE 换路(网络无法隔离 gNB)
+  // 5) C 场景(无线群体异常):高稳智能体只能触达核心网 → 下发给 gNB_2 所在的 AMF,
+  //    由 AMF 通知基站下受影响 UE 换路(不直接下发 gNB)
   if (!scenario.isolation && !scenario.flowControl && !scenario.recoveryPlan && scenario.userFault) {
+    const amfOfGnb = (gnbId: string) => {
+      for (const e of g?.flowEdges ?? []) {
+        const other = e.a === gnbId ? e.b : e.b === gnbId ? e.a : null;
+        if (other && other.startsWith("AMF_")) return g?.nodeById[other] ?? null;
+      }
+      return null;
+    };
+    const seenAmf = new Set<string>();
     for (const gn of scenario.userFault.gnbs) {
-      const p = pos(gn);
-      if (p) out.push({ id: gn, label: gn, x: p.x, y: p.y, policy: "通知受影响 UE 换路/重选", kind: "notify", color: KIND_COLOR.notify });
+      const amf = amfOfGnb(gn) ?? (g?.nodes.find((n) => n.type === "AMF") ?? null);
+      if (amf && !seenAmf.has(amf.id)) {
+        seenAmf.add(amf.id);
+        out.push({ id: amf.id, label: amf.id, x: amf.x, y: amf.y, policy: `通知 ${gn} 受影响 UE 换路(AMF 转发至基站)`, kind: "notify", color: KIND_COLOR.notify });
+      }
     }
   }
 
@@ -225,7 +233,7 @@ export function guideCallout(scenario: Scenario, state: StoryState): GuideCallou
     case 0:
       return {
         step, title: "网络稳态运行", body: "5GC 全网健康,智能体逐链路监测待命。点击右上方圆圈可跳转任意步骤。",
-        bullets: ["整网成功率 99.8%", "9 类网元 · 21 实例在线", "多维动态检测:KPI / 告警 / CHR 任一异常即触发"],
+        bullets: ["整网成功率 99.8%(基线)", "9 类网元 · 21 实例在线", "多维动态检测:KPI / 告警 / CHR 任一异常即触发"],
       };
     case 1:
       return {
@@ -234,7 +242,7 @@ export function guideCallout(scenario: Scenario, state: StoryState): GuideCallou
       };
     case 2:
       return {
-        step, title: "异常检测", body: "KPI / CHR 双线并行检测,任一链路成功率跌破 99.5% 即触发根因分析;整网聚合对微损近乎无感,逐链路全面初筛方见异常。",
+        step, title: "异常检测", body: "KPI / CHR 双线并行检测:滚动基线 μ±3σ̂ 动态界,任一链路越界即触发根因分析;整网聚合对微损近乎无感,逐链路全面初筛方见异常。",
         bullets: ["KPI 时空求解", "CHR 降噪聚类", "异常全面初筛", "CPU 过载告警(D)"],
       };
     case 3:
@@ -257,7 +265,7 @@ export function guideCallout(scenario: Scenario, state: StoryState): GuideCallou
     case 6:
       return {
         step, title: "网络恢复 · 闭环验证", body: "恢复动作生效后,成功率回升至阈值以上,闭环验证通过,网络自愈完成。",
-        bullets: ["成功率回升 ≥ 99.5%", "隔离实例已摘除", "流量已切健康实例"],
+        bullets: ["成功率回到动态基线内", "隔离实例已摘除", "流量已切健康实例"],
       };
     default:
       return {

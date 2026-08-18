@@ -9,6 +9,7 @@ import { PHASES } from "../../theme";
 import type { Scenario } from "../../data/types";
 import type { StoryState } from "../../story/types";
 import { guideCallout } from "../../guide/steps";
+import { buildCoreTopo } from "./coreTopo";
 import { AnomalyPanel, MatchPanel, ReasonPanel, DispatchPanel, EvalPanel, EvalFailPanel } from "./PhasePanels";
 
 interface Props {
@@ -30,10 +31,19 @@ export function StepModal({ scenario, state, round, circlePos, circleN, circles,
   const info = guideCallout(scenario, state);
   const VW = 1040, VH = 646;
 
-  // 弹窗尺寸 + 智能定位:在 右/左/下/上 四个候选位中,选「遮挡其它圆圈最少」的;
-  // 同分则取离点击圆圈最近的。
+  // 弹窗尺寸 + 智能定位:在 右/左/下/上 四个候选位中,选「遮挡其它圆圈 / 关键拓扑点最少」的;
+  // 同分则取离点击圆圈最近的。关键拓扑点(根因 NE / 受影响 NE / 智能体枢纽)权重更高。
   const W = 300;
   const maxH = 452; // 定位用标称高度(实际高度按内容自适应,≤ maxH)
+  // 关键点:根因 + 当前受影响 NE + 智能体枢纽(画布坐标,与 GuideCanvas 同布局)
+  const keyPts: { x: number; y: number }[] = [{ x: 500, y: 34 }];
+  {
+    const core = buildCoreTopo(scenario.realGraph);
+    for (const id of [...state.rootCause.nes, ...state.affectedNe]) {
+      const n = core.nodeById[id];
+      if (n) keyPts.push({ x: n.x, y: n.y });
+    }
+  }
   const clampX = (x: number) => Math.max(10, Math.min(VW - W - 10, x));
   const clampY = (y: number) => Math.max(66, Math.min(VH - 80, y));
   const raw = [
@@ -51,6 +61,10 @@ export function StepModal({ scenario, state, round, circlePos, circleN, circles,
       if (Math.abs(c.x - circlePos.x) < 4 && Math.abs(c.y - circlePos.y) < 4) continue; // 跳过被点击的圆圈
       if (c.x >= mx && c.x <= mx + W && c.y >= my && c.y <= my + maxH) score++;
     }
+    // 关键信息(根因/受影响节点/枢纽)被盖 → 更重惩罚
+    for (const k of keyPts) {
+      if (k.x >= mx - 14 && k.x <= mx + W + 14 && k.y >= my - 14 && k.y <= my + maxH + 14) score += 2;
+    }
     const dist = Math.hypot(mx + W / 2 - circlePos.x, my + maxH / 2 - circlePos.y);
     if (score < best.score || (score === best.score && dist < best.dist)) best = { mx, my, score, dist };
   }
@@ -60,15 +74,22 @@ export function StepModal({ scenario, state, round, circlePos, circleN, circles,
   const lineFromX = Math.max(modalX, Math.min(circlePos.x, modalX + W));
   const lineFromY = Math.max(modalY, Math.min(circlePos.y, modalY + maxH));
 
-  // 多步面板打开时滚到底(显示最新一步)
+  // 内容体永远钉在最下面(显示最新信息):任何内容变化(推理链逐步揭示/图表展开)即滚到底
   const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [phase]);
+    const el = bodyRef.current;
+    if (!el) return;
+    const pin = () => { el.scrollTop = el.scrollHeight; };
+    pin();
+    const raf = requestAnimationFrame(pin);
+    const mo = new MutationObserver(pin);
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => {
+      cancelAnimationFrame(raf);
+      mo.disconnect();
+    };
+  }, []);
 
   return (
     <g style={{ pointerEvents: "none" }}>

@@ -110,7 +110,7 @@ export function KpiStrip({ scenario, state }: { scenario: Scenario; state: Story
         </KpiCard>
       ) : null}
       {/* 异常链路 / 过载网元 */}
-      <KpiCard title={isStorm ? "过载网元 / 异常链路" : "异常链路(跌破阈值)"} value={isStorm ? `${overloadCount} / ${degradedCount}` : `${degradedCount} 条`} color={overloadCount > 0 || degradedCount > 0 ? STATUS.fault : STATUS.healthy} wide>
+      <KpiCard title={isStorm ? "过载网元 / 异常链路" : "异常链路 · 动态检出"} value={isStorm ? `${overloadCount} / ${degradedCount}` : `${degradedCount} 条`} color={overloadCount > 0 || degradedCount > 0 ? STATUS.fault : STATUS.healthy} wide>
         <div style={{ fontSize: 8.5, color: "var(--ink-4)", lineHeight: 1.5, marginTop: 2 }}>
           {isStorm ? <>过载 <b className="mono" style={{ color: overloadCount ? STATUS.fault : STATUS.healthy, fontWeight: 500 }}>{overloadCount} NE</b> · 异常链路 <b className="mono" style={{ color: degradedCount ? STATUS.fault : STATUS.healthy, fontWeight: 500 }}>{degradedCount}</b></> : <>{degradedCount > 0 ? "多维检测已检出异常" : "多维检测 · 全网正常"}</>}
         </div>

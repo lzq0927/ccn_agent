@@ -9,12 +9,13 @@
 //   全部数据逻辑(含 LIVE 分支)与旧版一致。
 // ============================================================================
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import type { Scenario } from "../../data/types";
 import type { StoryState } from "../../story/types";
 import { ROUTE_COLORS, STATUS, srColor } from "../../theme";
 import { getKpi, iotRegAt, sessIotAt } from "../../story/director";
 import { sample } from "../../data/kpi";
+import { crossSectionBand, dynamicBand } from "./anomaly";
 
 /** 语义色速记(与 theme.ts 同值) */
 const OK = STATUS.healthy;
@@ -183,7 +184,36 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
       demoPaths = cand;
     } else {
       demoPaths = [{ label: "整网总体 KPI", series: kpi.overall, color: PAL[0] }];
-      noPathNote = "各链路均 ≥99.5% · 无明显路径异常 · 总体微跌 · 信号模糊";
+      noPathNote = "各链路均在动态基线范围内 · 总体微跌 · 信号模糊";
+    }
+  }
+
+  // DEMO 实例级 KPI(均质化横向比较):按场景挑两组实例曲线 ——
+  //   A:AMF+SMF(均质劣化→排除)与 UPF(UPF_1 离群→根因方向)
+  //   B:SMF(SMF_1 离群)与 AMF(正常→排除)
+  //   C:全实例(微跌 · 无离群 → 网络健康)
+  const instOf = (types: string[]) =>
+    (graph?.nodes ?? [])
+      .filter((n) => types.includes(n.type))
+      .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
+      .map((n) => ({ label: n.id, series: kpi.nodes[n.id] ?? [], color: types.length > 1 ? (n.type === "AMF" ? INFO : ACCENT) : INFO }))
+      .filter((p) => p.series.length >= 2);
+  const homogenGroups: { title: string; note: string; paths: { label: string; series: number[]; color: string }[] }[] = [];
+  if (!live && graph) {
+    if (scenario.id === "A") {
+      homogenGroups.push(
+        { title: "AMF / SMF 实例 · 均质化", note: "全实例共性劣化(截面无离群)→ 排除 AMF/SMF 单点", paths: instOf(["AMF", "SMF"]) },
+        { title: "UPF 实例 · 离群检测", note: "UPF_1 跌破截面动态下界 → 离群 · 根因方向", paths: instOf(["UPF"]) },
+      );
+    } else if (scenario.id === "B") {
+      homogenGroups.push(
+        { title: "SMF 实例 · 离群检测", note: "SMF_1 离群(SMF_2 正常)→ 根因方向", paths: instOf(["SMF"]) },
+        { title: "AMF 实例 · 均质化", note: "全实例正常 → 排除 AMF", paths: instOf(["AMF"]) },
+      );
+    } else if (isC) {
+      homogenGroups.push(
+        { title: "核心实例 · 全量横向比较", note: "微跌但截面无离群 → 网络侧健康 · 指向用户侧", paths: instOf(["AMF", "SMF", "UPF"]) },
+      );
     }
   }
 
@@ -194,7 +224,7 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
         {live ? (
           livePaths.length ? (
             <>
-              <MultiPathKpi paths={livePaths} threshold={kpi.threshold} visN={60} live />
+              <MultiPathKpi paths={livePaths} visN={60} live />
               {liveBars.length > 0 && (
                 <div style={{ marginTop: 7 }}>
                   {liveBars.map((r) => <SrBar key={r.key} a={r.a} b={r.b} sr={r.sr} />)}
@@ -206,21 +236,34 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
           )
         ) : (
           <>
-            <MultiPathKpi paths={demoPaths} threshold={kpi.threshold} visN={visN} />
+            <MultiPathKpi paths={demoPaths} visN={visN} />
             {noPathNote && <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 5 }}>{noPathNote}</div>}
           </>
         )}
       </Card>
+      {/* 实例 KPI 均质化比较(横向):多条曲线 + 截面动态带,离群即标红(DEMO) */}
+      {!live && homogenGroups.length > 0 && (
+        <Card style={{ marginTop: 8 }}>
+          <CardHead cn="实例 KPI · 均质化比较(横向)" color={ACCENT} />
+          {homogenGroups.map((g) => (
+            <div key={g.title} style={{ marginBottom: 6 }}>
+              <div className="mono" style={{ fontSize: 9.5, color: "var(--ink-3)", margin: "2px 0 1px" }}>{g.title}</div>
+              <MultiPathKpi paths={g.paths} visN={visN} />
+              <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 2 }}>{g.note}</div>
+            </div>
+          ))}
+        </Card>
+      )}
       {live && regPaths.length > 0 && (
         <Card style={{ marginTop: 8 }}>
           <CardHead cn="AMF 实例注册成功率 · 均质化比较" color={INFO} />
-          <MultiPathKpi paths={regPaths} threshold={kpi.threshold} visN={60} live />
+          <MultiPathKpi paths={regPaths} visN={60} live />
         </Card>
       )}
       {live && pduPaths.length > 0 && (
         <Card style={{ marginTop: 8 }}>
           <CardHead cn="SMF 实例 PDU 会话成功率 · 均质化比较" color={ACCENT} />
-          <MultiPathKpi paths={pduPaths} threshold={kpi.threshold} visN={60} live />
+          <MultiPathKpi paths={pduPaths} visN={60} live />
         </Card>
       )}
       {live && state.anomalyResult && state.anomalyResult.degradedLinks.length > 0 && (
@@ -229,53 +272,91 @@ function NonStormAnomaly({ scenario, state, kpi, simT, live }: { scenario: Scena
           {state.anomalyResult.degradedLinks.slice(0, 4).map((l) => <SrBar key={`${l.src}-${l.dst}`} a={l.src} b={l.dst} sr={l.minSr ?? 1} />)}
         </Card>
       )}
-      {showChr && (
-        <Card style={{ marginTop: 8 }}>
-          <CardHead cn={isC ? "CHR 原因分散 · 需聚类收敛" : "CHR 突增 · 会话原因值集中"} color={ACCENT} />
-          <ChrCurve series={chrSeries} visN={visN} color={ACCENT} />
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <Donut share={chr!.share ?? 60} label={chr!.causeCode} sub={isC ? "聚类主因" : "主导原因"} color={ACCENT} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {(chr!.related ?? []).length > 0
-                ? (chr!.related ?? []).map((r, i) => <Bar key={i} label={`${r.code} ${r.cn}`} share={r.share ?? 0} color="var(--ink-4)" />)
-                : <div style={{ fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.55 }}>{chr!.causeCn}</div>}
+      {showChr && (() => {
+        const r2 = (state.round ?? 1) >= 2;
+        const chrTitle = isC
+          ? (r2 ? "CHR 原因分散 · 补采用户分群后(第二轮)" : "CHR 原因分散 · 需聚类收敛")
+          : (r2 ? "CHR 突增 · 补采详细分布(第二轮)" : "CHR 突增 · 检出大致分布");
+        return (
+          <Card style={{ marginTop: 8 }}>
+            <CardHead cn={chrTitle} color={ACCENT} />
+            <ChrCurve series={chrSeries} visN={visN} color={ACCENT} />
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <Donut share={chr!.share ?? 60} label={chr!.causeCode} sub={isC ? "聚类主因" : r2 ? "细分主因" : "大致主因"} color={ACCENT} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {(chr!.related ?? []).length > 0
+                  ? (chr!.related ?? []).map((r, i) => <Bar key={i} label={`${r.code} ${r.cn}`} share={r.share ?? 0} color="var(--ink-4)" />)
+                  : <div style={{ fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.55 }}>{chr!.causeCn}</div>}
+              </div>
             </div>
-          </div>
-        </Card>
-      )}
+            {!isC && !r2 && (
+              <div style={{ fontSize: 10, color: WARN_HI, marginTop: 5 }}>
+                第一轮仅检出突增与大致分布(网络/终端原因混杂)· 未定位根因 → 回 Agent1 补采逐原因值详细 CHR
+              </div>
+            )}
+          </Card>
+        );
+      })()}
     </div>
   );
 }
 
-/** 多路径 KPI 时序曲线。DEMO:裁剪到 visN(逐步揭示,固定 60 长度);
- *  LIVE(live=true):按每条 series 自身长度铺满全宽(滚动历史可变长,逐步累积)。 */
-function MultiPathKpi({ paths, threshold, visN, live }: { paths: { label: string; series: number[]; color: string }[]; threshold: number; visN: number; live?: boolean }) {
+/** 多路径 KPI 时序曲线 + **截面动态界**(均质化横向比较的数学形式):
+ *  每时刻取所有曲线截面中位数为基线 μ、截面 MAD 为离散度 σ̂,
+ *  正常范围带 = μ±3σ̂(浅色带),跌破下界虚线 = 异常;离群曲线标注「离群」。
+ *  DEMO:裁剪到 visN;LIVE:按各 series 自身长度铺满。 */
+function MultiPathKpi({ paths, visN, live }: { paths: { label: string; series: number[]; color: string }[]; visN: number; live?: boolean }) {
   const W = 280, H = 72;
+  const series = paths.map((p) => (live ? p.series : p.series.slice(0, Math.max(2, visN))));
+  const band = useMemoBand(series);
+  const n = Math.max(2, ...series.map((s) => s.length));
   // y 轴下限自适应:下探到数据最小值下一格(clamp [0.80,0.95])
-  const dataMin = paths.length ? Math.min(...paths.flatMap((p) => p.series)) : 0.95;
+  const dataMin = series.length ? Math.min(...series.flatMap((s) => s.slice(0, live ? s.length : Math.max(2, visN)))) : 0.95;
   const yMin = Math.max(0.8, Math.min(0.95, Math.floor((dataMin - 0.01) * 20) / 20));
   const xAt = (i: number, len: number) => (i / Math.max(len - 1, 1)) * W;
   const yAt = (v: number) => { const c = Math.max(yMin, Math.min(1, v)); return H - 4 - ((c - yMin) / (1 - yMin)) * (H - 8); };
-  const yTh = yAt(threshold);
+  const bandPts = (arr: number[]) => arr.map((v, i) => `${xAt(i, n).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ");
+  const outlierOf = (pi: number) => (band.outliers[pi] ?? []).some(Boolean);
   return (
     <div style={{ marginTop: 4 }}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
-        <line x1={0} x2={W} y1={yTh} y2={yTh} stroke={DANGER} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.75} vectorEffect="non-scaling-stroke" />
-        {paths.map((p) => {
-          const s = live ? p.series : p.series.slice(0, visN);
-          return (
-            <polyline key={p.label} points={s.map((v, i) => `${xAt(i, live ? s.length : 60).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ")} fill="none" stroke={p.color} strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
-          );
-        })}
+        {/* 正常范围带 μ±3σ̂(浅色) + 动态下界(红虚线) */}
+        <polygon points={`${bandPts(band.hi)} ${[...band.lo].map((v, i) => `${xAt(band.lo.length - 1 - i, n).toFixed(1)},${yAt(band.lo[band.lo.length - 1 - i]).toFixed(1)}`).join(" ")}`} fill="var(--ink-2)" opacity={0.08} />
+        <polyline points={bandPts(band.lo)} fill="none" stroke={DANGER} strokeWidth={1} strokeDasharray="3 3" opacity={0.7} vectorEffect="non-scaling-stroke" />
+        {series.map((s, pi) => (
+          <polyline
+            key={paths[pi].label}
+            points={s.map((v, i) => `${xAt(i, live ? s.length : 60).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ")}
+            fill="none"
+            stroke={outlierOf(pi) ? DANGER : paths[pi].color}
+            strokeWidth={outlierOf(pi) ? 1.7 : 1.4}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
       </svg>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", fontSize: 9.5, color: "var(--ink-3)", marginTop: 4 }}>
-        {paths.map((p) => (
-          <span key={p.label} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><span style={{ display: "inline-block", width: 7, height: 7, background: p.color, borderRadius: 2, opacity: 0.85 }} />{p.label}</span>
+        {paths.map((p, pi) => (
+          <span key={p.label} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: outlierOf(pi) ? DANGER_HI : undefined }}>
+            <span style={{ display: "inline-block", width: 7, height: 7, background: outlierOf(pi) ? DANGER : p.color, borderRadius: 2, opacity: 0.85 }} />
+            {p.label}{outlierOf(pi) && <b style={{ fontWeight: 600, fontSize: 9 }}>· 离群</b>}
+          </span>
         ))}
-        <span style={{ color: DANGER }}>┄ 阈值 99.5%</span>
+        <span style={{ color: DANGER }}>┄ 动态下界 μ−3·σ̂</span>
       </div>
     </div>
   );
+}
+
+/** useMemo 包装的截面动态界(KPI 域 σ̂ 下限 0.4%,防健康平线噪声误报;序列短于 2 返回空带) */
+function useMemoBand(series: number[][]) {
+  return useMemo(() => {
+    if (!series.length || series.every((s) => s.length < 2)) {
+      const n = Math.max(2, ...series.map((s) => s.length));
+      return { base: [], lo: [], hi: [], outliers: series.map(() => []) } as ReturnType<typeof crossSectionBand>;
+    }
+    return crossSectionBand(series, { floor: 0.004 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [series.map((s) => s.length + ":" + s[s.length - 1]?.toFixed(4)).join("|")]);
 }
 
 /** 链路成功率条(语义色) */
@@ -360,6 +441,43 @@ function MultiDonut({ segments, center }: { segments: { label: string; share: nu
   );
 }
 
+/** CHR 初筛(B/C 第一轮相位4):只检出突增与大致分布,未定位根因 → 补采提示(琥珀) */
+function ChrRough({ scenario, chr }: { scenario: Scenario; chr: NonNullable<Scenario["chrInsight"]> }) {
+  const rel = chr.related ?? [];
+  const isC = scenario.id === "C";
+  const relSum = rel.reduce((a, r) => a + (r.share ?? 0), 0);
+  const NOISE = "var(--ink-5)";
+  const OTHER = "var(--line-2)";
+  const rough = isC
+    ? [
+        ...rel.map((r) => ({ label: r.code, share: r.share ?? 0, color: NOISE, dim: true })),
+        { label: "其他", share: Math.max(0, 100 - relSum), color: OTHER, dim: true },
+      ]
+    : [
+        { label: chr.causeCode, share: chr.share ?? 60, color: WARN },
+        ...rel.map((r) => ({ label: r.code, share: r.share ?? 0, color: NOISE, dim: true })),
+        { label: "其他", share: Math.max(0, 100 - (chr.share ?? 60) - relSum), color: OTHER, dim: true },
+      ];
+  const note = isC
+    ? "聚类未收敛:原因值分散、无网络共因 —— 换角度补采「按终端类型的用户分群数据」,进入第二轮"
+    : "信号不足:终端噪声与网络原因混杂,大致分布无法区分根因 —— 回 Agent1 补采逐原因值 / 逐终端的详细 CHR 历史";
+  return (
+    <>
+      <CardHead cn="CHR 初筛 · 仅大致分布 · 未定位根因" color={WARN} />
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <MultiDonut segments={rough} />
+        <div style={{ flex: 1, minWidth: 0, fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.55 }}>
+          {isC ? "各原因值占比接近,无主导共因" : `${chr.causeCode} 疑似主导,但伴随终端侧噪声`}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 7, fontSize: 10.5, color: WARN_HI, lineHeight: 1.55, marginTop: 6 }}>
+        <span style={{ flexShrink: 0 }}>△</span>
+        <span>{note}</span>
+      </div>
+    </>
+  );
+}
+
 /** CHR 前后对比环图:排除噪声/聚类共因后,根因占比凸显(B/C 场景相位4) */
 function DonutCompare({ scenario, chr }: { scenario: Scenario; chr: NonNullable<Scenario["chrInsight"]> }) {
   type CompareSeg = { label: string; share: number; color: string; dim?: boolean };
@@ -412,23 +530,25 @@ function DonutCompare({ scenario, chr }: { scenario: Scenario; chr: NonNullable<
   );
 }
 
-/** CHR 主导原因占比时序曲线(突增):故障窗内从基线升至峰值,带 30% 突增阈值线 */
+/** CHR 主导原因占比时序曲线(突增):因果滚动基线 μ±3σ̂ 的**动态上界**(替代固定 30%) */
 function ChrCurve({ series, visN, color }: { series: number[]; visN: number; color: string }) {
   const W = 280, H = 40, yMax = 70;
   const xAt = (i: number) => (i / 59) * W;
   const yAt = (v: number) => H - 2 - (Math.min(v, yMax) / yMax) * (H - 4);
-  const thY = yAt(30);
   const cur = Math.max(0, Math.min(visN, series.length) - 1);
+  const band = useMemo(() => dynamicBand(series, { upper: true, win: 10 }), [series]);
+  const hiPts = band.bound.map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ");
+  const breaching = band.alarm.slice(0, visN).some(Boolean);
   return (
     <div style={{ marginBottom: 7 }}>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none">
-        <line x1={0} x2={W} y1={thY} y2={thY} stroke={WARN} strokeWidth={1.2} strokeDasharray="3 3" opacity={0.75} vectorEffect="non-scaling-stroke" />
-        <polyline points={series.slice(0, visN).map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ")} fill="none" stroke={color} strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
-        {series.length > 0 && <circle cx={xAt(cur)} cy={yAt(series[cur])} r={2} fill={color} />}
+        <polyline points={hiPts} fill="none" stroke={WARN} strokeWidth={1} strokeDasharray="3 3" opacity={0.7} vectorEffect="non-scaling-stroke" />
+        <polyline points={series.slice(0, visN).map((v, i) => `${xAt(i).toFixed(1)},${yAt(v).toFixed(1)}`).join(" ")} fill="none" stroke={breaching ? WARN_HI : color} strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
+        {series.length > 0 && <circle cx={xAt(cur)} cy={yAt(series[cur])} r={2} fill={breaching ? WARN_HI : color} />}
       </svg>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "var(--ink-3)", marginTop: 2 }}>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><i style={{ width: 7, height: 2, background: color, display: "inline-block" }} />主导原因占比时序</span>
-        <span style={{ color: WARN_HI }}>┄ 突增阈值 30%</span>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><i style={{ width: 7, height: 2, background: color, display: "inline-block" }} />主导原因占比时序{breaching && <b style={{ color: WARN_HI, fontWeight: 600, fontSize: 9 }}>· 突破动态上界</b>}</span>
+        <span style={{ color: WARN_HI }}>┄ 动态上界 μ+3·σ̂</span>
       </div>
     </div>
   );
@@ -461,12 +581,12 @@ export function MatchPanel({ scenario, state }: { scenario: Scenario; state: Sto
     : whyMatched(scenario);
   return (
     <div style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.55 }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 9, marginBottom: 5 }}>
-        <span className="mono" style={{ fontSize: 22, fontWeight: 500, color: rc.base }}>{c.score.toFixed(2)}</span>
-        <span className="font-display" style={{ fontSize: 14, fontWeight: 600, color: rc.base }}>→ {rc.cn}</span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 5 }}>
+        <span className="mono" style={{ fontSize: 26, fontWeight: 500, color: rc.base, letterSpacing: "-0.01em" }}>{c.score.toFixed(2)}</span>
+        <span className="font-display" style={{ fontSize: 14.5, fontWeight: 600, color: rc.base }}>→ {rc.cn}</span>
         {lc && <span className="tag mono" style={{ color: INFO, borderColor: INFO + "55" }}>实时</span>}
       </div>
-      <div style={{ fontSize: 12.5, color: "var(--ink-3)", marginBottom: 9 }}>{c.patternName}</div>
+      <div className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-1)", marginBottom: 9 }}>{c.patternName}</div>
 
       <Card>
         <CardHead cn="匹配逻辑" color={rc.base} />
@@ -510,7 +630,7 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
             <div key={s.n} style={{ display: "flex", gap: 8, padding: "6px 9px", borderRadius: 6, background: concl ? DANGER + "0d" : "var(--bg-inset)", border: `1px solid ${concl ? DANGER + "3d" : "var(--line)"}`, borderLeft: `2px solid ${concl ? DANGER : "var(--line-3)"}` }}>
               <span className="mono" style={{ fontSize: 10, color: concl ? DANGER_HI : "var(--ink-4)", flexShrink: 0, paddingTop: 1 }}>#{s.n}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.5 }}>{s.text}</div>
+                <div className={concl ? "font-display" : undefined} style={{ fontSize: concl ? 12.5 : 11.5, fontWeight: concl ? 600 : 400, color: concl ? "var(--ink-1)" : "var(--ink-2)", lineHeight: 1.5 }}>{s.text}</div>
                 {s.result && <div className="mono" style={{ fontSize: 10.5, color: concl ? DANGER_HI : ACCENT_HI, marginTop: 2 }}>→ {s.result}</div>}
               </div>
             </div>
@@ -568,24 +688,32 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
           </div>
         </Card>
       )}
-      {/* 根因由推理链 conclusion 步承载 */}
+      {/* 根因由推理链 conclusion 步承载;CHR 卡分轮:B/C 第一轮仅「大致分布 · 未定位」,
+          第二轮补采详细 CHR 后才出现前后对比 → 定位根因 */}
       {scenario.chrInsight && (() => {
         const chr = scenario.chrInsight;
         const rel = chr.related ?? [];
         const isBC = scenario.id === "B" || scenario.id === "C";
+        const r2 = (state.round ?? 1) >= 2;
         const showSst = !isBC && steps.some((s) => /SST/.test(s.text));
         const showDnn = !isBC && steps.some((s) => /DNN/.test(s.text));
         if (!isBC && !showSst && !showDnn) return null;
         return (
           <Card style={{ marginTop: 8, flexShrink: 0 }}>
-            <CardHead cn={`CHR 前后对比${isBC ? ` · ${chr.causeCn}` : ""}`} color={ACCENT} />
-            {isBC ? (
-              <DonutCompare scenario={scenario} chr={chr} />
+            {isBC && !r2 ? (
+              <ChrRough scenario={scenario} chr={chr} />
             ) : (
-              <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-                {showSst && <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color={ACCENT} />}
-                {showDnn && rel.length > 0 && <Donut share={rel[0].share ?? 58} label={rel[0].code} sub="会话" color="var(--ink-4)" />}
-              </div>
+              <>
+                <CardHead cn={`CHR 前后对比${isBC ? ` · ${chr.causeCn}` : ""}`} color={ACCENT} />
+                {isBC ? (
+                  <DonutCompare scenario={scenario} chr={chr} />
+                ) : (
+                  <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                    {showSst && <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color={ACCENT} />}
+                    {showDnn && rel.length > 0 && <Donut share={rel[0].share ?? 58} label={rel[0].code} sub="会话" color="var(--ink-4)" />}
+                  </div>
+                )}
+              </>
             )}
           </Card>
         );
@@ -769,7 +897,7 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
             {ev?.exactMatch ? "✓ 命中全部根因" : "~ 部分命中"}
           </div>
         )}
-        <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>网络恢复 · 整网 KPI <b style={{ color: srColor(sr), fontWeight: 500 }}>{(sr * 100).toFixed(2)}%</b> {recovered ? "✓ ≥99.5%" : "· 恢复中"}</div>
+        <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>网络恢复 · 整网 KPI <b style={{ color: srColor(sr), fontWeight: 500 }}>{(sr * 100).toFixed(2)}%</b> {recovered ? "✓ 回到基线内" : "· 恢复中"}</div>
       </Card>
       {rep && (
         <Card style={{ marginTop: 8 }}>
