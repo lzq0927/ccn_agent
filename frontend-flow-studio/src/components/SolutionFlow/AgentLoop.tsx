@@ -100,9 +100,9 @@ export function AgentLoop({ state }: { state: StoryState }) {
         <marker id="al-as" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 Z" fill={SINK} /></marker>
       </defs>
 
-      {/* 顶部回环弧 */}
-      <LoopLine d={"M " + A3.cx + " " + A3.y + " C " + A3.cx + " 62, " + A2.cx + " 62, " + A2.cx + " " + A2.y} color={SINK} marker={"url(#al-as)"} on={l3} label={"③ 恢复成功 → 沉淀/优化 skill"} lx={(A3.cx + A2.cx) / 2} ly={56} />
-      <LoopLine d={"M " + (A3.cx - 18) + " " + A3.y + " C " + (A3.cx - 18) + " 24, " + (A1.cx + 18) + " 24, " + (A1.cx + 18) + " " + A1.y} color={RETRY} marker={"url(#al-ar)"} on={l2} label={"② 恢复后未恢复 → Agent1 第二轮"} lx={(A3.cx + A1.cx) / 2} ly={18} />
+      {/* 顶部回环弧(显式箭头:向下抵入盒顶) */}
+      <LoopLine d={"M " + A3.cx + " " + A3.y + " C " + A3.cx + " 62, " + A2.cx + " 62, " + A2.cx + " " + (A2.y - 11)} color={SINK} marker={"url(#al-as)"} on={l3} label={"③ 恢复成功 → 沉淀/优化 skill"} lx={(A3.cx + A2.cx) / 2} ly={56} head={{ x: A2.cx, y: A2.y - 1.5, angle: 90 }} />
+      <LoopLine d={"M " + (A3.cx - 18) + " " + A3.y + " C " + (A3.cx - 18) + " 24, " + (A1.cx + 18) + " 24, " + (A1.cx + 18) + " " + (A1.y - 11)} color={RETRY} marker={"url(#al-ar)"} on={l2} label={"② 恢复后未恢复 → Agent1 第二轮"} lx={(A3.cx + A1.cx) / 2} ly={18} head={{ x: A1.cx + 18, y: A1.y - 1.5, angle: 90 }} />
 
       {/* Agent 盒子 */}
       <AgentBox a={A1} on={activeAgent === 1} icon={<RadarMark />} />
@@ -160,12 +160,13 @@ export function AgentLoop({ state }: { state: StoryState }) {
       <TrunkRev x1={BOTROW[1].x - HW} x2={BOTROW[2].x + HW} y={R2Y} status={st(6)} />
 
       {/* loop①:B/C 首轮⑤评估未通过 → 回 Agent1 补采(Agent2 内部回路)
-          大弧线:⑤下落 → 底部左行 → 左缘上升 → 圆角转向,留 ~20px 水平进箭段,
-          箭头水平指入 Agent1 左边缘(盒中心高度);整线沿画布边缘,避开盒子与文字 */}
+          大弧线:⑤下落 → 底部左行 → 左缘上升 → 圆角转向水平,路径在箭头背部收笔,
+          显式箭头水平指入 Agent1 左边缘(盒中心高度);整线沿画布边缘,避开盒子与文字 */}
       <LoopLine
-        d={`M ${BOTROW[1].x} ${R2Y + NH + 4} C ${BOTROW[1].x} 712, 110 712, 30 666 C 2 636, -8 154, 13 154`}
+        d={`M ${BOTROW[1].x} ${R2Y + NH + 4} C ${BOTROW[1].x} 712, 110 712, 30 666 C 2 636, -14 154, 0 154`}
         color={RETRY} marker={"url(#al-ar)"} on={l1}
         label={"① ⑤评估未通过 → 回 Agent1 补采"} lx={230} ly={704}
+        head={{ x: 13.5, y: 154 }}
       />
     </svg>
   );
@@ -287,10 +288,17 @@ function Gate({ x, y, status }: { x: number; y: number; status: Status }) {
   );
 }
 
-function LoopLine({ d, color, marker, on, label, lx, ly }: { d: string; color: string; marker: string; on: boolean; label: string; lx: number; ly: number }) {
+/** 回环线:可选 head = 显式箭头(尖在 head 处、按 angle 旋转,0=向右/90=向下)。
+ *  显式箭头替代 SVG marker —— marker 按 strokeWidth 缩放(实际 ~16px)且挂在路径末端,
+ *  末端斜向切入时线会视觉上「接在箭头右侧」;显式多边形 + 路径提前收笔,几何完全确定:
+ *  虚线永远接在箭头**背部左侧**,尖端正抵目标盒子边缘。 */
+function LoopLine({ d, color, marker, on, label, lx, ly, head }: { d: string; color: string; marker: string; on: boolean; label: string; lx: number; ly: number; head?: { x: number; y: number; angle?: number } }) {
   return (
     <g style={{ transition: "opacity var(--dur-2) ease" }} opacity={on ? 1 : 0.4}>
-      <path d={d} fill="none" stroke={on ? color : "var(--line-3)"} strokeWidth={on ? 1.8 : 1.1} strokeLinecap="round" className={on ? "flow-dash" : undefined} markerEnd={on ? marker : undefined} />
+      <path d={d} fill="none" stroke={on ? color : "var(--line-3)"} strokeWidth={on ? 1.8 : 1.1} strokeLinecap="round" className={on ? "flow-dash" : undefined} markerEnd={on && !head ? marker : undefined} />
+      {on && head && (
+        <polygon points="0,0 -11,-5 -11,5" fill={color} transform={`translate(${head.x} ${head.y}) rotate(${head.angle ?? 0})`} />
+      )}
       {on && (<circle r={3} fill={color}><animateMotion dur="3.6s" repeatCount="indefinite" path={d} /></circle>)}
       <g transform={"translate(" + lx + " " + ly + ")"} opacity={on ? 1 : 0.5}>
         <rect x={-162} y={-12} width={324} height={22} rx={5} fill={on ? color + "10" : "var(--bg2)"} stroke={on ? color + "44" : "var(--line)"} strokeWidth={1} />
