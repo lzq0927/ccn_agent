@@ -165,7 +165,7 @@ export function AgentLoop({ state }: { state: StoryState }) {
       <LoopLine
         d={`M ${BOTROW[1].x} ${R2Y + NH + 4} L ${BOTROW[1].x} 668 A 40 40 0 0 1 352 708 L 13 708 A 40 40 0 0 1 -27 668 L -27 194 A 40 40 0 0 1 13 154`}
         color={RETRY} marker={"url(#al-ar)"} on={l1}
-        label={"① ⑤评估未通过 → 回 Agent1 补采"} lx={230} ly={704}
+        label={"① ⑤评估未通过 → 回 Agent1 补采"} lx={230} ly={686}
         head={{ x: 13.5, y: 154 }}
       />
     </svg>
@@ -301,7 +301,7 @@ function LoopLine({ d, color, marker, on, label, lx, ly, head }: { d: string; co
       )}
       {on && (<circle r={3} fill={color}><animateMotion dur="3.6s" repeatCount="indefinite" path={d} /></circle>)}
       <g transform={"translate(" + lx + " " + ly + ")"} opacity={on ? 1 : 0.5}>
-        <rect x={-162} y={-12} width={324} height={22} rx={5} fill={on ? color + "10" : "var(--bg2)"} stroke={on ? color + "44" : "var(--line)"} strokeWidth={1} />
+        <rect x={-162} y={-12} width={324} height={22} rx={5} fill="var(--bg1)" stroke={on ? color + "44" : "var(--line)"} strokeWidth={1} />
         <text x={0} y={3.5} textAnchor="middle" fontSize={12} fontWeight={500} fill={on ? color : "var(--ink-4)"} fontFamily="var(--font-sans)">{label}</text>
       </g>
     </g>
