@@ -113,7 +113,10 @@ class RealtimeEngine:
         self.bindings: list[UeBinding] = []
         self._build_bindings()
         self._subscribers = SubscriberRegistry(case_id=seed, ue_count=len(self.bindings))
-        self._chr_gen = CHRGenerator(case_id=seed, background_fail_rate=0.001)
+        # 终端侧既有 CHR 噪声(场景数据旋钮):B 类「网络微损 + 终端噪声」的真实模糊源
+        terminal_noise = float(getattr(scenario, "terminal_noise", 0.0)) if scenario else 0.0
+        self._chr_gen = CHRGenerator(case_id=seed,
+                                     background_fail_rate=terminal_noise or 0.001)
 
         # 事件堆:(sim_time, seq, hop_dict)
         self._heap: list[tuple[float, int, dict]] = []
@@ -780,6 +783,142 @@ class RealtimeEngine:
             "arrivals_per_s": {"reg": round(reg_arr, 1), "pdu": round(pdu_arr, 1)},
             "traffic_class_stats": self.traffic_class_stats(),
             "load_reduction_hint": self.load_reduction_hint(),
+            "ne_degradation_ranking": self.ne_degradation_ranking(),
+        }
+
+    def ne_degradation_ranking(self, top: int = 6) -> list[dict]:
+        """均质化比较(通用证据):各 NE 的「全路径退化独占率」排名。
+
+        真根因 NE 的全部路径退化(独占率→1);退化链路的对端伙伴只有与根因
+        共享的路径退化(独占率低)。供 LLM/工作流/确定性诊断在端点计数并列时
+        区分根因与受害者 —— 与 tools.kpi_analyzer.degradation_exclusivity 同一判据。
+        """
+        from tools.kpi_analyzer import degradation_exclusivity
+
+        link_rows = list(self._kpi_link)[-120:]
+        if not link_rows:
+            return []
+        nes = set()
+        for r in link_rows:
+            nes.add(str(r.get("src", "")))
+            nes.add(str(r.get("dst", "")))
+        scored = []
+        for ne in nes:
+            if not ne or ne.startswith("UE"):
+                continue
+            excl, involved = degradation_exclusivity(link_rows, ne)
+            if involved >= 2:
+                scored.append({"ne": ne, "exclusivity": round(excl, 3), "links": involved})
+        scored.sort(key=lambda x: (-x["exclusivity"], -x["links"]))
+        return scored[:top]
+
+    def chr_insight(self, window: int = 400) -> dict:
+        """④ CHR 洞察(真实数据):失败原因值分布 + 共因 NF + 类别归因。
+
+        与 DEMO chrInsight 弹窗同语义,但全部由真实 CHR 记录推导:
+        - causeCode: 失败中最集中的 5GSM/5GMM 原因值(占比);
+        - related: 次要原因值(终端侧噪声);
+        - nes: 失败记录中共现最多的 NF;
+        - dominant_class: 类别归因(traffic_class_stats)。
+        """
+        from collections import Counter
+
+        recs = list(self._chr_buffer)[-window:]
+        fails = [r for r in recs if r.get("outcome") == "failure"]
+        total = len(recs)
+
+        def _cause_label(r: dict) -> str:
+            gsm = str(r.get("cause5gsm") or "0")
+            gmm = str(r.get("cause5gmm") or "0")
+            if gsm != "0":
+                return f"5GSM:{gsm}"
+            if gmm != "0":
+                return f"5GMM:{gmm}"
+            return "其他"
+
+        cause_counts = Counter(_cause_label(r) for r in fails)
+        ne_counts = Counter()
+        for r in fails:
+            for key in ("nf_src", "nf_dst"):
+                ne = str(r.get(key, ""))
+                if ne and not ne.startswith("UE"):
+                    ne_counts[ne] += 1
+        stats = self.traffic_class_stats(window)
+        dom = stats.get("dominant")
+
+        top = cause_counts.most_common(1)
+        related = [
+            {"code": c, "share": round(n / max(len(fails), 1), 3)}
+            for c, n in cause_counts.most_common(4)[1:]
+        ]
+        return {
+            "fail_total": len(fails),
+            "attempt_total": total,
+            "cause_code": top[0][0] if top else "",
+            "cause_share": round(top[0][1] / max(len(fails), 1), 3) if top else 0.0,
+            "related": related,
+            "nes": [ne for ne, _ in ne_counts.most_common(3)],
+            "dominant_class": {
+                "key": dom["key"], "fail_share": dom["fail_share"],
+                "base_share": dom.get("base_share", 0),
+            } if dom else None,
+        }
+
+    def homogen_report(self) -> dict:
+        """④ 均质化比较(真实数据):按 NE 类型的实例级对比 + 判定。
+
+        与 DEMO homogenPopup 同语义,由真实遥测推导:
+        - 每轮 = 一个 NE 类型组的实例对比(per-instance 业务 SR / 链路 SR);
+        - verdict: exclude(全实例共性劣化 → 非单点根因)/ root(单实例离群)/
+          partial(部分劣化,待其它证据);
+        - anchor: 均质化独占率排名榜首(根因)。
+        """
+        reg_sr = self.ne_reg_sr
+        pdu_sr = self.ne_pdu_sr
+        link_sr = self._rolling_link_sr()
+        ranking = self.ne_degradation_ranking()
+        anchor = ranking[0]["ne"] if ranking else None
+        anchor_excl = ranking[0]["exclusivity"] if ranking else 0.0
+
+        rounds: list[dict] = []
+        labels = {
+            "AMF": "AMF 实例 · 注册路径", "SMF": "SMF 实例 · PDU 会话路径",
+            "UPF": "UPF 实例 · 用户面路径", "PCF": "PCF 实例 · 策略路径",
+            "UDM": "UDM 实例 · 签约路径", "gNB": "gNB 实例 · 接入路径",
+        }
+        for ne_type in (NEType.AMF, NEType.SMF, NEType.UPF, NEType.PCF, NEType.UDM, NEType.gNB):
+            t = ne_type.value
+            instances = []
+            for n in self.topology.get_elements_by_type(ne_type):
+                if t == "AMF":
+                    sr = reg_sr.get(n.id)
+                elif t == "SMF":
+                    sr = pdu_sr.get(n.id)
+                else:
+                    srs = [v for k, v in link_sr.items() if n.id in k]
+                    sr = min(srs) if srs else None
+                anomalous = sr is not None and sr < 0.995
+                instances.append({"id": n.id, "anomalous": anomalous,
+                                  "sr": round(sr, 4) if sr is not None else None})
+            if not any(i["anomalous"] for i in instances):
+                continue
+            n_anom = sum(1 for i in instances if i["anomalous"])
+            if len(instances) > 1 and n_anom == len(instances):
+                verdict, note = "exclude", f"{t} 全实例共性劣化 → 非单点根因(均质化排除)"
+            elif n_anom == 1:
+                verdict, note = "root", f"{t} 单实例离群 → 根因候选(故障聚合)"
+            else:
+                verdict, note = "partial", f"{t} {n_anom}/{len(instances)} 实例劣化 → 需交叉证据"
+            rounds.append({
+                "type": labels[t], "instances": instances,
+                "verdict": verdict, "note": note,
+            })
+
+        return {
+            "anchor_ne": anchor,
+            "anchor_exclusivity": anchor_excl,
+            "rounds": rounds,
+            "ranking": ranking[:5],
         }
 
     def snapshot_for_agent(self) -> dict:

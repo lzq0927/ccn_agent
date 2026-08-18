@@ -27,6 +27,27 @@
 - **真 LLM(MiniMax M3)**:A(guided→agent loop)定位 UPF_1 精确匹配恢复;D(workflow→过载工作流)path_session+traffic_filter → 三层准入 → 恢复 + 类别命中。
 - **通用性**:场景表仅含故障/流量规格(测试断言无 recovery_actions/recovery_actions_r1/expected_rounds 字段);新增场景无需改任何代码。
 
+## 增补:frontend-flow-studio LIVE 达到 DEMO 等效效果(2026-08-18)
+
+用户实测发现「LIVE 未按预期运行」的三个根因与修复:
+
+| 根因 | 修复 |
+|------|------|
+| **前端致命 bug**:liveBus store 原地 mutate → `useSyncExternalStore` snapshot 引用永不变 → LIVE 事件(推理链/策略/评估)到达后**从不触发重渲染**,面板冻结在点击瞬间的快照 | `applyEvent` 末尾不可变发布(`_store.set(sid, {...st})`)→ 事件驱动渲染恢复(demo 与 studio 同修) |
+| **④又慢又偶发误诊**:A/B 路由 guided → 真 LLM 45~170s 且端点并列时选错 NE;workflow 引擎只有计数 tie-break | ① `workflow_engine.link_fault_workflow` 加**均质化比较**(`degradation_exclusivity` 提为 `tools/kpi_analyzer` 共享函数);② runtime_context 增 `ne_degradation_ranking`(LLM 可见的独占率证据);③ 路由层新规则:**single_ne + 独占率≥0.9 + 严重度≥0.05 → WORKFLOW**(确定性铁证秒级定位;微损 B 仍 guided 保留 CHR 降噪戏码);④ agent loop 历史截 20→12 条提速 |
+| **交互无反馈**:重复点②重新注入故障;④进行中无进度 | runner 幂等(已注入→仅刷新异常检测)+ ④忙碌守卫(`control_note` 提示,前端角标显示)+ `agent_step` 心搏 reasoning_step |
+
+新增真实数据事件(④弹窗 DEMO 等效、全真实):
+- `chr_insight`:真实 CHR 原因值分布 + 共因 NF + 类别归因(引擎 `chr_insight()`)
+- `homogen_report`:真实均质化比较(实例级 SR 对比 + exclude/root/partial 判定 + 独占率锚定,引擎 `homogen_report()`)
+- 前端:studio ReasonPanel 渲染「均质化比较 · 实时遥测」「CHR 洞察 · 实时」卡;demo 的画布锚定弹窗(chrPopup/homogenPopup)由 mergeLive 用真实数据覆盖;MatchPanel 的「匹配逻辑」LIVE 下用真实特征→分数→路由文案
+
+数据旋钮:`LiveScenario.terminal_noise`(终端侧既有 CHR 噪声,B=0.04 → 「网络微损+终端噪声」的真实模糊源)。
+
+Diagnoser 事件双写(bus + recorder):`confidence_assessment/anomaly_detection/reasoning_step/diagnosis_complete/chr_insight/homogen_report` 全进 events.jsonl,`/replay` 完整。
+
+**验证**:166 测试全过;studio `verify.mjs` 全 PASS(含 LIVE 真实走查:②真实异常链路+工具聚合定位 → ③真实置信度+路由徽章「实时」 → ④确定性工作流 10 秒定位 UPF_1 + 均质化/CHR 实时卡 → ⑤通用规划器策略(带 rationale)→ ⑦实时评估恢复);路由分布 A 22/25 workflow、B 20/25 guided、C 18/25 workflow、D~G 全 workflow;workflow 诊断 25 种子零误。
+
 ## 现状问题(改造前)
 
 | # | 问题 | 位置 |

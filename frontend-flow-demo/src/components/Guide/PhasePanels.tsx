@@ -339,7 +339,17 @@ export function MatchPanel({ scenario, state }: { scenario: Scenario; state: Sto
     ? { score: lc.score, route: lc.route as typeof scenario.confidence.route, patternName: PATTERN_CN[lc.pattern] ?? lc.pattern ?? "—" }
     : scenario.confidence;
   const rc = ROUTE_COLORS[c.route] ?? ROUTE_COLORS[scenario.confidence.route];
-  const why = whyMatched(scenario);
+  // LIVE:匹配逻辑用真实评估结果(特征→分数→路由);DEMO 用场景口语化解释
+  const why = lc
+    ? `实时特征评估:异常模式 ${lc.pattern ?? "—"} 得分 ${lc.score.toFixed(2)},`
+      + (lc.route === "workflow"
+          ? "信号确定性高(均质化铁证/已知模式)→ 确定性工作流,固定步骤直达根因。"
+          : lc.route === "guided"
+            ? "信号中等(KPI 微损/存在模糊)→ 技能引导 Agent Loop,注入匹配 Skill 逐步收敛。"
+            : lc.route === "exploration"
+              ? "KPI 模糊但 CHR 失败集中 → 多算法并行探索 + 贝叶斯融合。"
+              : "信号弱 → 自主探索,完整 Agent Loop + 并行假设验证。")
+    : whyMatched(scenario);
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-soft)", lineHeight: 1.5 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 4 }}>

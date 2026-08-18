@@ -106,37 +106,42 @@ export function GuidedStage({ scenario, state, scenarios, currentScenarioId, onS
 
   return (
     <div className="panel" style={{ height: "100%", display: "flex", flexDirection: "column", overflow: "hidden", borderTop: `2px solid ${info.color}55`, transition: "border-color var(--dur-2) ease" }}>
-      {/* 案例条 */}
-      <div style={{ padding: "8px 14px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
-        <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-1)", whiteSpace: "nowrap" }}>案例演示</span>
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-          {scenarios.map((s) => {
-            const active = s.id === currentScenarioId;
-            return (
-              <button
-                key={s.id}
-                onClick={() => onSelectScenario(s.id)}
-                title={s.intro ?? s.tagline}
-                className={active ? "btn active" : "btn"}
-                style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}
-              >
-                <span className="font-display" style={{ fontSize: 12.5, fontWeight: 600 }}>{s.id}</span>
-                <span style={{ fontWeight: 400 }}>{s.cn.length > 10 ? s.cn.slice(0, 10) + "…" : s.cn}</span>
-              </button>
-            );
-          })}
+      {/* 案例条 + 案例介绍 */}
+      <div style={{ borderBottom: "1px solid var(--line)" }}>
+        <div style={{ padding: "8px 14px 0", display: "flex", alignItems: "center", gap: 10 }}>
+          <span className="font-display" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-1)", whiteSpace: "nowrap" }}>案例演示</span>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            {scenarios.map((s) => {
+              const active = s.id === currentScenarioId;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => onSelectScenario(s.id)}
+                  title={s.intro ?? s.tagline}
+                  className={active ? "btn active" : "btn"}
+                  style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}
+                >
+                  <span className="font-display" style={{ fontSize: 12.5, fontWeight: 600 }}>{s.id}</span>
+                  <span style={{ fontWeight: 400 }}>{s.cn.length > 10 ? s.cn.slice(0, 10) + "…" : s.cn}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, marginLeft: "auto" }}>
+            {cur?.round === 2 && (
+              <span className="tag mono" style={{ color: STATUS_TAG.warn, borderColor: STATUS_TAG.warn + "66" }}>ROUND 2</span>
+            )}
+            <span style={{ fontSize: 10.5, color: "var(--ink-4)" }}>
+              整网 KPI <b className="mono" style={{ color: srColor(sr), fontWeight: 500 }}>{(sr * 100).toFixed(2)}%</b>
+            </span>
+          </div>
         </div>
-        {/* 当前场景一句话目标 */}
-        <div style={{ flex: 1, minWidth: 0, marginLeft: 10, fontSize: 10.5, color: "var(--ink-4)", lineHeight: 1.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={scenario.intro ?? scenario.tagline}>
-          {scenario.objective ?? scenario.tagline}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          {cur?.round === 2 && (
-            <span className="tag mono" style={{ color: STATUS_TAG.warn, borderColor: STATUS_TAG.warn + "66" }}>ROUND 2</span>
-          )}
-          <span style={{ fontSize: 10.5, color: "var(--ink-4)" }}>
-            整网 KPI <b className="mono" style={{ color: srColor(sr), fontWeight: 500 }}>{(sr * 100).toFixed(2)}%</b>
-          </span>
+        {/* 当前案例介绍(全宽一行,悬停看全文) */}
+        <div
+          title={scenario.intro ?? scenario.tagline}
+          style={{ padding: "5px 14px 7px", fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+        >
+          {scenario.intro ?? scenario.tagline}
         </div>
       </div>
 

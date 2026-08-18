@@ -28,10 +28,13 @@ class ReasoningStep:
 
 
 class LiveDiagnoser:
-    def __init__(self, bus, plugin_id: str):
+    def __init__(self, bus, plugin_id: str, record=None):
         self.bus = bus
         self.plugin_id = plugin_id
         self._step_n = 0
+        # 落盘钩子(recorder.record_event):本模块发出的事件(置信度/异常检测/
+        # 推理链/诊断完成)同步写入 events.jsonl,replay 才完整
+        self._record = record
         # 确保工具已注册:emit_anomaly_detection 在构造 FaultPerceptionAgent 之前就要
         # dispatch(analyze_kpi_anomalies / find_common_ne),不能等 handle_root 才注册。
         try:
@@ -40,6 +43,15 @@ class LiveDiagnoser:
             import_all_tools()
         except Exception:  # noqa: BLE001
             logger.warning("import_all_tools failed in LiveDiagnoser init")
+
+    def _emit(self, type_: str, payload: dict) -> None:
+        """bus 发布 + 落盘(同一事件双写,保证 WS 实时与 replay 一致)。"""
+        self.bus.publish(type_, payload)
+        if self._record is not None:
+            try:
+                self._record(type_, payload)
+            except Exception:  # noqa: BLE001
+                logger.exception("LiveDiagnoser record failed: %s", type_)
 
     def _next_n(self) -> int:
         self._step_n += 1
@@ -79,7 +91,7 @@ class LiveDiagnoser:
         from agents.fault_perception.confidence import ConfidenceAssessor
 
         assessment = ConfidenceAssessor().assess(self._case_data(snapshot, round))
-        self.bus.publish("confidence_assessment", {
+        self._emit("confidence_assessment", {
             "score": assessment.score,
             "route": assessment.route.value,
             "matched_patterns": assessment.matched_patterns,
@@ -124,7 +136,7 @@ class LiveDiagnoser:
         except Exception:  # noqa: BLE001
             logger.exception("anomaly detection tools failed")
 
-        self.bus.publish("anomaly_detection", {
+        self._emit("anomaly_detection", {
             "degraded_links": degraded_links,
             "top_ne": top_ne,
             "ne_frequency": ne_frequency,
@@ -143,7 +155,7 @@ class LiveDiagnoser:
         """Agent progress_callback → 实时推 bus(置信度 + 工具调用)。"""
         etype = ev.get("type")
         if etype == "confidence_assessment":
-            self.bus.publish("confidence_assessment", {
+            self._emit("confidence_assessment", {
                 "score": ev.get("score", 0.0), "route": ev.get("route", ""),
                 "breakdown": {}, "matched_patterns": ev.get("patterns", []), "round": 0,
             })
@@ -152,17 +164,24 @@ class LiveDiagnoser:
             preview = (ev.get("result_preview") or "").strip()
             if preview:
                 text += f" → {preview[:180]}"
-            self.bus.publish("reasoning_step", {
+            self._emit("reasoning_step", {
                 "n": self._next_n(), "type": "tool_call", "text": text, "round": 0,
             })
         elif etype == "deterministic_mode":
-            self.bus.publish("reasoning_step", {
+            self._emit("reasoning_step", {
                 "n": self._next_n(), "type": "thinking",
                 "text": "▸ LLM 未配置(stub 模式)→ 确定性工具链诊断", "round": 0,
             })
+        elif etype == "agent_step":
+            # ④心跳:真 LLM 每轮推理可能数十秒,逐迭代发心跳让等待可见
+            it, mx = ev.get("iteration", 0), ev.get("max", 0)
+            self._emit("reasoning_step", {
+                "n": self._next_n(), "type": "thinking",
+                "text": f"▸ Agent 推理迭代 {it}/{mx}(LLM 分析当前证据…)", "round": 0,
+            })
         elif etype in ("workflow_start", "exploration_start"):
             label = "确定性工作流" if etype == "workflow_start" else "自主探索"
-            self.bus.publish("reasoning_step", {
+            self._emit("reasoning_step", {
                 "n": self._next_n(), "type": "thinking",
                 "text": f"▸ 进入{label}", "round": 0,
             })
@@ -175,10 +194,10 @@ class LiveDiagnoser:
             if getattr(step, "step_type", "") in ("conclusion", "thinking"):
                 conclusion_text = getattr(step, "content", conclusion_text) or conclusion_text
                 break
-        self.bus.publish("reasoning_step", {
+        self._emit("reasoning_step", {
             "n": self._next_n(), "type": "conclusion", "text": conclusion_text, "round": round,
         })
-        self.bus.publish("diagnosis_complete", {
+        self._emit("diagnosis_complete", {
             "fault_elements": list(getattr(result, "fault_elements", []) or []),
             "fault_type": getattr(result, "fault_type", "unknown"),
             "fault_mode": getattr(result, "fault_mode", "link"),
@@ -192,7 +211,7 @@ class LiveDiagnoser:
     # 旧桩路径(向后兼容旧测试)
     # ------------------------------------------------------------------
     def emit_confidence(self, score: float, route: str, breakdown: dict | None = None) -> None:
-        self.bus.publish("confidence_assessment", {
+        self._emit("confidence_assessment", {
             "score": score, "route": route, "breakdown": breakdown or {},
         })
 
@@ -215,11 +234,11 @@ class LiveDiagnoser:
                 payload["result"] = s.result
             if s.highlight is not None:
                 payload["highlight"] = s.highlight
-            self.bus.publish("reasoning_step", payload)
-        self.bus.publish("diagnosis_complete", {
+            self._emit("reasoning_step", payload)
+        self._emit("diagnosis_complete", {
             "fault_elements": fault_elements, "fault_type": fault_type, "fault_mode": fault_mode,
             "confidence": confidence, "route": route, "iterations": len(steps),
         })
 
     def emit_user_breakdown(self, breakdown: dict) -> None:
-        self.bus.publish("user_breakdown", breakdown)
+        self._emit("user_breakdown", breakdown)

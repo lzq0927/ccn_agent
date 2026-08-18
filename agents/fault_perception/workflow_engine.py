@@ -7,7 +7,7 @@ import logging
 from typing import Callable
 
 from agents.shared.models import CaseData, DiagnosisResult, Route, ReasoningStep, SessionStatus
-from tools.kpi_analyzer import analyze_kpi_anomalies, find_common_ne
+from tools.kpi_analyzer import analyze_kpi_anomalies, degradation_exclusivity, find_common_ne
 from tools.fault_isolator import check_temporal_pattern
 from tools.topology_tools import check_ne_membership
 
@@ -93,6 +93,38 @@ class WorkflowEngine:
         step += 1
         affected_nes = []
         top_ne = ne_data.get("top_ne")
+        refined_single = False
+
+        # Step 3.5: 均质化比较 —— 退化链路端点计数并列时(如仅剩一个 SMF 承载
+        # 全部退化路径、或微损故障各端点计数接近),用「全路径退化独占率」区分
+        # 根因(自身全部路径退化)与受害者(仅与根因共享的路径退化)。
+        if top_ne and degraded_pairs:
+            ne_frequency = ne_data.get("ne_frequency", []) or []
+            candidates = [c.get("ne_id") for c in ne_frequency if c.get("ne_id")]
+            link_rows = [r for r in case_data.kpi_rows if str(r.get("level", "")) == "link"]
+            scored = [(ne, *degradation_exclusivity(link_rows, ne)) for ne in candidates]
+            counts = {c.get("ne_id"): c.get("count", 0) for c in ne_frequency}
+            scored.sort(key=lambda x: (-x[1], -counts.get(x[0], 0)))
+            if (
+                scored
+                and scored[0][1] >= 0.5
+                and (len(scored) < 2 or scored[0][1] - scored[1][1] >= 0.2)
+            ):
+                refined = scored[0][0]
+                if refined != top_ne:
+                    trace.append(ReasoningStep(
+                        step_number=step,
+                        step_type="thinking",
+                        content=(
+                            f"均质化比较:端点计数并列时按全路径退化独占率重判 —— "
+                            f"{refined} 独占率 {scored[0][1]:.2f}(全部路径退化)高于 "
+                            f"{top_ne} {dict((ne, round(ex, 2)) for ne, ex, _ in scored[:3])};"
+                            f"根因取 {refined}"
+                        ),
+                    ))
+                    top_ne = refined
+                    refined_single = True
+
         if top_ne:
             membership_result = await check_ne_membership(case_data.topology_text, [top_ne])
             membership_data = json.loads(membership_result)
@@ -108,7 +140,7 @@ class WorkflowEngine:
 
             clustering = membership_data.get("clustering", {})
             # Determine fault type from clustering
-            if clustering.get("single_ne") or ne_data.get("top_ratio", 0) > 0.4:
+            if refined_single or clustering.get("single_ne") or ne_data.get("top_ratio", 0) > 0.4:
                 affected_nes = [top_ne]
                 fault_type = "single_ne"
             else:
@@ -120,7 +152,7 @@ class WorkflowEngine:
             fault_type = "normal"
 
         # Build result
-        confidence = 0.85 if ne_data.get("top_ratio", 0) > 0.4 else 0.6
+        confidence = 0.85 if (refined_single or ne_data.get("top_ratio", 0) > 0.4) else 0.6
         if fault_type == "normal":
             confidence = 0.9
 

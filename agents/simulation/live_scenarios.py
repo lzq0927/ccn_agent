@@ -28,6 +28,7 @@ class LiveScenario:
     iot_ratio: float = 0.0           # 物联网终端占比(sst=3 / dnn=iot)
     base_reg_lambda: float = 14.0    # 每秒注册到达基础 λ
     base_pdu_lambda: float = 26.0    # 每秒 PDU 建立到达基础 λ
+    terminal_noise: float = 0.0      # 终端侧既有 CHR 噪声率(0=默认 0.001)
     kpi_columns: list[str] = field(default_factory=list)
 
 
@@ -88,8 +89,8 @@ SCENARIO_B = LiveScenario(
     label_en="SMF_1 FAULT · GUIDED",
     short_intro="SMF_1 链路微损叠加终端噪声,KPI 仅微损;CHR 降噪排除终端后定位网络根因",
     route_expectation="guided",
-    fault_config=_fc(FaultPointType.SINGLE_NE, FaultMode.LINK, {"SMF_1"}, 0.035),
-    ue_count=60, iot_ratio=0.0,
+    fault_config=_fc(FaultPointType.SINGLE_NE, FaultMode.LINK, {"SMF_1"}, 0.02),
+    ue_count=60, iot_ratio=0.0, terminal_noise=0.04,
     kpi_columns=list(_KPI_BASE),
 )
 

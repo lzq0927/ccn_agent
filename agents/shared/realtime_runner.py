@@ -103,7 +103,9 @@ class RealtimeLiveRunner:
         self.engine = RealtimeEngine(scenario=scenario, seed=hash(session_id) & 0xFFFF)
         self.engine.round = 1
         self.stepper = EngineStepper(sim_window=sim_window, base_interval=tick_interval)
-        self.diagnoser = LiveDiagnoser(bus, scenario.id)
+        # diagnoser 事件双写:bus(WS 实时)+ recorder(events.jsonl,replay 完整)
+        record_hook = recorder.record_event if recorder is not None else None
+        self.diagnoser = LiveDiagnoser(bus, scenario.id, record=record_hook)
 
         self._task: Optional[asyncio.Task] = None
         self._stopped = False
@@ -116,6 +118,7 @@ class RealtimeLiveRunner:
         self._isolated_by_policy: set[str] = set()   # 已被策略隔离的 NE(规划器防重复隔离)
         self._sr_timeline: list[dict] = []           # 每轮判恢复时的引擎快照(评估用)
         self._validated_fault: Any = None            # Agent 1 影子校验后的故障配置
+        self._diagnosing = False                     # ④忙碌守卫(真 LLM 诊断耗时,拒绝并发)
 
         # 方案B · 相位配额门控状态
         self._phase_budget = 0                       # 当前相位剩余 tick 配额;耗尽即 pause
@@ -269,6 +272,17 @@ class RealtimeLiveRunner:
         return snap
 
     async def handle_inject_fault(self) -> None:
+        # 幂等:已注入过 → 不重复注入(重复点②只刷新异常检测视图)
+        if self.engine.fault is not None:
+            self._publish("control_note", {
+                "message": "故障已注入,重复点击仅刷新异常检测结果", "action": "inject_fault",
+            })
+            self._set_phase(2)
+            self._arm_phase(2)
+            await self._wait_segment()
+            await self.diagnoser.emit_anomaly_detection(self._snapshot_with_ne_sr(), round=self._round)
+            return
+
         # Agent 1(数据生成)实时形态:影子自校验 —— 故障数据不合理自动调参重试
         from agents.simulation.fault_validator import validate_fault_spec
 
@@ -296,23 +310,36 @@ class RealtimeLiveRunner:
 
     async def handle_root(self) -> None:
         """④根因推理:真 Agent Loop(FaultPerceptionAgent.diagnose)→ 推理链 + diagnosis_complete。"""
-        self._set_state("diagnosing")
-        self._set_phase(4)
-        self.diagnoser._step_n = 0  # noqa: SLF001
-        agent, case_data = self.diagnoser.run_real_diagnosis(self.engine.snapshot_for_agent(), round=self._round)
-        try:
-            result = await agent.diagnose(case_data)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("real diagnose failed: %s", exc)
-            self._publish("error", {"source": "diagnoser", "code": "AGENT", "message": str(exc), "fatal": False})
+        # 忙碌守卫:真 LLM 诊断可能需要数十秒,期间重复点④只提示不并发
+        if self._diagnosing:
+            self._publish("control_note", {
+                "message": "诊断进行中,请等待当前推理完成", "action": "root",
+            })
             return
-        self._last_diagnosis = result
-        self.diagnoser.emit_diagnosis_result(result, round=self._round)
-        if self.recorder is not None:
+        self._diagnosing = True
+        try:
+            self._set_state("diagnosing")
+            self._set_phase(4)
+            # ④弹窗真实数据:CHR 洞察(原因值分布/共因 NF/类别归因)+ 均质化比较
+            # (实例级对比 + 判定)——诊断开始前发布,弹窗先有真实内容
+            self._publish("chr_insight", {
+                **self.engine.chr_insight(), "round": self._round,
+            })
+            self._publish("homogen_report", {
+                **self.engine.homogen_report(), "round": self._round,
+            })
+            self.diagnoser._step_n = 0  # noqa: SLF001
+            agent, case_data = self.diagnoser.run_real_diagnosis(self.engine.snapshot_for_agent(), round=self._round)
             try:
-                self.recorder.record_event("diagnosis_complete", {"round": self._round})
-            except Exception:  # noqa: BLE001
-                pass
+                result = await agent.diagnose(case_data)
+            except Exception as exc:  # noqa: BLE001
+                logger.exception("real diagnose failed: %s", exc)
+                self._publish("error", {"source": "diagnoser", "code": "AGENT", "message": str(exc), "fatal": False})
+                return
+            self._last_diagnosis = result
+            self.diagnoser.emit_diagnosis_result(result, round=self._round)
+        finally:
+            self._diagnosing = False
 
     async def handle_diagnose(self) -> None:
         """向后兼容:等价于 match + root(旧 /control?action=diagnose 与旧测试入口)。"""

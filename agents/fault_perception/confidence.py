@@ -59,6 +59,8 @@ class FeatureSet:
     failed_supi_ratio: float = 0.0
     chr_failure_concentration: float = 0.0  # Gini of per-SUPI failure counts
     exploration_trigger: bool = False
+    # top NE 的全路径退化独占率(均质化铁证;0 = 未算/无异常)
+    ne_exclusivity: float = 0.0
     # LIVE 运行时遥测特征(NF CPU 过载 → 业务激增/过载模式)
     cpu_overload: bool = False
     overloaded_ne_count: int = 0
@@ -200,6 +202,20 @@ class ConfidenceAssessor:
                 features.pattern_match = "single_ne"
                 features.pattern_strength = features.top_ne_dominance
                 features.spatial_clarity = 0.8
+                # 均质化铁证:top NE 的**全部**路径都退化(独占率 ≥0.85)——
+                # 共性排除后唯一离群,确定性可判 → 提升强度/空间清晰度,
+                # 让这类信号路由到确定性工作流(秒级定位)而非 LLM 探索。
+                try:
+                    from tools.kpi_analyzer import degradation_exclusivity
+
+                    top_id = max(ne_appearances, key=lambda k: ne_appearances[k])
+                    excl, _ = degradation_exclusivity(link_rows, top_id)
+                    features.ne_exclusivity = excl
+                    if excl >= 0.85:
+                        features.pattern_strength = max(features.pattern_strength, 0.85)
+                        features.spatial_clarity = max(features.spatial_clarity, 0.9)
+                except Exception:  # noqa: BLE001
+                    pass
             elif max_dc_overlap > 0.8 and len(dc_overlap) > 1:
                 features.pattern_match = "dc"
                 features.pattern_strength = max_dc_overlap
@@ -317,6 +333,15 @@ class ConfidenceAssessor:
         # KPIs are ambiguous (micro-loss) but CHR shows real concentrated failures.
         if features.exploration_trigger:
             return Route.EXPLORATION
+        # 均质化铁证:single_ne 且 top NE 全路径退化(独占率 ≥0.9)且严重度可观
+        # (≥0.05,排除微损噪声)—— 共性排除后唯一离群,确定性工作流可秒级定位,
+        # 无需 LLM 探索(微损场景仍按分数走 guided,保留 CHR 降噪路径)。
+        if (
+            features.pattern_match == "single_ne"
+            and features.ne_exclusivity >= 0.9
+            and features.anomaly_severity >= 0.05
+        ):
+            return Route.WORKFLOW
         if score > THRESHOLD_HIGH:
             return Route.WORKFLOW
         elif score > THRESHOLD_LOW:

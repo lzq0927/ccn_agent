@@ -18,7 +18,7 @@ const SHOTS = path.join(ROOT, ".shots");
 fs.mkdirSync(SHOTS, { recursive: true });
 
 const CHROME = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
-const BASE = "http://localhost:5180";
+const BASE = process.env.BASE ?? "http://localhost:5180";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const summary = { errors: [], fonts: {}, scenarios: {}, themes: {}, live: {} };
@@ -115,7 +115,10 @@ for (const t of ["墨", "雾", "纸"]) {
   console.log(`theme ${t}:`, JSON.stringify(summary.themes[t]));
 }
 
-// —— 4. LIVE 降级(无后端) ——
+// —— 4. LIVE 能力(环境自适应:有后端 → LIVE 可点;无后端 → 禁用并停留 DEMO) ——
+const backendUp = await fetch(`${BASE}/api/v1/live/capabilities`)
+  .then((r) => r.ok)
+  .catch(() => false);
 summary.live = await page.evaluate(() => {
   const liveBtn = document.querySelector('[data-testid="mode-live"]');
   const demoBtn = document.querySelector('[data-testid="mode-demo"]');
@@ -125,7 +128,70 @@ summary.live = await page.evaluate(() => {
     errorToast: !!document.querySelector('[data-testid="live-error"]'),
   };
 });
-console.log("live degrade:", JSON.stringify(summary.live));
+summary.live.backendUp = backendUp;
+summary.live.ok = backendUp ? summary.live.liveDisabled === false : summary.live.liveDisabled === true;
+console.log("live:", JSON.stringify(summary.live));
+
+// —— 5. LIVE 真实走查(仅当后端在跑):A 场景 ②→③→④→⑤→⑦,轮询真实事件驱动的内容 ——
+if (backendUp && process.env.SKIP_LIVE_WALK !== "1") {
+  const walk = { steps: [], shots: 0 };
+  const liveBtn = await page.$('[data-testid="mode-live"]');
+  if (liveBtn) {
+    await page.goto(`${BASE}/?scenario=A`, { waitUntil: "networkidle2" });
+    await sleep(1200);
+    await (await page.$('[data-testid="mode-live"]')).click();
+    await sleep(2500);
+    // 等 phase-1 数据段(tick 流入)
+    walk.steps.push("mode-live clicked");
+    // ② 异常检测(注入 + 真异常工具;等 data_validation/anomaly 面板内容)
+    await (await page.$('[data-testid="circle-2"]')).click();
+    await sleep(6000);
+    walk.shots += await shot("live-A-circle2.png") ? 1 : 0;
+    walk.steps.push("circle2 done");
+    await page.keyboard.press("Escape");
+    // ③ 策略匹配
+    await (await page.$('[data-testid="circle-3"]')).click();
+    await sleep(3000);
+    walk.steps.push("circle3 done");
+    await page.keyboard.press("Escape");
+    // ④ 根因推理:真 LLM 可能需要数分钟 → 轮询 modal 出现结论/根因内容(最长 300s)
+    await (await page.$('[data-testid="circle-4"]')).click();
+    const t0 = Date.now();
+    let sawConclusion = false, sawHomogen = false, sawChr = false;
+    while (Date.now() - t0 < 300_000) {
+      await sleep(5000);
+      const txt = await page.evaluate(() => document.body.innerText);
+      // 真实推理链标记:LIVE 推理步(#n 前缀)带「进入确定性工作流/调用工具/推理迭代」
+      sawConclusion = /(进入确定性工作流|🔧 调用工具|推理迭代)/.test(txt) && Date.now() - t0 > 8000;
+      sawHomogen = txt.includes("均质化比较 · 实时遥测");
+      sawChr = txt.includes("CHR 洞察 · 实时");
+      if (sawConclusion) break;
+    }
+    walk.diagSeconds = Math.round((Date.now() - t0) / 1000);
+    walk.sawConclusion = sawConclusion; walk.sawHomogen = sawHomogen; walk.sawChr = sawChr;
+    await shot("live-A-circle4.png");
+    walk.steps.push(`circle4 done (${walk.diagSeconds}s)`);
+    await page.keyboard.press("Escape");
+    // ⑤ 下发策略(通用规划器)
+    await (await page.$('[data-testid="circle-5"]')).click();
+    await sleep(6000);
+    const dispatchTxt = await page.evaluate(() => document.body.innerText);
+    walk.sawPlanner = dispatchTxt.includes("通用规划器") && dispatchTxt.includes("策略 1 ·");
+    await shot("live-A-circle5.png");
+    walk.steps.push("circle5 done");
+    await page.keyboard.press("Escape");
+    // ⑦ 评估优化(等待恢复段 + 真实评估)
+    await (await page.$('[data-testid="circle-7"]')).click();
+    await sleep(15000);
+    const evalTxt = await page.evaluate(() => document.body.innerText);
+    walk.sawEval = evalTxt.includes("实时评估") || evalTxt.includes("实时评估 · 未通过");
+    await shot("live-A-circle7.png");
+    walk.steps.push("circle7 done");
+  }
+  summary.liveWalk = walk;
+  summary.liveWalk.ok = !!(walk.sawConclusion && walk.sawPlanner && walk.sawEval);
+  console.log("liveWalk:", JSON.stringify(summary.liveWalk));
+}
 
 await browser.close();
 // 过滤预期错误:无后端时 /api/* 经 vite proxy 返回 404/500(降级路径本身已单独验证)
@@ -135,7 +201,9 @@ const fail =
   summary.errors.length > 0 ||
   !summary.fonts.serif || !summary.fonts.mono ||
   Object.values(summary.scenarios).some((r) => !r.axisOk || r.modals < 6) ||
-  !summary.live.liveDisabled;
+  !summary.live.ok ||
+  summary.live.errorToast ||
+  (summary.liveWalk && !summary.liveWalk.ok);
 console.log("\n==== VERIFY:", fail ? "FAIL" : "PASS", "====");
 if (summary.errors.length) console.log("errors:", summary.errors.slice(0, 10));
 process.exit(fail ? 1 : 0);

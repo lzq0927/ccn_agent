@@ -333,6 +333,85 @@ function Donut({ share, label, sub, color }: { share: number; label: string; sub
   );
 }
 
+/** 多段环图(前后对比用):各段按 share 顺时针排布 */
+function MultiDonut({ segments, center }: { segments: { label: string; share: number; color: string; dim?: boolean }[]; center?: string }) {
+  const r = 27, rIn = 17.5, cx = 32, cy = 32;
+  const pt = (rad: number, ang: number): [number, number] => [cx + rad * Math.sin(ang), cy - rad * Math.cos(ang)];
+  let acc = 0;
+  const arcs = segments
+    .filter((s) => s.share > 0.5)
+    .map((s) => {
+      const a0 = (acc / 100) * Math.PI * 2;
+      acc = Math.min(100, acc + s.share);
+      const a1 = (acc / 100) * Math.PI * 2;
+      return { ...s, a0, a1 };
+    });
+  return (
+    <svg width={64} height={64} viewBox="0 0 64 64">
+      <circle cx={cx} cy={cy} r={(r + rIn) / 2} fill="none" stroke="var(--line)" strokeWidth={r - rIn} />
+      {arcs.map((s) => {
+        const large = s.a1 - s.a0 > Math.PI ? 1 : 0;
+        const [sx, sy] = pt(r, s.a0), [ex, ey] = pt(r, s.a1);
+        const [sxi, syi] = pt(rIn, s.a1), [exi, eyi] = pt(rIn, s.a0);
+        return <path key={s.label} d={`M ${sx} ${sy} A ${r} ${r} 0 ${large} 1 ${ex} ${ey} L ${sxi} ${syi} A ${rIn} ${rIn} 0 ${large} 0 ${exi} ${eyi} Z`} fill={s.color} opacity={s.dim ? 0.45 : 0.85} />;
+      })}
+      {center && <text x={cx} y={cy + 3} textAnchor="middle" fontSize={10.5} fontWeight={500} fill="var(--ink-1)" fontFamily="var(--font-mono)">{center}</text>}
+    </svg>
+  );
+}
+
+/** CHR 前后对比环图:排除噪声/聚类共因后,根因占比凸显(B/C 场景相位4) */
+function DonutCompare({ scenario, chr }: { scenario: Scenario; chr: NonNullable<Scenario["chrInsight"]> }) {
+  type CompareSeg = { label: string; share: number; color: string; dim?: boolean };
+  const rel = chr.related ?? [];
+  const relSum = rel.reduce((a, r) => a + (r.share ?? 0), 0);
+  const isC = scenario.id === "C";
+  const NOISE = "var(--ink-5)";
+  const OTHER = "var(--line-2)";
+  // B:排除终端噪声(5GMM:23/24 既有基线)后,网络侧原因占比抬升
+  // C:初筛原因分散无主导 → 共因聚类后物联终端群体凸显
+  const before: CompareSeg[] = isC
+    ? [
+        ...rel.map((r) => ({ label: r.code, share: r.share ?? 0, color: NOISE, dim: true })),
+        { label: "其他", share: Math.max(0, 100 - relSum), color: OTHER, dim: true },
+      ]
+    : [
+        { label: chr.causeCode, share: chr.share ?? 60, color: WARN },
+        ...rel.map((r) => ({ label: r.code, share: r.share ?? 0, color: NOISE, dim: true })),
+        { label: "其他", share: Math.max(0, 100 - (chr.share ?? 60) - relSum), color: OTHER, dim: true },
+      ];
+  const afterShare = isC ? chr.share ?? 52 : Math.round(((chr.share ?? 60) / Math.max(1, 100 - relSum)) * 100);
+  const after: CompareSeg[] = [
+    { label: isC ? "物联终端群体" : chr.causeCode, share: afterShare, color: DANGER },
+    { label: "其他", share: 100 - afterShare, color: OTHER, dim: true },
+  ];
+  const excludeCn = isC ? "共因聚类 · 剔除分散噪声" : `排除终端噪声 ${rel.map((r) => r.code).join("/")}(既有基线)`;
+  const conclusion = isC
+    ? `聚类共因 gNB_2 物联终端 ${(chr.share ?? 52)}% → 网络健康 · 用户侧异常`
+    : `${chr.causeCode} 占比 ${chr.share ?? 60}% → ${afterShare}% · 锁定 ${scenario.fault.elements[0] ?? "根因"}`;
+  const Side = ({ segs, cap, hi }: { segs: CompareSeg[]; cap: string; hi?: boolean }) => (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flex: 1, minWidth: 0 }}>
+      <MultiDonut segments={segs} center={hi ? `${afterShare}%` : undefined} />
+      <span style={{ fontSize: 9.5, color: hi ? "var(--ink-2)" : "var(--ink-4)", fontWeight: hi ? 500 : 400, textAlign: "center", lineHeight: 1.3 }}>{cap}</span>
+    </div>
+  );
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <Side segs={before} cap={isC ? "初筛 · 原因分散无主导" : `初筛 · ${chr.causeCode} ${chr.share ?? 60}% 混杂噪声`} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, flexShrink: 0 }}>
+          <svg width="26" height="12" viewBox="0 0 26 12"><path d="M1 6 L20 6 M15 2 L21 6 L15 10" stroke={OK} strokeWidth="1.4" fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <span style={{ fontSize: 8.5, color: OK, textAlign: "center", maxWidth: 92, lineHeight: 1.35 }}>{excludeCn}</span>
+        </div>
+        <Side segs={after} cap={isC ? "聚类后 · 物联群体凸显" : `降噪后 · ${chr.causeCode} ${afterShare}%`} hi />
+      </div>
+      <div style={{ fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.5, marginTop: 5 }}>
+        <b style={{ color: DANGER_HI, fontWeight: 500 }}>{conclusion}</b>
+      </div>
+    </div>
+  );
+}
+
 /** CHR 主导原因占比时序曲线(突增):故障窗内从基线升至峰值,带 30% 突增阈值线 */
 function ChrCurve({ series, visN, color }: { series: number[]; visN: number; color: string }) {
   const W = 280, H = 40, yMax = 70;
@@ -369,7 +448,17 @@ export function MatchPanel({ scenario, state }: { scenario: Scenario; state: Sto
     ? { score: lc.score, route: lc.route as typeof scenario.confidence.route, patternName: PATTERN_CN[lc.pattern] ?? lc.pattern ?? "—" }
     : scenario.confidence;
   const rc = ROUTE_COLORS[c.route] ?? ROUTE_COLORS[scenario.confidence.route];
-  const why = whyMatched(scenario);
+  // LIVE:匹配逻辑用真实评估结果(特征→分数→路由);DEMO 用场景口语化解释
+  const why = lc
+    ? `实时特征评估:异常模式 ${lc.pattern ?? "—"} 得分 ${lc.score.toFixed(2)},`
+      + (lc.route === "workflow"
+          ? "信号确定性高(均质化铁证/已知模式)→ 确定性工作流,固定步骤直达根因。"
+          : lc.route === "guided"
+            ? "信号中等(KPI 微损/存在模糊)→ 技能引导 Agent Loop,注入匹配 Skill 逐步收敛。"
+            : lc.route === "exploration"
+              ? "KPI 模糊但 CHR 失败集中 → 多算法并行探索 + 贝叶斯融合。"
+              : "信号弱 → 自主探索,完整 Agent Loop + 并行假设验证。")
+    : whyMatched(scenario);
   return (
     <div style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.55 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 9, marginBottom: 5 }}>
@@ -428,6 +517,57 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
           );
         })}
       </div>
+      {/* LIVE:均质化比较(真实数据:实例级对比 + 判定,通用推导) */}
+      {state.liveHomogen && state.liveHomogen.rounds.length > 0 && (
+        <Card style={{ marginTop: 8, flexShrink: 0 }}>
+          <CardHead cn="均质化比较 · 实时遥测" color={ACCENT} />
+          {state.liveHomogen.rounds.map((r, i) => (
+            <div key={i} style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="mono" style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, flexShrink: 0,
+                  color: r.verdict === "root" ? DANGER_HI : r.verdict === "exclude" ? "var(--ink-4)" : ACCENT_HI,
+                  border: `1px solid ${r.verdict === "root" ? DANGER + "66" : "var(--line)"}` }}>
+                  {r.verdict === "root" ? "离群·根因" : r.verdict === "exclude" ? "共性·排除" : "部分劣化"}
+                </span>
+                <span style={{ fontSize: 10.5, color: "var(--ink-3)" }}>{r.type}</span>
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 3 }}>
+                {r.instances.map((inst) => (
+                  <span key={inst.id} className="mono" style={{ fontSize: 9.5, padding: "1px 6px", borderRadius: 3,
+                    color: inst.anomalous ? DANGER_HI : "var(--ink-4)",
+                    background: inst.anomalous ? DANGER + "12" : "var(--bg-inset)",
+                    border: `1px solid ${inst.anomalous ? DANGER + "44" : "var(--line)"}` }}>
+                    {inst.id}{inst.sr != null ? ` ${(inst.sr * 100).toFixed(1)}%` : ""}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+          {state.liveHomogen.anchorNe && state.liveHomogen.anchorExclusivity >= 0.5 && (
+            <div style={{ fontSize: 11, color: DANGER_HI, marginTop: 4 }}>
+              根因锚定 {state.liveHomogen.anchorNe}(全路径退化独占率 {state.liveHomogen.anchorExclusivity.toFixed(2)})
+            </div>
+          )}
+        </Card>
+      )}
+      {/* LIVE:CHR 洞察(真实数据:原因值分布 + 共因 NF + 类别归因) */}
+      {state.liveChrInsight && state.liveChrInsight.causeCode && (
+        <Card style={{ marginTop: 8, flexShrink: 0 }}>
+          <CardHead cn={`CHR 洞察 · 实时 · 主因 ${state.liveChrInsight.causeCode}`} color={ACCENT} />
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", alignItems: "center" }}>
+            <Donut share={Math.round(state.liveChrInsight.causeShare * 100)} label={state.liveChrInsight.causeCode} sub="主因占比" color={ACCENT} />
+            <div style={{ fontSize: 10.5, color: "var(--ink-3)", lineHeight: 1.6 }}>
+              <div>失败 {state.liveChrInsight.failTotal} 条 · 共因 {state.liveChrInsight.nes.slice(0, 2).join(" / ") || "—"}</div>
+              {state.liveChrInsight.related.slice(0, 2).map((r) => (
+                <div key={r.code}>{r.code} · {Math.round(r.share * 100)}%</div>
+              ))}
+              {state.liveChrInsight.dominantClass && (
+                <div>类别归因 {state.liveChrInsight.dominantClass.key}(基线 {(state.liveChrInsight.dominantClass.baseShare * 100).toFixed(0)}%)</div>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
       {/* 根因由推理链 conclusion 步承载 */}
       {scenario.chrInsight && (() => {
         const chr = scenario.chrInsight;
@@ -438,14 +578,9 @@ export function ReasonPanel({ scenario, state }: { scenario: Scenario; state: St
         if (!isBC && !showSst && !showDnn) return null;
         return (
           <Card style={{ marginTop: 8, flexShrink: 0 }}>
-            <CardHead cn={`CHR 占比分析${isBC ? ` · ${chr.causeCn}` : ""}`} color={ACCENT} />
+            <CardHead cn={`CHR 前后对比${isBC ? ` · ${chr.causeCn}` : ""}`} color={ACCENT} />
             {isBC ? (
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <Donut share={chr.share ?? 60} label={chr.causeCode} sub="主导原因" color={ACCENT} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {rel.map((r, i) => <Bar key={i} label={`${r.code} ${r.cn}`} share={r.share ?? 0} color="var(--ink-4)" />)}
-                </div>
-              </div>
+              <DonutCompare scenario={scenario} chr={chr} />
             ) : (
               <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
                 {showSst && <Donut share={chr.share ?? 60} label={chr.causeCode} sub="注册" color={ACCENT} />}
@@ -593,19 +728,14 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
       <div style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.55 }}>
         <Card style={{ borderColor: (recovered ? OK : WARN) + "55" }}>
           <CardHead cn={`${recovered ? "网络已恢复" : "未恢复"} · 实时评估`} color={recovered ? OK : WARN} />
-          <div style={{ display: "flex", gap: 14, fontSize: 12 }}>
-            <Metric k="精确" v={`${((m.precision ?? 0) * 100).toFixed(0)}%`} />
-            <Metric k="召回" v={`${((m.recall ?? 0) * 100).toFixed(0)}%`} />
-            <Metric k="F1" v={(m.f1 ?? 0).toFixed(2)} />
-          </div>
           {liveRep.amf_success_rate != null && (
-            <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 5 }}>
+            <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>
               AMF 注册 KPI {(liveRep.amf_success_rate * 100).toFixed(2)}% · SMF PDU KPI {(liveRep.smf_success_rate * 100).toFixed(2)}%
             </div>
           )}
           {ce.truth && (
             <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 5 }}>
-              诊断 <b className="mono" style={{ color: ACCENT_HI, fontWeight: 500 }}>{(ce.predicted ?? []).join(",") || "—"}</b> · 真值 <b className="mono" style={{ color: INFO, fontWeight: 500 }}>{(ce.truth ?? []).join(",")}</b> {m.exact_match ? "✓ 精确匹配" : "~ 部分匹配"}
+              诊断 <b className="mono" style={{ color: ACCENT_HI, fontWeight: 500 }}>{(ce.predicted ?? []).join(",") || "—"}</b> · 真值 <b className="mono" style={{ color: INFO, fontWeight: 500 }}>{(ce.truth ?? []).join(",")}</b> {m.exact_match ? "✓ 命中全部根因" : "~ 部分命中"}
             </div>
           )}
           <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 5 }}>
@@ -630,20 +760,16 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
   const recovered = sr >= kpi.threshold;
   return (
     <div style={{ fontSize: 12.5, color: "var(--ink-2)", lineHeight: 1.55 }}>
-      {/* 评估通过:P/R/F1 + 网络恢复 KPI */}
+      {/* 评估通过:诊断命中 + 网络恢复 KPI */}
       <Card style={{ borderColor: OK + "4d" }}>
         <CardHead cn="Agent 3 评估 · 通过" color={OK} />
-        <div style={{ display: "flex", gap: 14, fontSize: 12, flexWrap: "wrap" }}>
-          {ev && (
-            <>
-              <Metric k="精确" v={`${(ev.precision * 100).toFixed(0)}%`} />
-              <Metric k="召回" v={`${(ev.recall * 100).toFixed(0)}%`} />
-              <Metric k="F1" v={ev.f1.toFixed(2)} />
-              <span style={{ color: ev.exactMatch ? OK : WARN_HI, fontSize: 11.5, alignSelf: "center" }}>{ev.exactMatch ? "✓ 精确匹配" : "~ 部分匹配"}</span>
-            </>
-          )}
-        </div>
-        <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 6 }}>网络恢复 · 整网 KPI <b style={{ color: srColor(sr), fontWeight: 500 }}>{(sr * 100).toFixed(2)}%</b> {recovered ? "✓ ≥99.5%" : "· 恢复中"}</div>
+        {scenario.predicted.elements.length > 0 && (
+          <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginBottom: 5 }}>
+            诊断 <b className="mono" style={{ color: ACCENT_HI, fontWeight: 500 }}>{scenario.predicted.elements.join(",")}</b> · 真值 <b className="mono" style={{ color: INFO, fontWeight: 500 }}>{scenario.truth.elements.join(",")}</b>{" "}
+            {ev?.exactMatch ? "✓ 命中全部根因" : "~ 部分命中"}
+          </div>
+        )}
+        <div className="mono" style={{ fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>网络恢复 · 整网 KPI <b style={{ color: srColor(sr), fontWeight: 500 }}>{(sr * 100).toFixed(2)}%</b> {recovered ? "✓ ≥99.5%" : "· 恢复中"}</div>
       </Card>
       {rep && (
         <Card style={{ marginTop: 8 }}>
@@ -677,15 +803,6 @@ export function EvalPanel({ scenario, state }: { scenario: Scenario; state: Stor
 }
 
 /* ————————————————————— 小件 ————————————————————— */
-/** 单指标:label 微字 + mono 数值 */
-function Metric({ k, v }: { k: string; v: string }) {
-  return (
-    <span style={{ display: "inline-flex", alignItems: "baseline", gap: 5 }}>
-      <span style={{ color: "var(--ink-4)", fontSize: 11 }}>{k}</span>
-      <b className="mono" style={{ color: OK, fontWeight: 500, fontSize: 12.5 }}>{v}</b>
-    </span>
-  );
-}
 function CpuBar({ id, cpu }: { id: string; cpu: number }) {
   const c = cpu >= 85 ? DANGER : cpu >= 70 ? WARN : OK;
   return (

@@ -63,6 +63,41 @@ function mergeLive(base: StoryState, live: LiveState): StoryState {
       : base.currentStep,
     recoveryActions: live.recoveryActions.length ? live.recoveryActions : base.recoveryActions,
     generationChecks,
+    liveChrInsight: live.chrInsight,
+    liveHomogen: live.homogen,
+    liveNote: live.controlNote,
+    // LIVE:④弹窗用真实数据(demo 前端的画布锚定弹窗即时等效;DEMO 构造数据仅在无 live 数据时兜底)
+    chrPopup: live.chrInsight
+      ? {
+          nes: live.chrInsight.nes,
+          causeCode: live.chrInsight.causeCode,
+          causeCn: live.chrInsight.causeCode.startsWith("5GSM") ? "PDU 会话建立失败" : "接入类异常",
+          share: Math.round(live.chrInsight.causeShare * 100),
+          detail: `真实 CHR:${live.chrInsight.failTotal} 条失败,主因 ${live.chrInsight.causeCode} 占 ` +
+            `${Math.round(live.chrInsight.causeShare * 100)}%` +
+            (live.chrInsight.dominantClass
+              ? `;类别归因 ${live.chrInsight.dominantClass.key}(基线 ${(live.chrInsight.dominantClass.baseShare * 100).toFixed(0)}%)`
+              : ""),
+          related: live.chrInsight.related.map((r) => ({
+            code: r.code,
+            cn: r.code.startsWith("5GMM") ? "终端侧原因" : "次要原因",
+            share: Math.round(r.share * 100),
+          })),
+        }
+      : base.chrPopup,
+    homogenPopup: live.homogen
+      ? {
+          anchorNe: live.homogen.anchorNe ?? "",
+          rounds: live.homogen.rounds.map((r) => ({
+            type: r.type,
+            principle: r.verdict === "exclude" ? "均质化比较原则" : "故障聚合原则",
+            instances: r.instances.map((i) => ({ id: i.id, anomalous: i.anomalous })),
+            verdict: r.verdict as "exclude" | "normal" | "root",
+            note: r.note,
+          })),
+          principles: ["均质化比较原则", "故障排除原则", "故障聚合原则"],
+        }
+      : base.homogenPopup,
     loopBackKind: live.activeEvaluation ? liveLoopBack : base.loopBackKind,
     rootCause: live.activeDiagnosis
       ? { nes: live.activeDiagnosis.faultElements, links: base.rootCause.links }
@@ -182,6 +217,14 @@ export default function App() {
     if (stop) demoClock.seekGlobal(stop.time / demoClock.duration);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLive, liveClock.state.round, scenario.id]);
+  // LIVE:闭环结束(runner_state=done)→ 时间轴定位到末步(⑦评估),长轴收尾
+  useEffect(() => {
+    if (!isLive || liveClock.state.runnerState !== "done") return;
+    const stops = walkStops(scenario);
+    const last = stops[stops.length - 1];
+    if (last) demoClock.seekGlobal(last.time / demoClock.duration);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLive, liveClock.state.runnerState, scenario.id]);
 
   // LIVE:圆圈点击触发后端阶段(注入故障 / 诊断 / 下发策略 / 评估)
   const onPhaseTrigger = (phase: number) => {
@@ -229,7 +272,15 @@ export default function App() {
         {/* 底部全宽:闭环步骤长轴(8/12/14 步,当前步高亮 + 一句话结论) */}
         <StepAxis scenario={scenario} state={state} playheadRef={playheadRef} />
 
-        {liveError && (
+        {isLive && state.liveNote && (
+        <div
+          data-testid="live-note"
+          style={{ position: "fixed", bottom: 12, right: 12, background: "rgba(56,189,248,0.12)", border: "1px solid #38bdf8aa", color: "#7dd3fc", padding: "8px 12px", borderRadius: 6, fontSize: 12, maxWidth: 320 }}
+        >
+          {state.liveNote}
+        </div>
+      )}
+      {liveError && (
           <div
             data-testid="live-error"
             style={{ position: "fixed", bottom: 12, right: 12, background: "rgba(239,68,68,0.15)", border: "1px solid #ef4444", color: "#fca5a5", padding: "8px 12px", borderRadius: 6, fontSize: 12 }}

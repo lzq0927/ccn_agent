@@ -146,6 +146,7 @@ class ContextManager:
         arrivals = rc.get("arrivals_per_s", {}) or {}
         stats = rc.get("traffic_class_stats", {}) or {}
         dom = stats.get("dominant")
+        ranking = rc.get("ne_degradation_ranking") or []
         lines = ["\n## Runtime Telemetry (live network):"]
         if hot:
             lines.append("- NF CPU: " + ", ".join(f"{ne}={c:.0f}%" for ne, c in hot)
@@ -158,6 +159,12 @@ class ContextManager:
                 f"of failures (baseline {dom.get('base_share', 0):.0%}, lift {dom.get('lift')})")
         elif stats:
             lines.append("- Failure attribution: no dominant traffic class")
+        if ranking:
+            lines.append(
+                "- Degradation exclusivity (homogenization, fraction of each NE's own links "
+                "that are degraded; the root cause degrades ALL of its paths while partner "
+                "NEs only degrade shared paths): "
+                + ", ".join(f"{r['ne']}={r['exclusivity']:.2f}" for r in ranking[:5]))
         lines.append(
             "- If NFs are overloaded by one traffic class, diagnose a business/surge fault "
             "(fault_mode=business, fault_type=path_session) and set traffic_filter accordingly "

@@ -36,18 +36,10 @@ _ANOMALY_THRESHOLD = 0.995
 
 def _degradation_exclusivity(link_rows: list[dict], ne_id: str,
                              threshold: float = _ANOMALY_THRESHOLD) -> tuple[float, int]:
-    """候选 NE 的「全路径退化独占率」= 该 NE 涉及的退化链路 / 该 NE 涉及的全部链路。
+    """共享的均质化比较助手(实现见 tools.kpi_analyzer.degradation_exclusivity)。"""
+    from tools.kpi_analyzer import degradation_exclusivity
 
-    均质化比较原则的通用实现:真根因 NE 的**所有**路径都退化(独占率→1.0);
-    而「共享链路的对端」(如唯一幸存 SMF/AMF)只有到根因的路径退化,到其它
-    NF 的路径健康(独占率低)。用于在退化链路端点并列时区分根因与受害者。
-    """
-    involved = [r for r in link_rows
-                if str(r.get("src", "")) == ne_id or str(r.get("dst", "")) == ne_id]
-    if not involved:
-        return 0.0, 0
-    degraded = [r for r in involved if float(r.get("success_rate", 1.0)) < threshold]
-    return len(degraded) / len(involved), len(involved)
+    return degradation_exclusivity(link_rows, ne_id, threshold)
 
 
 async def diagnose_deterministic(

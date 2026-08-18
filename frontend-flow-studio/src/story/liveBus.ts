@@ -55,6 +55,25 @@ export interface LiveState {
     checks: { name: string; passed: boolean; note: string }[];
     adjustments: string[];
   } | null;
+  /** ④ CHR 洞察(真实数据:原因值分布/共因 NF/类别归因) */
+  chrInsight: {
+    failTotal: number;
+    causeCode: string;
+    causeShare: number;
+    related: { code: string; share: number }[];
+    nes: string[];
+    dominantClass: { key: string; failShare: number; baseShare: number } | null;
+    round: number;
+  } | null;
+  /** ④ 均质化比较(真实数据:实例级对比 + 判定) */
+  homogen: {
+    anchorNe: string | null;
+    anchorExclusivity: number;
+    rounds: { type: string; verdict: string; note: string; instances: { id: string; anomalous: boolean; sr: number | null }[] }[];
+    round: number;
+  } | null;
+  /** 控制面提示(幂等点击/忙碌守卫等,非错误) */
+  controlNote: string | null;
   /** 未恢复 → 下一轮的提示(confidence_low 事件,真实闭环) */
   lowConfidence: { score: number; attempt: number; hint: string } | null;
   /** Agent 3 Skill 沉淀(skill_evolved 事件) */
@@ -94,6 +113,9 @@ const _initial = (sid: string, scn: string): LiveState => ({
   activeEvaluation: null,
   confidence: null,
   dataValidation: null,
+  chrInsight: null,
+  homogen: null,
+  controlNote: null,
   lowConfidence: null,
   skillEvolved: null,
   userBreakdown: null,
@@ -245,6 +267,41 @@ export function applyEvent(sid: string, scn: string, ev: { type: string; payload
       st.activeEvaluation = ev.payload;
       st.phaseIndex = 7;
       break;
+    case "chr_insight": {
+      const p = ev.payload;
+      st.chrInsight = {
+        failTotal: p.fail_total ?? 0,
+        causeCode: p.cause_code ?? "",
+        causeShare: p.cause_share ?? 0,
+        related: (p.related ?? []).map((r: { code: string; share: number }) => ({
+          code: r.code, share: r.share,
+        })),
+        nes: p.nes ?? [],
+        dominantClass: p.dominant_class
+          ? { key: p.dominant_class.key, failShare: p.dominant_class.fail_share, baseShare: p.dominant_class.base_share }
+          : null,
+        round: p.round ?? 1,
+      };
+      break;
+    }
+    case "homogen_report": {
+      const p = ev.payload;
+      st.homogen = {
+        anchorNe: p.anchor_ne ?? null,
+        anchorExclusivity: p.anchor_exclusivity ?? 0,
+        rounds: (p.rounds ?? []).map((r: { type: string; verdict: string; note: string; instances: { id: string; anomalous: boolean; sr: number | null }[] }) => ({
+          type: r.type, verdict: r.verdict, note: r.note,
+          instances: (r.instances ?? []).map((i) => ({
+            id: i.id, anomalous: !!i.anomalous, sr: i.sr ?? null,
+          })),
+        })),
+        round: p.round ?? 1,
+      };
+      break;
+    }
+    case "control_note":
+      st.controlNote = ev.payload.message ?? null;
+      break;
     case "skill_evolved":
       st.skillEvolved = {
         kind: ev.payload.kind ?? "UPDATE",
@@ -268,6 +325,10 @@ export function applyEvent(sid: string, scn: string, ev: { type: string; payload
       // 忽略未知事件
       break;
   }
+  // 不可变发布:store 换新引用 —— useSyncExternalStore 以引用变化判定重渲染,
+  // 原地 mutate 会让 LIVE 事件(推理链/策略/评估)到达后永远不触发渲染,
+  // 面板冻结在「点击瞬间」的快照(②有数据只因 demoClock 恰好重渲染了一帧)。
+  _store.set(sid, { ...st });
   _notify(sid);
 }
 

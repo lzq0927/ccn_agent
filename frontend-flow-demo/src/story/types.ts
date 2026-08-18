@@ -90,6 +90,19 @@ export interface StoryState {
   neRegSrHist?: Record<string, number[]>;
   /** LIVE per-SMF 实例 PDU 会话 KPI 时序 */
   nePduSrHist?: Record<string, number[]>;
+  /** LIVE ④ CHR 洞察(真实数据;DEMO undefined) */
+  liveChrInsight?: {
+    failTotal: number; causeCode: string; causeShare: number;
+    related: { code: string; share: number }[]; nes: string[];
+    dominantClass: { key: string; failShare: number; baseShare: number } | null;
+  } | null;
+  /** LIVE ④ 均质化比较(真实数据;DEMO undefined) */
+  liveHomogen?: {
+    anchorNe: string | null; anchorExclusivity: number;
+    rounds: { type: string; verdict: string; note: string; instances: { id: string; anomalous: boolean; sr: number | null }[] }[];
+  } | null;
+  /** LIVE 控制面提示(幂等/忙碌守卫) */
+  liveNote?: string | null;
   /** LIVE ②异常检测真工具产出(analyze_kpi_anomalies + find_common_ne) */
   anomalyResult?: {
     degradedLinks: { src: string; dst: string; minSr: number | null; avgSr: number | null; count: number | null }[];

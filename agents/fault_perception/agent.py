@@ -379,8 +379,9 @@ class FaultPerceptionAgent:
                 },
             )
 
-            # Build messages for API call
-            api_messages = [{"role": "system", "content": system_prompt}] + ctx.messages[-20:]
+            # Build messages for API call(截近 12 条:工具结果 JSON 很大,
+            # 全量历史会显著拖慢每轮 LLM 调用且稀释注意力)
+            api_messages = [{"role": "system", "content": system_prompt}] + ctx.messages[-12:]
 
             try:
                 response = await self.llm.chat(api_messages, tools=tool_schemas)

@@ -115,6 +115,23 @@ async def find_common_ne(degraded_pairs: list[str]) -> str:
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 
+def degradation_exclusivity(link_rows: list[dict], ne_id: str,
+                            threshold: float = 0.995) -> tuple[float, int]:
+    """候选 NE 的「全路径退化独占率」= 该 NE 涉及的退化链路 / 该 NE 涉及的全部链路。
+
+    均质化比较原则的通用实现:真根因 NE 的**所有**路径都退化(独占率→1.0);
+    「共享链路的对端」(如退化路径上仅剩的 SMF/AMF)只有到根因的路径退化,
+    到其它 NF 的路径健康(独占率低)。用于退化链路端点计数并列时区分根因
+    与受害者(workflow 引擎 / 确定性诊断器 / 探索器共用)。
+    """
+    involved = [r for r in link_rows
+                if str(r.get("src", "")) == ne_id or str(r.get("dst", "")) == ne_id]
+    if not involved:
+        return 0.0, 0
+    degraded = [r for r in involved if float(r.get("success_rate", 1.0)) < threshold]
+    return len(degraded) / len(involved), len(involved)
+
+
 async def get_kpi_summary(kpi_rows: list[dict]) -> str:
     rows = _parse_kpi_rows(kpi_rows)
     grouped = _group_by_level(rows)
