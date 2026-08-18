@@ -96,3 +96,5 @@ React 18 + TypeScript + Vite + recharts。三个视图(`DataGenView`、`FaultPer
 
 > **另有 `frontend-show/`**:独立的**展会演示前端**(高稳智能体 · 5GC 数字孪生指挥中心),全新设计、不参考 `frontend/`。沉浸式三栏指挥中心(数字孪生 + 大脑架构 + 阶段面板),确定性自动循环播放三 Agent 闭环故事。React 18 + TS + Vite + Framer Motion,数字孪生为手写 SVG。默认 DEMO 模式(内置真实样本数据,不依赖后端),可切 LIVE 模式接真实后端。`cd frontend-show && npm run dev`(端口 5174,已加入 CORS)。详见 `frontend-show/README.md`。
 
+> **另有 `frontend-flow-demo/` 与 `frontend-flow-studio/`**:同一引导式弹窗演示前端(HUD 风格,端口 5179)的两个版本。`frontend-flow-studio/`(端口 5180)是 demo 的拷贝 + 「静谧仪器」重设计:OKLCH 三主题(墨/雾/纸)、单一靛蓝强调色、思源宋体标题 + JetBrains Mono 数据(@fontsource 本地打包,离线可用)、零辉光/零 emoji、轨道式步骤轴;**story/data/api 逻辑与 demo 逐行一致**(A/B/C/D + LIVE 全保留)。深链 `?scenario=X&stop=N`;程序化验证 `node scripts/verify.mjs`(puppeteer-core + 本地 Chrome)。详见 `docs/frontend-flow-studio.md` 与 `docs/plans/frontend-flow-studio-redesign.md`。
+
