@@ -48,6 +48,35 @@ Diagnoser 事件双写(bus + recorder):`confidence_assessment/anomaly_detection/
 
 **验证**:166 测试全过;studio `verify.mjs` 全 PASS(含 LIVE 真实走查:②真实异常链路+工具聚合定位 → ③真实置信度+路由徽章「实时」 → ④确定性工作流 10 秒定位 UPF_1 + 均质化/CHR 实时卡 → ⑤通用规划器策略(带 rationale)→ ⑦实时评估恢复);路由分布 A 22/25 workflow、B 20/25 guided、C 18/25 workflow、D~G 全 workflow;workflow 诊断 25 种子零误。
 
+## 增补:端到端流程归因 —— 场景现象与 DEMO 完全对齐(2026-08-18 下午)
+
+用户指出:场景 A 的 DEMO 现象是「**所有 AMF 和 SMF 都受影响**(AMF↔SMF 路径普遍劣化)→ 均质化排除 → UPF_1 离群」,而引擎的链路 KPI 是**逐跳独立**归因(UPF_1 丢包只染 SMF↔UPF_1 链路,AMF↔SMF 完全健康)—— 现象不符。
+
+**修复:链路 KPI 改为端到端流程归因**(`RealtimeEngine._mark_flow_links`):
+- 链路 SR = 经过该链路的**流程**成功率(N11 等信令路径 KPI 口径);
+- 流程失败 → **失败跳本身必记 + 回程中的核心 NF 间链路记失败**(会话失败经 N11 结果回报显现);回程不含 gNB 跳(接入侧另行统计);UE 跳(`loss_scope="ue_hops"` 类)失败不染核心;
+- 流程成功 → 全路径记成功;失败点之前的 SMF↔UDM/PCF 腿保持健康。
+
+**各场景现象核对(vs DEMO)**:
+| 场景 | LIVE 现象(实测) |
+|---|---|
+| A | AMF↔SMF 5 条普遍劣化 + UDM/PCF 0 条健康 + UPF_1↔SMF_2 最深 0.84;均质化:AMF exclude(全实例)+ SMF exclude + UPF root(UPF_1 离群)+ UDM/PCF normal 旁证 —— 与 DEMO homogenPopup 结构一致 |
+| B | SMF_1 相关最深 + 会话微损 + 终端噪声 CHR(loss 0.008/UE 120/噪声 0.04) |
+| C | **核心链路 KPI 0 异常(网络健康)** + 会话 SR 微跌 + CHR 失败集中 gNB_2 → exploration 自主探索 9s 命中 → 用户侧重选恢复(DEMO C 叙事完整落地) |
+| D~G | NF 自环拥塞退化 + CPU 100%(风暴现象不变) |
+
+**配套改造(全部通用)**:
+- `FaultConfig.loss_scope`("all_hops"=网元链路故障 / "ue_hops"=接入侧群体异常,核心 KPI 不染)—— C 的「网络健康、终端群体异常」语义。
+- 路由判据升级:受影响 NE 的**无向独占率**排名(top≥0.9 且 gap≥0.2,或并列时由 CHR 失败共因 NF 破并列)→ single_ne + WORKFLOW;elif 链防覆盖 bug 修复。
+- ②聚合定位(`emit_anomaly_detection`)+ ④均质化(`homogen_report`)同用独占率重判 —— ②面板「聚合定位」直接指向真根因。
+- **误诊自我强化修复**:诊断证据(assessor/workflow/deterministic/explorer 四路径 + chr_insight/homogen)排除「已被策略隔离的 NE」(`runtime_context.isolated_by_policy`)—— 隔离错 NE 造成的失败不再被当作根因证据。
+- CHR 检测器证据加显著性过滤(share≥top/2;graph 用 hub)—— 背景噪声元素不再稀释贝叶斯融合。
+- explorer 新增 `degradation_exclusivity` 检测器(独占率进融合);影子校验器认识 ue_hops 类故障显形(CHR 集中/会话 SR 下降)。
+
+**验证**:166 测试全过;runner 7 场景×15 种子全绿(全恢复、≤3 轮、校验通过);真 LLM:A workflow 秒级 UPF_1 exact_match、C exploration 9s gNB_2 exact_match;studio `verify.mjs` 全 PASS(②多路径+聚合定位 UPF_1/③实时置信度/④确定性推理链+均质化实时卡+CHR 洞察/⑤通用规划器策略/⑦实时评估 1 轮恢复)。
+
+> 排障提示:LIVE 突然「全部显示 DEMO 文案」= 后端 8000 已死(capabilities 失败 → 前端自动降级 DEMO 并弹 live-error 角标),先 `curl :8000/health`。
+
 ## 现状问题(改造前)
 
 | # | 问题 | 位置 |
