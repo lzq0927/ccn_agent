@@ -1,4 +1,4 @@
-import type { DashboardSummary, CaseInfo, SessionInfo, Suggestion } from './types';
+import type { DashboardSummary, CaseInfo, SessionInfo, Suggestion, ReasoningStep } from './types';
 
 const BASE = '/api/v1';
 
@@ -28,7 +28,7 @@ export const api = {
         body: JSON.stringify({ case_id: caseId }),
       }).then(r => r.json()),
     getSession: (sessionId: string) =>
-      fetchJSON<SessionInfo & { reasoning_steps: unknown[] }>(`${BASE}/perception/session/${sessionId}`),
+      fetchJSON<SessionInfo & { reasoning_steps: ReasoningStep[] }>(`${BASE}/perception/session/${sessionId}`),
     history: (page = 1) =>
       fetchJSON<{ sessions: SessionInfo[] }>(`${BASE}/perception/history?page=${page}`),
     status: () => fetchJSON<{ status: string }>(`${BASE}/perception/status`),

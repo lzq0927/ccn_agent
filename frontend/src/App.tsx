@@ -5,6 +5,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import DataGenView from './components/DataGenView';
 import FaultPerceptionView from './components/FaultPerceptionView';
 import EvaluationView from './components/EvaluationView';
+import ReliabilityView from './components/ReliabilityView';
 
 const tabStyle = (active: boolean): React.CSSProperties => ({
   padding: '10px 20px',
@@ -16,6 +17,8 @@ const tabStyle = (active: boolean): React.CSSProperties => ({
   border: 'none',
   borderBottomWidth: '2px',
   fontSize: '14px',
+  whiteSpace: 'nowrap',
+  flexShrink: 0,
 });
 
 const cardStyle: React.CSSProperties = {
@@ -39,7 +42,7 @@ const labelStyle: React.CSSProperties = {
 };
 
 export default function App() {
-  const [tab, setTab] = useState<'dashboard' | 'generation' | 'perception' | 'evaluation'>('dashboard');
+  const [tab, setTab] = useState<'reliability' | 'dashboard' | 'generation' | 'perception' | 'evaluation'>('reliability');
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const { events, connected } = useWebSocket();
 
@@ -60,23 +63,24 @@ export default function App() {
       <header style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: '#111827' }}>5GC Fault Diagnosis</span>
-            <span style={{ fontSize: 11, background: '#eef2ff', color: '#4f46e5', padding: '2px 8px', borderRadius: 4 }}>
-              Closed-Loop System
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#111827', whiteSpace: 'nowrap' }}>ReMAP · AI 系统</span>
+            <span style={{ fontSize: 11, background: '#eef2ff', color: '#4f46e5', padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
+              可靠性机制设计与仿真
             </span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {tab !== 'reliability' && <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span style={{ fontSize: 12, color: connected ? '#16a34a' : '#dc2626' }}>
               {connected ? 'Connected' : 'Disconnected'}
             </span>
-          </div>
+          </div>}
         </div>
       </header>
 
       {/* Tabs */}
       <nav style={{ background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', gap: 4, padding: '0 24px' }}>
-          <button style={tabStyle(tab === 'dashboard')} onClick={() => setTab('dashboard')}>Dashboard</button>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', gap: 4, padding: '0 24px', overflowX: 'auto' }}>
+          <button style={tabStyle(tab === 'reliability')} onClick={() => setTab('reliability')}>可靠性工作台</button>
+          <button style={tabStyle(tab === 'dashboard')} onClick={() => setTab('dashboard')}>5GC 兼容视图</button>
           <button style={tabStyle(tab === 'generation')} onClick={() => setTab('generation')}>Data Generation</button>
           <button style={tabStyle(tab === 'perception')} onClick={() => setTab('perception')}>Fault Perception</button>
           <button style={tabStyle(tab === 'evaluation')} onClick={() => setTab('evaluation')}>Evaluation</button>
@@ -85,6 +89,7 @@ export default function App() {
 
       {/* Content */}
       <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px' }}>
+        {tab === 'reliability' && <ReliabilityView />}
         {tab === 'dashboard' && <Dashboard summary={summary} events={events} />}
         {tab === 'generation' && <DataGenView />}
         {tab === 'perception' && <FaultPerceptionView />}

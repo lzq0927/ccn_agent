@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 当前架构（v0.2）
+
+本项目已定位为 **ReMAP → AI 系统 → 可靠性机制设计与仿真**。新默认入口使用
+OpenCode + 原生 Skill + MCP + 版本化知识模型，详见 `docs/opencode-remap-architecture.md`。
+新增功能优先进入 `reliability/`、`api/routes/reliability.py` 与
+`frontend/src/components/ReliabilityView.tsx`，不再新增自研 LLM Agent Loop。
+OpenCode 配置在 `opencode.json`、`.opencode/`；模型凭据由 OpenCode 管理。
+数值实验不依赖 LLM，`python -m reliability run examples/reliability/upf-isolation.json` 可离线运行。
+测试见 `tests/unit/test_reliability.py`、`tests/integration/test_reliability_*.py`。
+
+以下三 Agent 与旧 API 说明属于兼容实现；其中“主入口”“没有 tests 目录”等历史描述
+不能用于判断当前系统。现有 `tests/` 已包含仿真器、LIVE、新架构与协议测试。
+
 ## 项目简介
 
 `ccn-agent` 是一个 **5GC(5G 核心网)故障诊断闭环系统**:LLM Agent 接收仿真生成的故障遥测数据(KPI 时序 + 拓扑 + 业务流),诊断出根因故障,再将诊断准确率反馈到数据生成环节。系统由三个 Agent 构成闭环。完整的模块清单见 `docs/architecture.md` 和 `docs/agent_guide.md` —— 想看完整文件目录就读这两个文档;本文件只讲操作要点、核心概念以及容易踩坑的地方。

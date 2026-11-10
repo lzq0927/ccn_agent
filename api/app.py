@@ -8,7 +8,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.routes import evaluation, generation, live, perception, websocket
+from api.routes import evaluation, generation, live, perception, reliability, websocket
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,9 @@ _LIVE_ENABLED = os.getenv("CC_LIVE_ENABLED", "1") == "1"
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="5GC Fault Diagnosis Agent System",
-        version="0.1.0",
-        description="Cloud Core Network fault data generation, perception, and evaluation closed-loop system",
+        title="ReMAP · AI 系统可靠性机制设计与仿真",
+        version="0.2.0",
+        description="OpenCode + Skill + MCP + 知识模型；5GC 为首个仿真验证域",
     )
 
     app.add_middleware(
@@ -37,6 +37,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(reliability.router, prefix="/api/v1/reliability", tags=["reliability"])
     app.include_router(generation.router, prefix="/api/v1/generation", tags=["generation"])
     app.include_router(perception.router, prefix="/api/v1/perception", tags=["perception"])
     app.include_router(evaluation.router, prefix="/api/v1/evaluation", tags=["evaluation"])

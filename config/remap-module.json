@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "id": "ai-system-reliability",
+  "parent": "ai-systems",
+  "name": "AI 系统可靠性机制设计与仿真",
+  "reference_repository": "https://github.com/lzq0927/remap",
+  "runtime": "opencode",
+  "agent": "remap-ai-reliability",
+  "workflow": ["ai-system-modeling", "reliability-mechanism-design", "reliability-verification"],
+  "mcp": {"transport": "stdio", "command": ["python", "-m", "reliability.mcp_server"]},
+  "api_prefix": "/api/v1/reliability",
+  "knowledge_model": "reliability/knowledge/catalog.json",
+  "implemented_domains": ["5gc-service-assurance"],
+  "integration_status": "standalone-module"
+}

@@ -655,6 +655,9 @@ class RealtimeEngine:
             "sim_t": self.sim_t, "round": self.round,
             "amf_success_rate": round(reg_sr, 4), "smf_success_rate": round(pdu_sr, 4),
             "amf_reg_requests": reg_req, "smf_pdu_requests": pdu_req,
+            # Preserve exact rolling counters for target checks; displayed rates are rounded.
+            "amf_reg_successes": sum(s for _, s in self._win_reg),
+            "smf_pdu_successes": sum(s for _, s in self._win_pdu),
             "iot_reg_rate": self._tick_iot_reg, "toc_reg_rate": self._tick_toc_reg,
             "iot_sess_rate": self._tick_iot_sess, "toc_sess_rate": self._tick_toc_sess,
             "amf_cpu": round(amf_cpu, 2), "smf_cpu": round(smf_cpu, 2),

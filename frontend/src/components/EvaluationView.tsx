@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api/client';
-import type { Suggestion } from '../api/types';
+import type { DashboardSummary, Suggestion } from '../api/types';
 
 const cardStyle: React.CSSProperties = { background: '#fff', borderRadius: 8, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' };
 
 export default function EvaluationView() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [progress, setProgress] = useState<Record<string, unknown> | null>(null);
+  const [progress, setProgress] = useState<DashboardSummary | null>(null);
 
   useEffect(() => {
     loadData();

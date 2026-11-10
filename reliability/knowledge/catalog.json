@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "version": "2026-11-10.1",
+  "module": {
+    "id": "ai-system-reliability",
+    "parent": "ai-systems",
+    "platform": "ReMAP",
+    "name": "AI 系统可靠性机制设计与仿真",
+    "implemented_domain": "5gc-service-assurance",
+    "scope": "5GC 服务保障是首个仿真适配域；AI 训练、推理平台等场景需要各自的模型与校准证据。"
+  },
+  "entities": [
+    {"id":"system:5gc", "kind":"system", "name":"5GC 服务保障验证系统", "source":"agents/simulation/demo_topology.py", "evidence_level":"synthetic"},
+    {"id":"fault:ne-loss", "kind":"fault", "name":"网元或接入侧丢损", "source":"agents/simulation/live_scenarios.py", "evidence_level":"synthetic"},
+    {"id":"fault:traffic-surge", "kind":"fault", "name":"业务激增与过载", "source":"agents/simulation/live_scenarios.py", "evidence_level":"synthetic"},
+    {"id":"mechanism:isolate", "kind":"mechanism", "name":"故障隔离", "action":"isolate", "applies_to":["fault:ne-loss"], "preconditions":["目标网元存在", "隔离会切断仍绑定该网元的业务，通常需要配合重选"], "source":"agents/simulation/realtime_engine.py", "evidence_level":"implemented"},
+    {"id":"mechanism:reroute", "kind":"mechanism", "name":"会话重选与冗余切换", "action":"reroute", "applies_to":["fault:ne-loss"], "preconditions":["源和目标为同类型网元", "目标未被隔离且没有注入丢损"], "source":"agents/simulation/realtime_engine.py", "evidence_level":"implemented"},
+    {"id":"mechanism:flow-control", "kind":"mechanism", "name":"准入控制与终端退避", "action":"flow_control", "applies_to":["fault:traffic-surge"], "preconditions":["过滤器与业务类别匹配", "UE 退避受终端支持率限制", "拒绝率与业务成功率必须同时报告"], "source":"agents/simulation/realtime_engine.py", "evidence_level":"implemented"},
+    {"id":"metric:success-rate", "kind":"metric", "name":"注册/PDU 成功率", "unit":"ratio", "definition":"12 tick 滚动窗口内成功请求数 / 请求数，分别报告注册与 PDU；不是年度可用度。", "source":"agents/simulation/realtime_engine.py", "evidence_level":"implemented"},
+    {"id":"metric:recovery-time", "kind":"metric", "name":"持续恢复时间", "unit":"simulation-second", "definition":"机制施加后首次连续 N tick 满足两项成功率与全核心网元 CPU 目标的确认时刻；未恢复为 null。", "source":"reliability/solver.py", "evidence_level":"implemented"},
+    {"id":"evidence:synthetic", "kind":"evidence", "name":"合成模型与固定种子仿真", "source":"reliability/knowledge/boundaries.md", "evidence_level":"synthetic"}
+  ],
+  "relations": [
+    {"source":"system:5gc", "predicate":"exposed_to", "target":"fault:ne-loss"},
+    {"source":"system:5gc", "predicate":"exposed_to", "target":"fault:traffic-surge"},
+    {"source":"mechanism:isolate", "predicate":"mitigates", "target":"fault:ne-loss"},
+    {"source":"mechanism:reroute", "predicate":"mitigates", "target":"fault:ne-loss"},
+    {"source":"mechanism:flow-control", "predicate":"mitigates", "target":"fault:traffic-surge"},
+    {"source":"mechanism:reroute", "predicate":"measured_by", "target":"metric:success-rate"},
+    {"source":"mechanism:flow-control", "predicate":"measured_by", "target":"metric:recovery-time"},
+    {"source":"system:5gc", "predicate":"supported_by", "target":"evidence:synthetic"}
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "UPF 微损：隔离与冗余重选",
+  "scenario_id": "A",
+  "actions": [
+    {"kind": "isolate", "ne_id": "UPF_1"},
+    {"kind": "reroute", "from_ne_id": "UPF_1", "to_ne_id": "UPF_2"}
+  ],
+  "seeds": [42, 43, 44],
+  "warmup_ticks": 15,
+  "fault_ticks": 14,
+  "recovery_ticks": 30,
+  "targets": {"success_rate": 0.99, "max_core_cpu": 80, "sustained_ticks": 5},
+  "rationale": "合成场景 A；隔离 UPF_1 后重选到同型 UPF_2，验证候选相对无机制基线的效果。"
+}

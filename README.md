@@ -1,4 +1,108 @@
-# ccn-agent — 5GC 故障诊断闭环系统
+# ccn-agent — ReMAP AI 系统可靠性机制设计与仿真
+
+本项目以 `ccn_agent/develop` 为基础，参考 [ReMAP](https://github.com/lzq0927/remap)
+的 OpenCode、Skill 与独立数值工具架构。产品归属为 **ReMAP → AI 系统 → 可靠性机制设计与仿真**。
+当前可执行域是 5GC 服务保障：通过故障隔离、冗余重选、准入控制与终端退避，
+研究智能保障系统中的可靠性机制。AI 训练/推理专用模型尚未实现。
+
+## 当前架构与入口
+
+```mermaid
+flowchart LR
+  UI[AI 系统可靠性工作台] --> API[FastAPI /reliability]
+  UI --> OC[OpenCode 基础 Agent]
+  OC --> SK[系统建模 / 机制设计 / 验证 Skill]
+  OC --> MCP[MCP stdio 工具]
+  API --> S[可靠性领域服务]
+  MCP --> S
+  S --> KB[版本化知识库与知识模型]
+  S --> DES[5GC 离散事件仿真器]
+  S --> DB[方案修订 / 冻结输入 / 实验证据]
+```
+
+- **Agent**：使用官方 OpenCode 运行时和模型配置，默认 Agent 为 `remap-ai-reliability`。
+- **Skill**：`.opencode/skills/` 中三个原生 Skill 组织建模、机制设计与验证，不再嵌套运行旧 LLM 循环。
+- **MCP**：13 个工具提供知识检索、方案 CRUD/校验、对照仿真、实验读取、重放和报告。
+- **知识库/知识模型**：系统、故障、机制、指标、证据及显式关系；包含版本、适用条件和来源。
+- **数值与证据**：复用 `RealtimeEngine`，从同一故障状态分出无机制基线与候选；保存种子、输入摘要、代码摘要、结果和轨迹。
+
+原三 Agent、旧 API 与 LIVE 演示作为兼容入口保留。新工作台为 `frontend/` 默认首页，
+新 CLI/API/MCP 都调用同一个领域服务。完整边界与 ReMAP 接入方式见
+[OpenCode 架构与迁移](docs/opencode-remap-architecture.md)。
+
+## 新工作台快速开始
+
+需要 Python 3.11+；前端需要 Node.js 18+；Agent 功能另需官方 OpenCode。
+
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\Activate.ps1
+python -m pip install -e '.[dev]'
+uvicorn api.app:app --host 127.0.0.1 --port 8000
+```
+
+另一个终端启动前端：
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+打开 [可靠性工作台](http://localhost:5173)，编辑场景和机制，点击“运行对照仿真”。
+可保存/打开方案、另存候选、查看历史实验、按原输入重放、下载报告。
+Agent 未连接时仍能执行数值实验。
+
+启用 OpenCode（在仓库根目录、已激活虚拟环境的终端）：
+
+```bash
+npm install -g opencode-ai
+python -m reliability agent
+```
+
+模型、提供商与 API Key 在 OpenCode 官方界面中配置。
+点击工作台“交给 OpenCode 协作”后打开会话，运行 `/ai-reliability`。
+也可从仓库根目录直接启动 `opencode`，使用项目默认 Agent 与 MCP。
+这里不读取旧 `config/llm.yaml`，也不要求为纯数值实验配置 LLM。
+
+环境变量：`OPENCODE_BIN` 指定可执行文件，`OPENCODE_URL` 指定已运行的服务
+（默认 `http://127.0.0.1:4096`），`OPENCODE_SERVER_PASSWORD`/`OPENCODE_SERVER_USERNAME`
+用于服务认证。`CCN_RELIABILITY_DATA` 可设置实验目录，API 与 OpenCode/MCP 必须使用
+相同的绝对路径；默认均为源码目录下 `storage/reliability`。
+
+## 无模型运行与验证
+
+```bash
+python -m reliability capabilities
+python -m reliability doctor
+python -m reliability run examples/reliability/upf-isolation.json
+python -m reliability run examples/reliability/storm-admission.json
+python -m reliability replay <run_id>
+python -m reliability report <run_id>
+pytest tests/unit/test_reliability.py tests/integration/test_reliability_api.py tests/integration/test_reliability_mcp.py
+cd frontend && npm run build
+```
+
+浏览器验收（先启动 API、前端；可选启动 OpenCode）：
+
+```bash
+python -m pip install -e '.[browser]'
+python -m playwright install chromium
+python scripts/verify_reliability_ui.py --with-agent
+```
+
+已有 Chromium 可用 `CHROMIUM_BIN` 指定路径；不验证 Agent 时省略 `--with-agent`。
+截图和报告默认写入 `storage/reliability-ui/`，脚本会创建独立合成验收方案。
+
+实验结果属于**合成仿真证据**。成功率是 12 秒滚动窗口指标，跨种子报告均值，
+不是年度可用度；拒绝请求与退避的代价同时列出。报告保留失败与未恢复结果。
+本仓库提供独立模块及 [ReMAP 模块描述](config/remap-module.json)，尚未修改 ReMAP 主仓库菜单。
+
+---
+
+## 兼容版技术参考（三 Agent / 旧 API）
+
+以下保留 `develop` 原有说明，仅适用于旧入口；新架构、启动与验证以上文为准。
 
 > 用 LLM Agent 实现 5G 核心网(5GC)的**故障数据生成 → 故障感知诊断 → 评估优化**闭环:仿真器生成带真值的故障遥测(KPI 时序 + 拓扑 + 业务流),Agent 诊断出根因故障,再把诊断准确率反馈到数据生成与诊断策略,持续自优化。
 

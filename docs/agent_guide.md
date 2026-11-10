@@ -1,5 +1,9 @@
 # Agent 开发指南
 
+> 新功能使用 OpenCode 基础 Agent，配置与扩展方式见
+> [OpenCode 架构与迁移](opencode-remap-architecture.md)。
+> 以下自研三 Agent 指南仅用于维护兼容入口。
+
 ## 快速开始
 
 ### 环境准备

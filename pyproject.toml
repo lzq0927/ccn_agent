@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ccn-agent"
-version = "0.1.0"
-description = "5GC Fault Diagnosis Closed-Loop Agent System"
+version = "0.2.0"
+description = "ReMAP AI-system reliability mechanism design and simulation with OpenCode"
 requires-python = ">=3.11"
 dependencies = [
     "openai>=1.30.0",
@@ -19,9 +19,15 @@ dependencies = [
     "uvicorn[standard]>=0.30.0",
     "websockets>=12.0",
     "aiosqlite>=0.20.0",
+    "mcp>=1.12,<2",
 ]
 
+[project.scripts]
+ccn-reliability = "reliability.cli:main"
+ccn-reliability-mcp = "reliability.mcp_server:main"
+
 [project.optional-dependencies]
+browser = ["playwright>=1.50"]
 dev = [
     "pytest>=8.2.0",
     "pytest-asyncio>=0.23.0",
@@ -29,7 +35,10 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["agents*", "simulator*", "tools*", "api*"]
+include = ["agents*", "simulator*", "tools*", "api*", "reliability*"]
+
+[tool.setuptools.package-data]
+reliability = ["knowledge/*.json", "knowledge/*.md"]
 
 [tool.ruff]
 line-length = 100

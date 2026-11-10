@@ -1,4 +1,8 @@
-# 5GC 故障诊断闭环系统 - 完整文档
+# 5GC 故障诊断闭环系统 - 兼容架构参考
+
+> 当前默认架构已改为 ReMAP AI 系统可靠性机制设计与仿真：OpenCode + Skill + MCP +
+> 知识库/知识模型。请先阅读 [当前架构与迁移](opencode-remap-architecture.md)。
+> 以下说明仅对应保留的三 Agent、旧 API 与 LIVE 兼容入口。
 
 ## 项目概述
 

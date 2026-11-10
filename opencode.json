@@ -1,0 +1,20 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "default_agent": "remap-ai-reliability",
+  "agent": {
+    "remap-ai-reliability": {
+      "description": "ReMAP AI 系统可靠性机制设计与仿真",
+      "mode": "primary",
+      "prompt": "{file:./.opencode/prompts/reliability.md}"
+    }
+  },
+  "mcp": {
+    "reliability": {
+      "type": "local",
+      "command": ["python", "-m", "reliability.mcp_server"],
+      "enabled": true,
+      "timeout": 120000
+    }
+  },
+  "permission": {"external_directory": "ask"}
+}

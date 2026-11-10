@@ -1,0 +1,11 @@
+{
+  "name": "物联网风暴：分层退避与准入控制",
+  "scenario_id": "G",
+  "actions": [
+    {"kind": "flow_control", "layer": "UE", "ratio": 0.8, "flt": {"sst": 3}},
+    {"kind": "flow_control", "layer": "AMF", "ratio": 0.8, "flt": {"sst": 3}},
+    {"kind": "flow_control", "layer": "SMF", "ratio": 0.8, "flt": {"dnn": "iot"}}
+  ],
+  "seeds": [42, 43, 44],
+  "rationale": "候选参数仅作合成对照；必须同时审阅成功率、CPU 与拒绝计数，不预设达标。"
+}
