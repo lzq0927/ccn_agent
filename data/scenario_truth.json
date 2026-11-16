@@ -1,0 +1,23 @@
+{
+ "seed": 42,
+ "start": "2026-11-16 10:00:00",
+ "duration_min": 40,
+ "fault": {
+  "ne": "SMF:smf_2",
+  "links": [
+   {
+    "source": "SMF:smf_2",
+    "target": "PCF:pcf_2",
+    "interface": "N7"
+   },
+   {
+    "source": "SMF:smf_2",
+    "target": "UPF:upf_1",
+    "interface": "N4"
+   }
+  ],
+  "type": "link_packet_loss",
+  "start_minute": 20
+ },
+ "note": "仅用于说明与测试，后端分析不读取本文件"
+}

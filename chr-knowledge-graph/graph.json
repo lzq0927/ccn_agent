@@ -1,0 +1,2884 @@
+{
+ "meta": {
+  "version": "sim-0.1",
+  "source": "simulator/catalog.py（示例，后续由产品代码分析结果替换）",
+  "relations": [
+   "RAISED_BY",
+   "OCCURS_IN",
+   "ON_INTERFACE",
+   "CAUSED_BY",
+   "PROPAGATES_TO"
+  ]
+ },
+ "nodes": [
+  {
+   "id": "nf:AMF",
+   "type": "NFType",
+   "name": "AMF"
+  },
+  {
+   "id": "nf:SMF",
+   "type": "NFType",
+   "name": "SMF"
+  },
+  {
+   "id": "nf:AUSF",
+   "type": "NFType",
+   "name": "AUSF"
+  },
+  {
+   "id": "nf:UDM",
+   "type": "NFType",
+   "name": "UDM"
+  },
+  {
+   "id": "nf:PCF",
+   "type": "NFType",
+   "name": "PCF"
+  },
+  {
+   "id": "nf:UPF",
+   "type": "NFType",
+   "name": "UPF"
+  },
+  {
+   "id": "if:N11",
+   "type": "Interface",
+   "name": "N11",
+   "between": [
+    "AMF",
+    "SMF"
+   ]
+  },
+  {
+   "id": "if:N12",
+   "type": "Interface",
+   "name": "N12",
+   "between": [
+    "AMF",
+    "AUSF"
+   ]
+  },
+  {
+   "id": "if:N8",
+   "type": "Interface",
+   "name": "N8",
+   "between": [
+    "AMF",
+    "UDM"
+   ]
+  },
+  {
+   "id": "if:N15",
+   "type": "Interface",
+   "name": "N15",
+   "between": [
+    "AMF",
+    "PCF"
+   ]
+  },
+  {
+   "id": "if:N10",
+   "type": "Interface",
+   "name": "N10",
+   "between": [
+    "SMF",
+    "UDM"
+   ]
+  },
+  {
+   "id": "if:N7",
+   "type": "Interface",
+   "name": "N7",
+   "between": [
+    "SMF",
+    "PCF"
+   ]
+  },
+  {
+   "id": "if:N4",
+   "type": "Interface",
+   "name": "N4",
+   "between": [
+    "SMF",
+    "UPF"
+   ]
+  },
+  {
+   "id": "if:N13",
+   "type": "Interface",
+   "name": "N13",
+   "between": [
+    "AUSF",
+    "UDM"
+   ]
+  },
+  {
+   "id": "proc:初始注册",
+   "type": "Procedure",
+   "name": "初始注册"
+  },
+  {
+   "id": "proc:移动性注册更新",
+   "type": "Procedure",
+   "name": "移动性注册更新"
+  },
+  {
+   "id": "proc:ServiceRequest",
+   "type": "Procedure",
+   "name": "ServiceRequest"
+  },
+  {
+   "id": "proc:寻呼",
+   "type": "Procedure",
+   "name": "寻呼"
+  },
+  {
+   "id": "proc:PDU会话建立",
+   "type": "Procedure",
+   "name": "PDU会话建立"
+  },
+  {
+   "id": "proc:PDU会话修改",
+   "type": "Procedure",
+   "name": "PDU会话修改"
+  },
+  {
+   "id": "proc:PDU会话释放",
+   "type": "Procedure",
+   "name": "PDU会话释放"
+  },
+  {
+   "id": "proc:N2切换",
+   "type": "Procedure",
+   "name": "N2切换"
+  },
+  {
+   "id": "cause:MM-1011",
+   "type": "CauseCode",
+   "code": "MM-1011",
+   "name": "鉴权失败（AUSF 鉴权拒绝）",
+   "nf_type": "AMF",
+   "procedure": "初始注册",
+   "interface": "N12",
+   "protocol": "5GMM #3 Illegal UE / AUTHENTICATION REJECT",
+   "code_ref": "amf/mm/auth/AmfAuthProc.c:OnAuthResultFailure()",
+   "desc": "AUSF 返回鉴权失败，AMF 下发鉴权拒绝"
+  },
+  {
+   "id": "scn:user:usim",
+   "type": "Scenario",
+   "name": "用户 USIM/鉴权密钥异常",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:propagated:AUSF",
+   "type": "Scenario",
+   "name": "下游 AUSF 流程失败向上传导",
+   "category": "propagated",
+   "signature": {},
+   "key": [],
+   "locate": {
+    "peer_type": "AUSF",
+    "mode": "propagated"
+   },
+   "recovery": "定位下游网元的原始失败原因"
+  },
+  {
+   "id": "scn:link_loss:AMF-AUSF",
+   "type": "Scenario",
+   "name": "AMF 后端至 AUSF 的 N12 链路丢包/时延抖动",
+   "category": "link",
+   "signature": {
+    "local": "high",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "AMF",
+    "peer_type": "AUSF",
+    "interface": "N12",
+    "mode": "packet_loss"
+   },
+   "recovery": "将流量切换到本端至同类对端的其它可用链路，并排查故障链路的网卡/vSwitch/交换机端口丢包"
+  },
+  {
+   "id": "cause:MM-1015",
+   "type": "CauseCode",
+   "code": "MM-1015",
+   "name": "用户未签约/签约数据不存在",
+   "nf_type": "AMF",
+   "procedure": "初始注册",
+   "interface": "N8",
+   "protocol": "5GMM #7 5GS services not allowed；UDM 404 USER_NOT_FOUND",
+   "code_ref": "amf/mm/reg/AmfRegUdmProc.c:OnSdmGetRsp()",
+   "desc": "向 UDM 获取签约数据返回用户不存在"
+  },
+  {
+   "id": "scn:user:unsub",
+   "type": "Scenario",
+   "name": "用户未开户/已销户仍反复注册",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:config:udm_data",
+   "type": "Scenario",
+   "name": "UDM 签约数据割接/同步缺失",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "scn:propagated:UDM",
+   "type": "Scenario",
+   "name": "下游 UDM 流程失败向上传导",
+   "category": "propagated",
+   "signature": {},
+   "key": [],
+   "locate": {
+    "peer_type": "UDM",
+    "mode": "propagated"
+   },
+   "recovery": "定位下游网元的原始失败原因"
+  },
+  {
+   "id": "cause:MM-1018",
+   "type": "CauseCode",
+   "code": "MM-1018",
+   "name": "N2 连接异常释放（注册过程中）",
+   "nf_type": "AMF",
+   "procedure": "初始注册",
+   "interface": "N2",
+   "protocol": "NGAP Cause: radio-connection-with-ue-lost",
+   "code_ref": "amf/ngap/AmfNgapUeCtx.c:OnUeContextReleaseReq()",
+   "desc": "注册未完成时基站请求释放 UE 上下文"
+  },
+  {
+   "id": "scn:ran:gnb_reset",
+   "type": "Scenario",
+   "name": "基站复位/传输闪断",
+   "category": "ran",
+   "signature": {
+    "ran": "high",
+    "user": "low"
+   },
+   "key": [
+    "ran"
+   ],
+   "locate": {
+    "mode": "ran"
+   },
+   "recovery": "排查相关基站/小区的无线与传输状态"
+  },
+  {
+   "id": "scn:user:ue_move",
+   "type": "Scenario",
+   "name": "UE 无线环境差",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:MM-1021",
+   "type": "CauseCode",
+   "code": "MM-1021",
+   "name": "跟踪区不允许/漫游限制",
+   "nf_type": "AMF",
+   "procedure": "移动性注册更新",
+   "interface": "N1",
+   "protocol": "5GMM #12 Tracking area not allowed / #13 Roaming not allowed in this TA",
+   "code_ref": "amf/mm/reg/AmfMobilityRestrict.c:CheckTaAllowed()",
+   "desc": "用户所在 TA 命中移动性限制"
+  },
+  {
+   "id": "scn:config:ta_restrict",
+   "type": "Scenario",
+   "name": "TA/漫游限制配置",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "scn:user:roam",
+   "type": "Scenario",
+   "name": "用户签约限制区域",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:MM-1102",
+   "type": "CauseCode",
+   "code": "MM-1102",
+   "name": "无线连接丢失/UE 无响应",
+   "nf_type": "AMF",
+   "procedure": "ServiceRequest",
+   "interface": "N2",
+   "protocol": "NGAP Cause: radio-connection-with-ue-lost",
+   "code_ref": "amf/mm/sr/AmfServiceReqProc.c:OnInitialCtxSetupFail()",
+   "desc": "业务请求过程中空口无响应"
+  },
+  {
+   "id": "scn:ran:weak_cov",
+   "type": "Scenario",
+   "name": "基站弱覆盖/干扰",
+   "category": "ran",
+   "signature": {
+    "ran": "high",
+    "user": "low"
+   },
+   "key": [
+    "ran"
+   ],
+   "locate": {
+    "mode": "ran"
+   },
+   "recovery": "排查相关基站/小区的无线与传输状态"
+  },
+  {
+   "id": "scn:user:ue_radio",
+   "type": "Scenario",
+   "name": "UE 无线环境差",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:MM-1105",
+   "type": "CauseCode",
+   "code": "MM-1105",
+   "name": "PDU 会话用户面激活失败",
+   "nf_type": "AMF",
+   "procedure": "ServiceRequest",
+   "interface": "N11",
+   "protocol": "Nsmf_PDUSession_UpdateSMContext 失败（500/504）",
+   "code_ref": "amf/mm/sr/AmfSrSmCtxProc.c:OnUpdateSmContextRsp()",
+   "desc": "业务请求中 SMF 未能激活用户面"
+  },
+  {
+   "id": "scn:propagated:SMF",
+   "type": "Scenario",
+   "name": "下游 SMF 流程失败向上传导",
+   "category": "propagated",
+   "signature": {},
+   "key": [],
+   "locate": {
+    "peer_type": "SMF",
+    "mode": "propagated"
+   },
+   "recovery": "定位下游网元的原始失败原因"
+  },
+  {
+   "id": "scn:link_loss:AMF-SMF",
+   "type": "Scenario",
+   "name": "AMF 后端至 SMF 的 N11 链路丢包/时延抖动",
+   "category": "link",
+   "signature": {
+    "local": "high",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "AMF",
+    "peer_type": "SMF",
+    "interface": "N11",
+    "mode": "packet_loss"
+   },
+   "recovery": "将流量切换到本端至同类对端的其它可用链路，并排查故障链路的网卡/vSwitch/交换机端口丢包"
+  },
+  {
+   "id": "scn:peer_overload:SMF",
+   "type": "Scenario",
+   "name": "对端 SMF 过载/处理时延增大",
+   "category": "peer_nf",
+   "signature": {
+    "local": "low",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "peer_type": "SMF",
+    "mode": "overload"
+   },
+   "recovery": "对该对端实例限流或降低其选择权重，扩容后恢复"
+  },
+  {
+   "id": "cause:MM-1201",
+   "type": "CauseCode",
+   "code": "MM-1201",
+   "name": "寻呼无响应",
+   "nf_type": "AMF",
+   "procedure": "寻呼",
+   "interface": "N2",
+   "protocol": "T3513 超时",
+   "code_ref": "amf/mm/paging/AmfPagingProc.c:OnT3513Expiry()",
+   "desc": "寻呼多次重发后 UE 无响应"
+  },
+  {
+   "id": "scn:user:ue_off",
+   "type": "Scenario",
+   "name": "UE 关机/脱网",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:ran:paging_cov",
+   "type": "Scenario",
+   "name": "基站覆盖问题",
+   "category": "ran",
+   "signature": {
+    "ran": "high",
+    "user": "low"
+   },
+   "key": [
+    "ran"
+   ],
+   "locate": {
+    "mode": "ran"
+   },
+   "recovery": "排查相关基站/小区的无线与传输状态"
+  },
+  {
+   "id": "cause:MM-1301",
+   "type": "CauseCode",
+   "code": "MM-1301",
+   "name": "DNN 不支持或未签约",
+   "nf_type": "AMF",
+   "procedure": "PDU会话建立",
+   "interface": "N1",
+   "protocol": "5GMM #91 DNN not supported or not subscribed in the slice",
+   "code_ref": "amf/sm/AmfSmfSelect.c:CheckDnnSubscribed()",
+   "desc": "UE 请求的 DNN 不在签约/切片允许范围"
+  },
+  {
+   "id": "scn:user:wrong_dnn",
+   "type": "Scenario",
+   "name": "终端 DNN/APN 配置错误",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:config:dnn_cfg",
+   "type": "Scenario",
+   "name": "DNN/切片配置缺失",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:MM-1305",
+   "type": "CauseCode",
+   "code": "MM-1305",
+   "name": "SMF 拒绝会话建立",
+   "nf_type": "AMF",
+   "procedure": "PDU会话建立",
+   "interface": "N11",
+   "protocol": "Nsmf_PDUSession_CreateSMContext 4xx/5xx（含 N1 SM 拒绝）",
+   "code_ref": "amf/sm/AmfSmCtxProc.c:OnCreateSmContextRsp()",
+   "desc": "SMF 返回会话建立失败"
+  },
+  {
+   "id": "cause:MM-1306",
+   "type": "CauseCode",
+   "code": "MM-1306",
+   "name": "N11 CreateSMContext 超时",
+   "nf_type": "AMF",
+   "procedure": "PDU会话建立",
+   "interface": "N11",
+   "protocol": "504 Gateway Timeout / TIMED_OUT_REQUEST",
+   "code_ref": "amf/sm/AmfSmCtxProc.c:OnCreateSmContextTimeout()",
+   "desc": "等待 SMF 响应超时"
+  },
+  {
+   "id": "cause:MM-1401",
+   "type": "CauseCode",
+   "code": "MM-1401",
+   "name": "切换目标侧资源准备失败",
+   "nf_type": "AMF",
+   "procedure": "N2切换",
+   "interface": "N2",
+   "protocol": "NGAP HandoverPreparationFailure",
+   "code_ref": "amf/ho/AmfN2HoProc.c:OnHandoverRequestFail()",
+   "desc": "目标基站拒绝切换请求"
+  },
+  {
+   "id": "scn:ran:ho_target",
+   "type": "Scenario",
+   "name": "目标基站资源不足",
+   "category": "ran",
+   "signature": {
+    "ran": "high",
+    "user": "low"
+   },
+   "key": [
+    "ran"
+   ],
+   "locate": {
+    "mode": "ran"
+   },
+   "recovery": "排查相关基站/小区的无线与传输状态"
+  },
+  {
+   "id": "scn:config:nbr_cfg",
+   "type": "Scenario",
+   "name": "邻区配置错误",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:SM-2001",
+   "type": "CauseCode",
+   "code": "SM-2001",
+   "name": "DNN 缺失或未知",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N1",
+   "protocol": "5GSM #27 Missing or unknown DNN",
+   "code_ref": "smf/sm/est/SmfDnnCheck.c:ValidateDnn()",
+   "desc": "SMF 本地未配置该 DNN"
+  },
+  {
+   "id": "scn:user:wrong_dnn_smf",
+   "type": "Scenario",
+   "name": "终端 DNN 配置错误",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:config:smf_dnn",
+   "type": "Scenario",
+   "name": "SMF DNN 配置缺失",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:SM-2003",
+   "type": "CauseCode",
+   "code": "SM-2003",
+   "name": "用户鉴权/授权失败（DN-AAA）",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N6",
+   "protocol": "5GSM #29 User authentication or authorization failed",
+   "code_ref": "smf/sm/est/SmfDnAaaProc.c:OnAccessReject()",
+   "desc": "二次鉴权被 DN-AAA 拒绝"
+  },
+  {
+   "id": "scn:user:dn_auth",
+   "type": "Scenario",
+   "name": "用户二次鉴权凭据错误",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:config:aaa_cfg",
+   "type": "Scenario",
+   "name": "DN-AAA 对接配置",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:SM-2005",
+   "type": "CauseCode",
+   "code": "SM-2005",
+   "name": "资源不足（地址池）",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "-",
+   "protocol": "5GSM #26 Insufficient resources",
+   "code_ref": "smf/ipam/SmfIpPool.c:AllocUeIp()",
+   "desc": "DNN 地址池可用地址不足"
+  },
+  {
+   "id": "scn:config:ip_pool",
+   "type": "Scenario",
+   "name": "地址池规划不足",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "scn:local_nf:SMF",
+   "type": "Scenario",
+   "name": "本端 SMF 网元整体异常（资源/过载）",
+   "category": "local_nf",
+   "signature": {
+    "local": "high",
+    "peer": "low",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "SMF",
+    "mode": "nf"
+   },
+   "recovery": "降低该网元选择权重，业务切换至同类其它实例"
+  },
+  {
+   "id": "cause:SM-2007",
+   "type": "CauseCode",
+   "code": "SM-2007",
+   "name": "UE 无响应（N1/N2 超时）",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N1N2",
+   "protocol": "T3591/N2 PDU Session Resource Setup 无响应",
+   "code_ref": "smf/sm/est/SmfN1N2Proc.c:OnN1N2Timeout()",
+   "desc": "下发会话接受后空口无响应"
+  },
+  {
+   "id": "scn:ran:est_radio",
+   "type": "Scenario",
+   "name": "空口质量差",
+   "category": "ran",
+   "signature": {
+    "ran": "high",
+    "user": "low"
+   },
+   "key": [
+    "ran"
+   ],
+   "locate": {
+    "mode": "ran"
+   },
+   "recovery": "排查相关基站/小区的无线与传输状态"
+  },
+  {
+   "id": "scn:user:ue_noresp",
+   "type": "Scenario",
+   "name": "UE 异常",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:SM-2101",
+   "type": "CauseCode",
+   "code": "SM-2101",
+   "name": "N7 SM 策略关联建立超时",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N7",
+   "protocol": "Npcf_SMPolicyControl_Create 超时（504 / 对外 5GSM #38 Network failure）",
+   "code_ref": "smf/pcc/SmfN7Client.c:OnSmPolicyCreateTimeout()",
+   "desc": "向 PCF 发起 SM 策略关联建立，等待响应定时器超时且重发耗尽"
+  },
+  {
+   "id": "scn:link_loss:SMF-PCF",
+   "type": "Scenario",
+   "name": "SMF 后端至 PCF 的 N7 链路丢包/时延抖动",
+   "category": "link",
+   "signature": {
+    "local": "high",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "SMF",
+    "peer_type": "PCF",
+    "interface": "N7",
+    "mode": "packet_loss"
+   },
+   "recovery": "将流量切换到本端至同类对端的其它可用链路，并排查故障链路的网卡/vSwitch/交换机端口丢包"
+  },
+  {
+   "id": "scn:peer_overload:PCF",
+   "type": "Scenario",
+   "name": "对端 PCF 过载/处理时延增大",
+   "category": "peer_nf",
+   "signature": {
+    "local": "low",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "peer_type": "PCF",
+    "mode": "overload"
+   },
+   "recovery": "对该对端实例限流或降低其选择权重，扩容后恢复"
+  },
+  {
+   "id": "scn:peer_fault:PCF",
+   "type": "Scenario",
+   "name": "对端 PCF 实例故障/进程异常",
+   "category": "peer_nf",
+   "signature": {
+    "local": "low",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "peer_type": "PCF",
+    "mode": "fault"
+   },
+   "recovery": "隔离该对端实例，业务切换至同类其它实例"
+  },
+  {
+   "id": "scn:local_pod:SMF",
+   "type": "Scenario",
+   "name": "本端 SMF 单 POD/进程异常",
+   "category": "pod",
+   "signature": {
+    "local": "high",
+    "pod": "high",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "pod"
+   ],
+   "locate": {
+    "local_type": "SMF",
+    "mode": "pod"
+   },
+   "recovery": "隔离并重建异常 POD"
+  },
+  {
+   "id": "cause:SM-2102",
+   "type": "CauseCode",
+   "code": "SM-2102",
+   "name": "PCF 拒绝策略建立",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N7",
+   "protocol": "Npcf_SMPolicyControl_Create 403 POLICY_CONTEXT_DENIED / USER_UNKNOWN",
+   "code_ref": "smf/pcc/SmfN7Client.c:OnSmPolicyCreateRsp()",
+   "desc": "PCF 明确拒绝策略关联建立"
+  },
+  {
+   "id": "scn:propagated:PCF",
+   "type": "Scenario",
+   "name": "下游 PCF 流程失败向上传导",
+   "category": "propagated",
+   "signature": {},
+   "key": [],
+   "locate": {
+    "peer_type": "PCF",
+    "mode": "propagated"
+   },
+   "recovery": "定位下游网元的原始失败原因"
+  },
+  {
+   "id": "scn:config:pcf_policy",
+   "type": "Scenario",
+   "name": "PCF 策略签约缺失",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "scn:user:pcf_user",
+   "type": "Scenario",
+   "name": "用户策略签约缺失",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:SM-2103",
+   "type": "CauseCode",
+   "code": "SM-2103",
+   "name": "PCF 不可达（连接失败）",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N7",
+   "protocol": "TARGET_NF_NOT_REACHABLE / TCP 连接失败",
+   "code_ref": "smf/pcc/SmfN7Client.c:OnConnectFail()",
+   "desc": "至 PCF 的 SBI 连接建立失败"
+  },
+  {
+   "id": "scn:link_down:SMF-PCF",
+   "type": "Scenario",
+   "name": "SMF 至 PCF 的 N7 链路中断",
+   "category": "link",
+   "signature": {
+    "local": "high",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "SMF",
+    "peer_type": "PCF",
+    "interface": "N7",
+    "mode": "down"
+   },
+   "recovery": "切换到其它可用链路，排查链路中断原因"
+  },
+  {
+   "id": "cause:SM-2105",
+   "type": "CauseCode",
+   "code": "SM-2105",
+   "name": "策略更新执行失败（QoS 规则冲突）",
+   "nf_type": "SMF",
+   "procedure": "PDU会话修改",
+   "interface": "N7",
+   "protocol": "5GSM #83 Semantic error in the QoS operation",
+   "code_ref": "smf/pcc/SmfPccRuleInstall.c:InstallPccRules()",
+   "desc": "PCF 下发的规则与现有 QoS 流冲突"
+  },
+  {
+   "id": "scn:config:pcc_rule",
+   "type": "Scenario",
+   "name": "PCC 规则配置冲突",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:SM-2201",
+   "type": "CauseCode",
+   "code": "SM-2201",
+   "name": "N4 会话建立超时",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N4",
+   "protocol": "PFCP Session Establishment Request 重传耗尽（T1/N1，对外 5GSM #38 Network failure）",
+   "code_ref": "smf/n4/SmfPfcpSession.c:OnSessEstTimeout()",
+   "desc": "向 UPF 发送 PFCP 会话建立请求，T1 超时并重传 N1 次仍无响应"
+  },
+  {
+   "id": "scn:link_loss:SMF-UPF",
+   "type": "Scenario",
+   "name": "SMF 后端至 UPF 的 N4 链路丢包/时延抖动",
+   "category": "link",
+   "signature": {
+    "local": "high",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "SMF",
+    "peer_type": "UPF",
+    "interface": "N4",
+    "mode": "packet_loss"
+   },
+   "recovery": "将流量切换到本端至同类对端的其它可用链路，并排查故障链路的网卡/vSwitch/交换机端口丢包"
+  },
+  {
+   "id": "scn:peer_overload:UPF",
+   "type": "Scenario",
+   "name": "对端 UPF 过载/处理时延增大",
+   "category": "peer_nf",
+   "signature": {
+    "local": "low",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "peer_type": "UPF",
+    "mode": "overload"
+   },
+   "recovery": "对该对端实例限流或降低其选择权重，扩容后恢复"
+  },
+  {
+   "id": "scn:peer_fault:UPF",
+   "type": "Scenario",
+   "name": "对端 UPF 实例故障/进程异常",
+   "category": "peer_nf",
+   "signature": {
+    "local": "low",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "peer_type": "UPF",
+    "mode": "fault"
+   },
+   "recovery": "隔离该对端实例，业务切换至同类其它实例"
+  },
+  {
+   "id": "cause:SM-2202",
+   "type": "CauseCode",
+   "code": "SM-2202",
+   "name": "PFCP 路径故障（心跳超时）",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N4",
+   "protocol": "PFCP Heartbeat 超时",
+   "code_ref": "smf/n4/SmfPfcpPath.c:OnHeartbeatTimeout()",
+   "desc": "至 UPF 的 PFCP 心跳连续超时，判定路径故障"
+  },
+  {
+   "id": "scn:link_down:SMF-UPF",
+   "type": "Scenario",
+   "name": "SMF 至 UPF 的 N4 链路中断",
+   "category": "link",
+   "signature": {
+    "local": "high",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "SMF",
+    "peer_type": "UPF",
+    "interface": "N4",
+    "mode": "down"
+   },
+   "recovery": "切换到其它可用链路，排查链路中断原因"
+  },
+  {
+   "id": "cause:SM-2203",
+   "type": "CauseCode",
+   "code": "SM-2203",
+   "name": "UPF 拒绝会话建立",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N4",
+   "protocol": "PFCP Cause 75 No resources available / 73 Rule creation/modification failure",
+   "code_ref": "smf/n4/SmfPfcpSession.c:OnSessEstRsp()",
+   "desc": "UPF 返回会话建立失败"
+  },
+  {
+   "id": "scn:propagated:UPF",
+   "type": "Scenario",
+   "name": "下游 UPF 流程失败向上传导",
+   "category": "propagated",
+   "signature": {},
+   "key": [],
+   "locate": {
+    "peer_type": "UPF",
+    "mode": "propagated"
+   },
+   "recovery": "定位下游网元的原始失败原因"
+  },
+  {
+   "id": "scn:config:upf_rule",
+   "type": "Scenario",
+   "name": "下发规则 UPF 不支持",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:SM-2210",
+   "type": "CauseCode",
+   "code": "SM-2210",
+   "name": "N4 会话修改超时",
+   "nf_type": "SMF",
+   "procedure": "PDU会话修改",
+   "interface": "N4",
+   "protocol": "PFCP Session Modification Request 重传耗尽",
+   "code_ref": "smf/n4/SmfPfcpSession.c:OnSessModTimeout()",
+   "desc": "向 UPF 发送 PFCP 会话修改请求超时"
+  },
+  {
+   "id": "cause:SM-2211",
+   "type": "CauseCode",
+   "code": "SM-2211",
+   "name": "N4 会话修改超时（用户面激活）",
+   "nf_type": "SMF",
+   "procedure": "ServiceRequest",
+   "interface": "N4",
+   "protocol": "PFCP Session Modification Request 重传耗尽",
+   "code_ref": "smf/n4/SmfPfcpSession.c:OnUpActivateTimeout()",
+   "desc": "业务请求激活用户面时 PFCP 会话修改超时"
+  },
+  {
+   "id": "cause:SM-2301",
+   "type": "CauseCode",
+   "code": "SM-2301",
+   "name": "N10 签约数据获取失败",
+   "nf_type": "SMF",
+   "procedure": "PDU会话建立",
+   "interface": "N10",
+   "protocol": "Nudm_SDM_Get 404 DATA_NOT_FOUND / 504",
+   "code_ref": "smf/sdm/SmfN10Client.c:OnSdmGetRsp()",
+   "desc": "向 UDM 获取会话管理签约数据失败"
+  },
+  {
+   "id": "scn:user:sm_sub",
+   "type": "Scenario",
+   "name": "用户无该 DNN 的会话签约",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:link_loss:SMF-UDM",
+   "type": "Scenario",
+   "name": "SMF 后端至 UDM 的 N10 链路丢包/时延抖动",
+   "category": "link",
+   "signature": {
+    "local": "high",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "SMF",
+    "peer_type": "UDM",
+    "interface": "N10",
+    "mode": "packet_loss"
+   },
+   "recovery": "将流量切换到本端至同类对端的其它可用链路，并排查故障链路的网卡/vSwitch/交换机端口丢包"
+  },
+  {
+   "id": "cause:SM-2401",
+   "type": "CauseCode",
+   "code": "SM-2401",
+   "name": "释放流程 UE 无响应",
+   "nf_type": "SMF",
+   "procedure": "PDU会话释放",
+   "interface": "N1",
+   "protocol": "T3592 超时",
+   "code_ref": "smf/sm/rel/SmfReleaseProc.c:OnT3592Expiry()",
+   "desc": "网络侧发起释放后 UE 未确认，本地释放"
+  },
+  {
+   "id": "scn:user:rel_noresp",
+   "type": "Scenario",
+   "name": "UE 已脱网",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:ran:rel_radio",
+   "type": "Scenario",
+   "name": "空口质量差",
+   "category": "ran",
+   "signature": {
+    "ran": "high",
+    "user": "low"
+   },
+   "key": [
+    "ran"
+   ],
+   "locate": {
+    "mode": "ran"
+   },
+   "recovery": "排查相关基站/小区的无线与传输状态"
+  },
+  {
+   "id": "cause:AU-3001",
+   "type": "CauseCode",
+   "code": "AU-3001",
+   "name": "鉴权向量获取失败",
+   "nf_type": "AUSF",
+   "procedure": "初始注册",
+   "interface": "N13",
+   "protocol": "Nudm_UEAuthentication_Get 失败",
+   "code_ref": "ausf/auth/AusfUdmClient.c:OnGenerateAuthDataRsp()",
+   "desc": "向 UDM 获取鉴权向量失败"
+  },
+  {
+   "id": "scn:user:au_sub",
+   "type": "Scenario",
+   "name": "用户鉴权数据缺失",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:link_loss:AUSF-UDM",
+   "type": "Scenario",
+   "name": "AUSF 后端至 UDM 的 N13 链路丢包/时延抖动",
+   "category": "link",
+   "signature": {
+    "local": "high",
+    "peer": "high",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "AUSF",
+    "peer_type": "UDM",
+    "interface": "N13",
+    "mode": "packet_loss"
+   },
+   "recovery": "将流量切换到本端至同类对端的其它可用链路，并排查故障链路的网卡/vSwitch/交换机端口丢包"
+  },
+  {
+   "id": "cause:AU-3002",
+   "type": "CauseCode",
+   "code": "AU-3002",
+   "name": "RES* 校验失败",
+   "nf_type": "AUSF",
+   "procedure": "初始注册",
+   "interface": "N12",
+   "protocol": "5G-AKA HRES* 不匹配",
+   "code_ref": "ausf/auth/Ausf5gAka.c:VerifyResStar()",
+   "desc": "UE 返回的鉴权响应校验不通过"
+  },
+  {
+   "id": "scn:user:au_key",
+   "type": "Scenario",
+   "name": "用户 USIM 密钥不一致",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:UD-4001",
+   "type": "CauseCode",
+   "code": "UD-4001",
+   "name": "用户不存在",
+   "nf_type": "UDM",
+   "procedure": "初始注册",
+   "interface": "N8",
+   "protocol": "404 USER_NOT_FOUND",
+   "code_ref": "udm/sdm/UdmSubsQuery.c:QuerySubscriber()",
+   "desc": "签约库无该用户"
+  },
+  {
+   "id": "scn:user:ud_unsub",
+   "type": "Scenario",
+   "name": "用户未开户/已销户",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "scn:config:ud_sync",
+   "type": "Scenario",
+   "name": "签约数据同步缺失",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:UD-4002",
+   "type": "CauseCode",
+   "code": "UD-4002",
+   "name": "会话签约数据缺失",
+   "nf_type": "UDM",
+   "procedure": "PDU会话建立",
+   "interface": "N10",
+   "protocol": "404 DATA_NOT_FOUND",
+   "code_ref": "udm/sdm/UdmSmDataQuery.c:QuerySmData()",
+   "desc": "用户无该 DNN/切片的会话管理签约"
+  },
+  {
+   "id": "scn:user:ud_sm",
+   "type": "Scenario",
+   "name": "用户会话签约缺失",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:UD-4010",
+   "type": "CauseCode",
+   "code": "UD-4010",
+   "name": "UECM 注册冲突",
+   "nf_type": "UDM",
+   "procedure": "初始注册",
+   "interface": "N8",
+   "protocol": "Nudm_UECM_Registration 409",
+   "code_ref": "udm/uecm/UdmAmfReg.c:RegisterAmf()",
+   "desc": "同一用户并发注册导致上下文冲突"
+  },
+  {
+   "id": "scn:user:ud_conc",
+   "type": "Scenario",
+   "name": "用户频繁重注册",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:PC-5001",
+   "type": "CauseCode",
+   "code": "PC-5001",
+   "name": "SM 策略决策失败（签约策略缺失）",
+   "nf_type": "PCF",
+   "procedure": "PDU会话建立",
+   "interface": "N7",
+   "protocol": "403 POLICY_CONTEXT_DENIED",
+   "code_ref": "pcf/smpolicy/PcfSmPolicyDecision.c:MakeDecision()",
+   "desc": "未找到匹配的会话策略"
+  },
+  {
+   "id": "scn:config:pc_policy",
+   "type": "Scenario",
+   "name": "策略签约/规则配置缺失",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "scn:user:pc_user",
+   "type": "Scenario",
+   "name": "用户策略签约缺失",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:PC-5002",
+   "type": "CauseCode",
+   "code": "PC-5002",
+   "name": "AM 策略关联建立失败",
+   "nf_type": "PCF",
+   "procedure": "初始注册",
+   "interface": "N15",
+   "protocol": "Npcf_AMPolicyControl_Create 失败",
+   "code_ref": "pcf/ampolicy/PcfAmPolicyCreate.c:OnCreate()",
+   "desc": "接入与移动性策略创建失败"
+  },
+  {
+   "id": "scn:config:pc_am",
+   "type": "Scenario",
+   "name": "AM 策略配置缺失",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:PC-5010",
+   "type": "CauseCode",
+   "code": "PC-5010",
+   "name": "策略规则冲突",
+   "nf_type": "PCF",
+   "procedure": "PDU会话修改",
+   "interface": "N7",
+   "protocol": "规则安装失败上报",
+   "code_ref": "pcf/smpolicy/PcfRuleReport.c:OnRuleReport()",
+   "desc": "SMF 上报规则安装失败"
+  },
+  {
+   "id": "scn:config:pc_rule",
+   "type": "Scenario",
+   "name": "PCC 规则冲突",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:UP-6001",
+   "type": "CauseCode",
+   "code": "UP-6001",
+   "name": "PFCP 规则创建失败",
+   "nf_type": "UPF",
+   "procedure": "PDU会话建立",
+   "interface": "N4",
+   "protocol": "PFCP Cause 73 Rule creation/modification Failure",
+   "code_ref": "upf/pfcp/UpfRuleInstall.c:CreatePdr()",
+   "desc": "PDR/FAR 创建失败"
+  },
+  {
+   "id": "scn:config:up_rule",
+   "type": "Scenario",
+   "name": "规则/特性不支持",
+   "category": "config",
+   "signature": {
+    "user": "low",
+    "ran": "low",
+    "pod": "low"
+   },
+   "key": [],
+   "locate": {
+    "mode": "config"
+   },
+   "recovery": "修改或回退相关配置"
+  },
+  {
+   "id": "cause:UP-6003",
+   "type": "CauseCode",
+   "code": "UP-6003",
+   "name": "会话上下文不存在",
+   "nf_type": "UPF",
+   "procedure": "PDU会话修改",
+   "interface": "N4",
+   "protocol": "PFCP Cause 65 Session context not found",
+   "code_ref": "upf/pfcp/UpfSessMgr.c:FindSession()",
+   "desc": "修改/删除的会话在 UPF 已不存在"
+  },
+  {
+   "id": "scn:user:up_ctx",
+   "type": "Scenario",
+   "name": "会话上下文不同步",
+   "category": "user",
+   "signature": {
+    "user": "high"
+   },
+   "key": [
+    "user"
+   ],
+   "locate": {
+    "mode": "user"
+   },
+   "recovery": "核查相关用户的签约/终端，不涉及网络侧恢复"
+  },
+  {
+   "id": "cause:UP-6005",
+   "type": "CauseCode",
+   "code": "UP-6005",
+   "name": "资源不足（TEID/会话数）",
+   "nf_type": "UPF",
+   "procedure": "PDU会话建立",
+   "interface": "N4",
+   "protocol": "PFCP Cause 75 No resources available",
+   "code_ref": "upf/res/UpfTeidAlloc.c:AllocTeid()",
+   "desc": "资源分配失败"
+  },
+  {
+   "id": "scn:local_nf:UPF",
+   "type": "Scenario",
+   "name": "本端 UPF 网元整体异常（资源/过载）",
+   "category": "local_nf",
+   "signature": {
+    "local": "high",
+    "peer": "low",
+    "pod": "low",
+    "user": "low",
+    "ran": "low"
+   },
+   "key": [
+    "local",
+    "peer"
+   ],
+   "locate": {
+    "local_type": "UPF",
+    "mode": "nf"
+   },
+   "recovery": "降低该网元选择权重，业务切换至同类其它实例"
+  }
+ ],
+ "edges": [
+  {
+   "source": "cause:MM-1011",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1011",
+   "relation": "OCCURS_IN",
+   "target": "proc:初始注册"
+  },
+  {
+   "source": "cause:MM-1011",
+   "relation": "ON_INTERFACE",
+   "target": "if:N12"
+  },
+  {
+   "source": "cause:MM-1011",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:usim",
+   "weight": 0.7,
+   "condition": "UE 上报的 RES* 与网络侧不一致"
+  },
+  {
+   "source": "cause:MM-1011",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:AUSF",
+   "weight": 0.2,
+   "condition": "AUSF 侧鉴权流程失败传导"
+  },
+  {
+   "source": "cause:MM-1011",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:AMF-AUSF",
+   "weight": 0.1,
+   "condition": "N12 请求/响应丢失导致鉴权结果异常"
+  },
+  {
+   "source": "cause:MM-1015",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1015",
+   "relation": "OCCURS_IN",
+   "target": "proc:初始注册"
+  },
+  {
+   "source": "cause:MM-1015",
+   "relation": "ON_INTERFACE",
+   "target": "if:N8"
+  },
+  {
+   "source": "cause:MM-1015",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:unsub",
+   "weight": 0.75,
+   "condition": "UDM 无该 IMSI 签约"
+  },
+  {
+   "source": "cause:MM-1015",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:udm_data",
+   "weight": 0.15,
+   "condition": "批量用户数据未同步"
+  },
+  {
+   "source": "cause:MM-1015",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:UDM",
+   "weight": 0.1,
+   "condition": "UDM 侧失败传导"
+  },
+  {
+   "source": "cause:MM-1018",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1018",
+   "relation": "OCCURS_IN",
+   "target": "proc:初始注册"
+  },
+  {
+   "source": "cause:MM-1018",
+   "relation": "CAUSED_BY",
+   "target": "scn:ran:gnb_reset",
+   "weight": 0.7,
+   "condition": "单基站下用户集中重注册并失败"
+  },
+  {
+   "source": "cause:MM-1018",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:ue_move",
+   "weight": 0.3,
+   "condition": "个别用户弱覆盖"
+  },
+  {
+   "source": "cause:MM-1021",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1021",
+   "relation": "OCCURS_IN",
+   "target": "proc:移动性注册更新"
+  },
+  {
+   "source": "cause:MM-1021",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:ta_restrict",
+   "weight": 0.6,
+   "condition": "边界 TA 配置了接入限制"
+  },
+  {
+   "source": "cause:MM-1021",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:roam",
+   "weight": 0.4,
+   "condition": "签约区域限制"
+  },
+  {
+   "source": "cause:MM-1102",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1102",
+   "relation": "OCCURS_IN",
+   "target": "proc:ServiceRequest"
+  },
+  {
+   "source": "cause:MM-1102",
+   "relation": "CAUSED_BY",
+   "target": "scn:ran:weak_cov",
+   "weight": 0.6,
+   "condition": "弱覆盖小区集中"
+  },
+  {
+   "source": "cause:MM-1102",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:ue_radio",
+   "weight": 0.4,
+   "condition": "个别用户"
+  },
+  {
+   "source": "cause:MM-1105",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1105",
+   "relation": "OCCURS_IN",
+   "target": "proc:ServiceRequest"
+  },
+  {
+   "source": "cause:MM-1105",
+   "relation": "ON_INTERFACE",
+   "target": "if:N11"
+  },
+  {
+   "source": "cause:MM-1105",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:SMF",
+   "weight": 0.7,
+   "condition": "SMF 侧 N4 会话修改失败/超时后向 AMF 返回失败"
+  },
+  {
+   "source": "cause:MM-1105",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:AMF-SMF",
+   "weight": 0.15,
+   "condition": "N11 链路丢包导致 UpdateSMContext 超时"
+  },
+  {
+   "source": "cause:MM-1105",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_overload:SMF",
+   "weight": 0.15,
+   "condition": "SMF 过载拒绝"
+  },
+  {
+   "source": "cause:MM-1201",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1201",
+   "relation": "OCCURS_IN",
+   "target": "proc:寻呼"
+  },
+  {
+   "source": "cause:MM-1201",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:ue_off",
+   "weight": 0.6,
+   "condition": "用户不在服务区"
+  },
+  {
+   "source": "cause:MM-1201",
+   "relation": "CAUSED_BY",
+   "target": "scn:ran:paging_cov",
+   "weight": 0.4,
+   "condition": "弱覆盖区域"
+  },
+  {
+   "source": "cause:MM-1301",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1301",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:MM-1301",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:wrong_dnn",
+   "weight": 0.6,
+   "condition": "固定用户群反复请求错误 DNN"
+  },
+  {
+   "source": "cause:MM-1301",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:dnn_cfg",
+   "weight": 0.4,
+   "condition": "网络侧未配置该 DNN"
+  },
+  {
+   "source": "cause:MM-1305",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1305",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:MM-1305",
+   "relation": "ON_INTERFACE",
+   "target": "if:N11"
+  },
+  {
+   "source": "cause:MM-1305",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:SMF",
+   "weight": 0.7,
+   "condition": "SMF 侧会话建立任一环节失败后拒绝"
+  },
+  {
+   "source": "cause:MM-1305",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_overload:SMF",
+   "weight": 0.2,
+   "condition": "SMF 过载拒绝新建会话"
+  },
+  {
+   "source": "cause:MM-1305",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:AMF-SMF",
+   "weight": 0.1,
+   "condition": "N11 响应异常"
+  },
+  {
+   "source": "cause:MM-1306",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1306",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:MM-1306",
+   "relation": "ON_INTERFACE",
+   "target": "if:N11"
+  },
+  {
+   "source": "cause:MM-1306",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:AMF-SMF",
+   "weight": 0.4,
+   "condition": "N11 链路丢包"
+  },
+  {
+   "source": "cause:MM-1306",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_overload:SMF",
+   "weight": 0.3,
+   "condition": "SMF 处理慢"
+  },
+  {
+   "source": "cause:MM-1306",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:SMF",
+   "weight": 0.3,
+   "condition": "SMF 下游重传耗时超过 AMF 等待定时器"
+  },
+  {
+   "source": "cause:MM-1401",
+   "relation": "RAISED_BY",
+   "target": "nf:AMF"
+  },
+  {
+   "source": "cause:MM-1401",
+   "relation": "OCCURS_IN",
+   "target": "proc:N2切换"
+  },
+  {
+   "source": "cause:MM-1401",
+   "relation": "CAUSED_BY",
+   "target": "scn:ran:ho_target",
+   "weight": 0.8,
+   "condition": "目标小区拥塞"
+  },
+  {
+   "source": "cause:MM-1401",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:nbr_cfg",
+   "weight": 0.2,
+   "condition": "邻区关系缺失"
+  },
+  {
+   "source": "cause:SM-2001",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2001",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2001",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:wrong_dnn_smf",
+   "weight": 0.6,
+   "condition": "固定用户群"
+  },
+  {
+   "source": "cause:SM-2001",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:smf_dnn",
+   "weight": 0.4,
+   "condition": "配置遗漏"
+  },
+  {
+   "source": "cause:SM-2001",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2003",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2003",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2003",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:dn_auth",
+   "weight": 0.8,
+   "condition": "企业专网用户口令错误"
+  },
+  {
+   "source": "cause:SM-2003",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:aaa_cfg",
+   "weight": 0.2,
+   "condition": "共享密钥不一致"
+  },
+  {
+   "source": "cause:SM-2003",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2005",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2005",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2005",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:ip_pool",
+   "weight": 0.7,
+   "condition": "个别 DNN 地址池耗尽"
+  },
+  {
+   "source": "cause:SM-2005",
+   "relation": "CAUSED_BY",
+   "target": "scn:local_nf:SMF",
+   "weight": 0.3,
+   "condition": "SMF 资源不足"
+  },
+  {
+   "source": "cause:SM-2005",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2007",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2007",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2007",
+   "relation": "CAUSED_BY",
+   "target": "scn:ran:est_radio",
+   "weight": 0.6,
+   "condition": "弱覆盖"
+  },
+  {
+   "source": "cause:SM-2007",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:ue_noresp",
+   "weight": 0.4,
+   "condition": "个别终端"
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "ON_INTERFACE",
+   "target": "if:N7"
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:SMF-PCF",
+   "weight": 0.45,
+   "condition": "SMF 后端至 PCF 的 N7 链路丢包/时延增大，请求或响应丢失，定时器超时"
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_overload:PCF",
+   "weight": 0.3,
+   "condition": "PCF 过载，处理时延超过 SMF 等待定时器"
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_fault:PCF",
+   "weight": 0.15,
+   "condition": "PCF 实例进程异常无响应"
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "CAUSED_BY",
+   "target": "scn:local_pod:SMF",
+   "weight": 0.1,
+   "condition": "SMF 单 POD 的 SBI 客户端异常"
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.84
+  },
+  {
+   "source": "cause:SM-2101",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1306",
+   "prob": 0.08
+  },
+  {
+   "source": "cause:SM-2102",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2102",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2102",
+   "relation": "ON_INTERFACE",
+   "target": "if:N7"
+  },
+  {
+   "source": "cause:SM-2102",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:PCF",
+   "weight": 0.5,
+   "condition": "PCF 策略决策失败传导"
+  },
+  {
+   "source": "cause:SM-2102",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:pcf_policy",
+   "weight": 0.3,
+   "condition": "未配置该 DNN 策略"
+  },
+  {
+   "source": "cause:SM-2102",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:pcf_user",
+   "weight": 0.2,
+   "condition": "个别用户"
+  },
+  {
+   "source": "cause:SM-2102",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2103",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2103",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2103",
+   "relation": "ON_INTERFACE",
+   "target": "if:N7"
+  },
+  {
+   "source": "cause:SM-2103",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_down:SMF-PCF",
+   "weight": 0.5,
+   "condition": "N7 链路中断"
+  },
+  {
+   "source": "cause:SM-2103",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_fault:PCF",
+   "weight": 0.5,
+   "condition": "PCF 实例宕机"
+  },
+  {
+   "source": "cause:SM-2103",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2105",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2105",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话修改"
+  },
+  {
+   "source": "cause:SM-2105",
+   "relation": "ON_INTERFACE",
+   "target": "if:N7"
+  },
+  {
+   "source": "cause:SM-2105",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:PCF",
+   "weight": 0.5,
+   "condition": "PCF 规则冲突传导"
+  },
+  {
+   "source": "cause:SM-2105",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:pcc_rule",
+   "weight": 0.5,
+   "condition": "规则优先级/过滤器冲突"
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "ON_INTERFACE",
+   "target": "if:N4"
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:SMF-UPF",
+   "weight": 0.45,
+   "condition": "SMF 后端至 UPF 的 N4 链路丢包，PFCP(UDP) 请求或响应丢失，重传耗尽"
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_overload:UPF",
+   "weight": 0.3,
+   "condition": "UPF 过载，PFCP 处理时延过大"
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_fault:UPF",
+   "weight": 0.15,
+   "condition": "UPF 实例异常无响应"
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "CAUSED_BY",
+   "target": "scn:local_pod:SMF",
+   "weight": 0.1,
+   "condition": "SMF 单 POD 的 PFCP 协议栈异常"
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.84
+  },
+  {
+   "source": "cause:SM-2201",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1306",
+   "prob": 0.08
+  },
+  {
+   "source": "cause:SM-2202",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2202",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2202",
+   "relation": "ON_INTERFACE",
+   "target": "if:N4"
+  },
+  {
+   "source": "cause:SM-2202",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_down:SMF-UPF",
+   "weight": 0.5,
+   "condition": "N4 链路中断"
+  },
+  {
+   "source": "cause:SM-2202",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_fault:UPF",
+   "weight": 0.5,
+   "condition": "UPF 实例宕机"
+  },
+  {
+   "source": "cause:SM-2202",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2203",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2203",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2203",
+   "relation": "ON_INTERFACE",
+   "target": "if:N4"
+  },
+  {
+   "source": "cause:SM-2203",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:UPF",
+   "weight": 0.6,
+   "condition": "UPF 侧失败传导"
+  },
+  {
+   "source": "cause:SM-2203",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:upf_rule",
+   "weight": 0.4,
+   "condition": "规则/特性不匹配"
+  },
+  {
+   "source": "cause:SM-2203",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2210",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2210",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话修改"
+  },
+  {
+   "source": "cause:SM-2210",
+   "relation": "ON_INTERFACE",
+   "target": "if:N4"
+  },
+  {
+   "source": "cause:SM-2210",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:SMF-UPF",
+   "weight": 0.45,
+   "condition": "SMF 后端至 UPF 的 N4 链路丢包，PFCP 请求或响应丢失"
+  },
+  {
+   "source": "cause:SM-2210",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_overload:UPF",
+   "weight": 0.3,
+   "condition": "UPF 过载"
+  },
+  {
+   "source": "cause:SM-2210",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_fault:UPF",
+   "weight": 0.15,
+   "condition": "UPF 实例异常无响应"
+  },
+  {
+   "source": "cause:SM-2210",
+   "relation": "CAUSED_BY",
+   "target": "scn:local_pod:SMF",
+   "weight": 0.1,
+   "condition": "SMF 单 POD 的 PFCP 协议栈异常"
+  },
+  {
+   "source": "cause:SM-2211",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2211",
+   "relation": "OCCURS_IN",
+   "target": "proc:ServiceRequest"
+  },
+  {
+   "source": "cause:SM-2211",
+   "relation": "ON_INTERFACE",
+   "target": "if:N4"
+  },
+  {
+   "source": "cause:SM-2211",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:SMF-UPF",
+   "weight": 0.45,
+   "condition": "SMF 后端至 UPF 的 N4 链路丢包，PFCP 请求或响应丢失"
+  },
+  {
+   "source": "cause:SM-2211",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_overload:UPF",
+   "weight": 0.3,
+   "condition": "UPF 过载"
+  },
+  {
+   "source": "cause:SM-2211",
+   "relation": "CAUSED_BY",
+   "target": "scn:peer_fault:UPF",
+   "weight": 0.15,
+   "condition": "UPF 实例异常无响应"
+  },
+  {
+   "source": "cause:SM-2211",
+   "relation": "CAUSED_BY",
+   "target": "scn:local_pod:SMF",
+   "weight": 0.1,
+   "condition": "SMF 单 POD 的 PFCP 协议栈异常"
+  },
+  {
+   "source": "cause:SM-2211",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1105",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2301",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2301",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:SM-2301",
+   "relation": "ON_INTERFACE",
+   "target": "if:N10"
+  },
+  {
+   "source": "cause:SM-2301",
+   "relation": "CAUSED_BY",
+   "target": "scn:propagated:UDM",
+   "weight": 0.5,
+   "condition": "UDM 侧失败传导"
+  },
+  {
+   "source": "cause:SM-2301",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:sm_sub",
+   "weight": 0.3,
+   "condition": "签约缺失"
+  },
+  {
+   "source": "cause:SM-2301",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:SMF-UDM",
+   "weight": 0.2,
+   "condition": "N10 链路丢包"
+  },
+  {
+   "source": "cause:SM-2301",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1305",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:SM-2401",
+   "relation": "RAISED_BY",
+   "target": "nf:SMF"
+  },
+  {
+   "source": "cause:SM-2401",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话释放"
+  },
+  {
+   "source": "cause:SM-2401",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:rel_noresp",
+   "weight": 0.6,
+   "condition": "用户不可达"
+  },
+  {
+   "source": "cause:SM-2401",
+   "relation": "CAUSED_BY",
+   "target": "scn:ran:rel_radio",
+   "weight": 0.4,
+   "condition": "弱覆盖"
+  },
+  {
+   "source": "cause:AU-3001",
+   "relation": "RAISED_BY",
+   "target": "nf:AUSF"
+  },
+  {
+   "source": "cause:AU-3001",
+   "relation": "OCCURS_IN",
+   "target": "proc:初始注册"
+  },
+  {
+   "source": "cause:AU-3001",
+   "relation": "ON_INTERFACE",
+   "target": "if:N13"
+  },
+  {
+   "source": "cause:AU-3001",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:au_sub",
+   "weight": 0.6,
+   "condition": "签约无鉴权数据"
+  },
+  {
+   "source": "cause:AU-3001",
+   "relation": "CAUSED_BY",
+   "target": "scn:link_loss:AUSF-UDM",
+   "weight": 0.4,
+   "condition": "N13 链路异常"
+  },
+  {
+   "source": "cause:AU-3002",
+   "relation": "RAISED_BY",
+   "target": "nf:AUSF"
+  },
+  {
+   "source": "cause:AU-3002",
+   "relation": "OCCURS_IN",
+   "target": "proc:初始注册"
+  },
+  {
+   "source": "cause:AU-3002",
+   "relation": "ON_INTERFACE",
+   "target": "if:N12"
+  },
+  {
+   "source": "cause:AU-3002",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:au_key",
+   "weight": 1.0,
+   "condition": "卡数据问题"
+  },
+  {
+   "source": "cause:AU-3002",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1011",
+   "prob": 0.95
+  },
+  {
+   "source": "cause:UD-4001",
+   "relation": "RAISED_BY",
+   "target": "nf:UDM"
+  },
+  {
+   "source": "cause:UD-4001",
+   "relation": "OCCURS_IN",
+   "target": "proc:初始注册"
+  },
+  {
+   "source": "cause:UD-4001",
+   "relation": "ON_INTERFACE",
+   "target": "if:N8"
+  },
+  {
+   "source": "cause:UD-4001",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:ud_unsub",
+   "weight": 0.85,
+   "condition": "固定用户群反复尝试"
+  },
+  {
+   "source": "cause:UD-4001",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:ud_sync",
+   "weight": 0.15,
+   "condition": "割接遗漏"
+  },
+  {
+   "source": "cause:UD-4001",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:MM-1015",
+   "prob": 0.95
+  },
+  {
+   "source": "cause:UD-4002",
+   "relation": "RAISED_BY",
+   "target": "nf:UDM"
+  },
+  {
+   "source": "cause:UD-4002",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:UD-4002",
+   "relation": "ON_INTERFACE",
+   "target": "if:N10"
+  },
+  {
+   "source": "cause:UD-4002",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:ud_sm",
+   "weight": 1.0,
+   "condition": "签约问题"
+  },
+  {
+   "source": "cause:UD-4002",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:SM-2301",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:UD-4010",
+   "relation": "RAISED_BY",
+   "target": "nf:UDM"
+  },
+  {
+   "source": "cause:UD-4010",
+   "relation": "OCCURS_IN",
+   "target": "proc:初始注册"
+  },
+  {
+   "source": "cause:UD-4010",
+   "relation": "ON_INTERFACE",
+   "target": "if:N8"
+  },
+  {
+   "source": "cause:UD-4010",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:ud_conc",
+   "weight": 1.0,
+   "condition": "终端行为"
+  },
+  {
+   "source": "cause:PC-5001",
+   "relation": "RAISED_BY",
+   "target": "nf:PCF"
+  },
+  {
+   "source": "cause:PC-5001",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:PC-5001",
+   "relation": "ON_INTERFACE",
+   "target": "if:N7"
+  },
+  {
+   "source": "cause:PC-5001",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:pc_policy",
+   "weight": 0.6,
+   "condition": "配置遗漏"
+  },
+  {
+   "source": "cause:PC-5001",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:pc_user",
+   "weight": 0.4,
+   "condition": "个别用户"
+  },
+  {
+   "source": "cause:PC-5001",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:SM-2102",
+   "prob": 0.95
+  },
+  {
+   "source": "cause:PC-5002",
+   "relation": "RAISED_BY",
+   "target": "nf:PCF"
+  },
+  {
+   "source": "cause:PC-5002",
+   "relation": "OCCURS_IN",
+   "target": "proc:初始注册"
+  },
+  {
+   "source": "cause:PC-5002",
+   "relation": "ON_INTERFACE",
+   "target": "if:N15"
+  },
+  {
+   "source": "cause:PC-5002",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:pc_am",
+   "weight": 1.0,
+   "condition": "配置问题"
+  },
+  {
+   "source": "cause:PC-5010",
+   "relation": "RAISED_BY",
+   "target": "nf:PCF"
+  },
+  {
+   "source": "cause:PC-5010",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话修改"
+  },
+  {
+   "source": "cause:PC-5010",
+   "relation": "ON_INTERFACE",
+   "target": "if:N7"
+  },
+  {
+   "source": "cause:PC-5010",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:pc_rule",
+   "weight": 1.0,
+   "condition": "规则配置"
+  },
+  {
+   "source": "cause:PC-5010",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:SM-2105",
+   "prob": 0.9
+  },
+  {
+   "source": "cause:UP-6001",
+   "relation": "RAISED_BY",
+   "target": "nf:UPF"
+  },
+  {
+   "source": "cause:UP-6001",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:UP-6001",
+   "relation": "ON_INTERFACE",
+   "target": "if:N4"
+  },
+  {
+   "source": "cause:UP-6001",
+   "relation": "CAUSED_BY",
+   "target": "scn:config:up_rule",
+   "weight": 1.0,
+   "condition": "配置问题"
+  },
+  {
+   "source": "cause:UP-6001",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:SM-2203",
+   "prob": 0.95
+  },
+  {
+   "source": "cause:UP-6003",
+   "relation": "RAISED_BY",
+   "target": "nf:UPF"
+  },
+  {
+   "source": "cause:UP-6003",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话修改"
+  },
+  {
+   "source": "cause:UP-6003",
+   "relation": "ON_INTERFACE",
+   "target": "if:N4"
+  },
+  {
+   "source": "cause:UP-6003",
+   "relation": "CAUSED_BY",
+   "target": "scn:user:up_ctx",
+   "weight": 1.0,
+   "condition": "个别会话"
+  },
+  {
+   "source": "cause:UP-6005",
+   "relation": "RAISED_BY",
+   "target": "nf:UPF"
+  },
+  {
+   "source": "cause:UP-6005",
+   "relation": "OCCURS_IN",
+   "target": "proc:PDU会话建立"
+  },
+  {
+   "source": "cause:UP-6005",
+   "relation": "ON_INTERFACE",
+   "target": "if:N4"
+  },
+  {
+   "source": "cause:UP-6005",
+   "relation": "CAUSED_BY",
+   "target": "scn:local_nf:UPF",
+   "weight": 1.0,
+   "condition": "UPF 资源不足"
+  },
+  {
+   "source": "cause:UP-6005",
+   "relation": "PROPAGATES_TO",
+   "target": "cause:SM-2203",
+   "prob": 0.95
+  }
+ ]
+}
