@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ClusterScatter } from '../charts/ClusterScatter'
 import { Donut, colorMap, toSlices } from '../charts/Donut'
-import { KgGraph } from '../charts/KgGraph'
+import { FullKg } from '../charts/FullKg'
+import { KgGraph, shortScenario } from '../charts/KgGraph'
 import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
 import { Section } from '../components/Section'
@@ -26,7 +27,9 @@ function PathChips({ p }: { p: FlowPattern }) {
 export function AnalysisView({ state }: { state: AppState }) {
   const { flows, clustering, kg, crossval } = state
   const [sel, setSel] = useState<string | null>(null)
-  const [modal, setModal] = useState<'flows' | 'cluster' | 'kg' | 'cv' | null>(null)
+  const [modal, setModal] = useState<'flows' | 'cluster' | 'kg' | null>(null)
+  const [cvSel, setCvSel] = useState(0)
+  useEffect(() => setCvSel(0), [crossval])
 
   useEffect(() => {
     if (!clustering) return setSel(null)
@@ -51,6 +54,7 @@ export function AnalysisView({ state }: { state: AppState }) {
   const focus = crossval?.groups[0]
   const matchedIds = new Set(crossval?.items.filter((i) => i.best).map((i) => i.best!.scenario_id) ?? [])
   const rootCodes = kg ? [...new Set(Object.entries(kg.roles).filter(([, r]) => r === 'root').map(([k]) => k.split('|')[2]))] : []
+  const cvItem = crossval?.items[cvSel]
   const derivedCodes = kg ? [...new Set(Object.entries(kg.roles).filter(([, r]) => r === 'derived').map(([k]) => k.split('|')[2]))].filter((c) => !rootCodes.includes(c)) : []
 
   return (
@@ -82,54 +86,53 @@ export function AnalysisView({ state }: { state: AppState }) {
 
       <Section no="2.2.2" title="图谱推理" hint="原因码 → 场景" tone="accent"
         takeaway={kg ? <><b>{rootCodes.length}</b> 根因侧 <span className="sep" /> {derivedCodes.length} 传导侧</> : undefined}
-        action={kg ? { label: '图谱', onClick: () => setModal('kg') } : undefined}>
-        {!kg ? <div className="empty">图谱推理中…</div> : (
-          <div className="rows">
-            {kg.causes.filter((c) => rootCodes.includes(c.code)).map((c) => (
-              <div key={c.code} className="row-item kg-row">
-                <span className="code-chip root">{c.code}</span>
-                <span className="row-name">{c.name}</span>
-                <span className="scn-chips">
-                  {c.scenarios.filter((x) => matchedIds.has(x.id)).map((x) => (
-                    <span key={x.id} className="scn-chip on" title={`${x.name}：${x.condition}`}><Icon name="check" size={11} />{x.name.replace('/时延抖动', '').replace(/^.*的 /, '')}</span>
-                  ))}
-                  <span className="scn-chip" title={c.scenarios.filter((x) => !matchedIds.has(x.id)).map((x) => x.name).join('；')}>
-                    {matchedIds.size ? '另 ' : ''}{c.scenarios.filter((x) => !matchedIds.has(x.id)).length} 种候选</span>
-                </span>
-              </div>
-            ))}
-            {derivedCodes.length > 0 && (
-              <div className="row-item kg-row">
-                {derivedCodes.map((c) => <span key={c} className="code-chip">{c}</span>)}
-                <span className="row-name">为下游失败向上传导的结果，不单独定根因</span>
-              </div>
-            )}
-          </div>
-        )}
+        action={kg ? { label: '完整图谱', onClick: () => setModal('kg') } : undefined}>
+        {!kg ? <div className="empty">图谱推理中…</div> : <div className="kg-fill"><KgGraph kg={kg} crossval={crossval} /></div>}
       </Section>
 
       <Section no="2.3" title="交叉验证" hint="聚类 × 图谱" tone={crossval?.decision === 'conclusion' ? 'good' : undefined}
-        takeaway={crossval ? (crossval.decision === 'conclusion' ? <><Icon name="checkCircle" size={13} />唯一结论 · 慢推理未触发</> : <>转慢推理</>) : undefined}
-        action={crossval ? { label: '核对明细', onClick: () => setModal('cv') } : undefined}>
+        takeaway={crossval ? (crossval.decision === 'conclusion' ? <><Icon name="checkCircle" size={13} />唯一结论 · 慢推理未触发</> : <>转慢推理</>) : undefined}>
         {!crossval ? <div className="empty">等待聚类与图谱推理完成…</div> : (
-          <div className="rows">
-            {crossval.items.map((it) => (
-              <div key={it.series} className="row-item cv-row">
-                <span className="cv-series"><b>{short(it.instance)}</b> · <span className="mono">{it.cause}</span></span>
-                <span className="row-meta grow">{it.cluster_hints.slice(0, 2).map((h) => `${h.set.map(short).join('、')} ${pct(h.score)}`).join(' · ')}</span>
-                <span className="cv-arrow"><Icon name="arrowRight" size={13} /></span>
-                {it.best ? <span className="cv-match"><Icon name="check" size={12} />{it.best.name.replace('/时延抖动', '').replace(' 后端至 ', '→').replace(' 的 ', ' ')}<b>{pct(it.best.match_score)}</b></span>
-                  : <span className="cv-nomatch">{it.verdict === 'none' ? '无匹配场景' : '多个场景接近'}</span>}
-              </div>
-            ))}
-            {crossval.derived.length > 0 && (
-              <div className="row-item cv-derived">
-                <span className="row-meta">传导侧</span>
-                {crossval.derived.map((d) => (
-                  <span key={d.series} className="hint-chip" title="增量中可由下游失败解释的比例">{short(d.instance)}·<span className="mono">{d.cause}</span> <b>{pct(d.explained_ratio)}</b></span>
-                ))}
+          <div className="cv-panel">
+            <div className="tabs" role="tablist">
+              {crossval.items.map((it, i) => (
+                <button key={it.series} role="tab" aria-selected={i === cvSel} className={`tab ${i === cvSel ? 'on' : ''}`} onClick={() => setCvSel(i)}
+                  title={`${it.instance} · ${it.procedure} · ${it.cause} ${it.cause_name}`}>
+                  <span className="tab-text">{short(it.instance)}·<span className="mono">{it.cause}</span></span>
+                  {it.best ? <Icon name="check" size={11} /> : <Icon name="alert" size={11} />}
+                </button>
+              ))}
+            </div>
+            {cvItem && (
+              <div className="cv-table">
+                <table className="table cv">
+                  <thead><tr><th>图谱场景</th>{cvItem.candidates[0]?.checks.map((c) => <th key={c.dim} className="c">{c.dim === 'ran' ? '基站' : c.label}</th>)}<th className="r">匹配度</th></tr></thead>
+                  <tbody>
+                    {cvItem.candidates.filter((c) => c.checks.length).map((c) => (
+                      <tr key={c.scenario_id} className={c.matched ? 'matched' : ''} title={c.condition}>
+                        <td>{c.matched && <Icon name="check" size={12} />}<span className="scn-name">{shortScenario(c.name).replace(/^\S+ 后端至 (\S+) 的 /, '$1 ')}</span></td>
+                        {cvItem.candidates[0].checks.map((ref) => {
+                          const k = c.checks.find((x) => x.dim === ref.dim)
+                          if (!k) return <td key={ref.dim} className="c dash">·</td>
+                          return (
+                            <td key={ref.dim} className="c" title={`应${k.expect === 'high' ? '聚集' : '不聚集'}${k.key ? '（关键维度）' : ''}，观测聚集度 ${pct(k.observed)}`}>
+                              <span className="chk"><span className={`mark ${k.pass ? 'ok' : 'no'} ${k.key ? 'key' : ''}`}><Icon name={k.pass ? 'check' : 'x'} size={11} /></span>
+                                <small className="obs">{pct(k.observed)}</small></span>
+                            </td>
+                          )
+                        })}
+                        <td className="r"><b>{pct(c.match_score)}</b></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
+            <div className="cv-foot">
+              <span className="row-meta">带圈为关键维度，全部满足才算匹配</span>
+              {crossval.derived.length > 0 && <span className="row-meta" title={crossval.derived.map((d) => `${short(d.instance)} ${d.cause} ${pct(d.explained_ratio)}`).join('；')}>
+                · 传导侧 {crossval.derived.length} 个维度 {pct(Math.min(...crossval.derived.map((d) => d.explained_ratio)))} 以上可由下游解释</span>}
+            </div>
           </div>
         )}
       </Section>
@@ -226,53 +229,40 @@ export function AnalysisView({ state }: { state: AppState }) {
       )}
 
       {modal === 'kg' && kg && (
-        <Modal wide title="图谱推理 · 原因码与产生场景" onClose={() => setModal(null)}>
-          <KgGraph kg={kg} crossval={crossval} />
-          <div className="cause-list">
-            {kg.causes.map((c) => (
-              <details key={c.code} className="cause">
-                <summary><span className="mono">{c.code}</span><b>{c.name}</b><span className="muted">{c.nf_type} · {c.procedure} · {c.interface}</span></summary>
-                <dl>
-                  <dt>说明</dt><dd>{c.desc}</dd>
-                  <dt>协议映射</dt><dd>{c.protocol}</dd>
-                  <dt>代码位置</dt><dd className="mono">{c.code_ref}</dd>
-                  <dt>产生场景</dt>
-                  <dd><ol>{c.scenarios.map((s) => <li key={s.id}>{s.name}（{s.weight.toFixed(2)}）：{s.condition}</li>)}</ol></dd>
-                </dl>
-              </details>
-            ))}
-          </div>
-        </Modal>
-      )}
-
-      {modal === 'cv' && crossval && (
-        <Modal wide title="交叉验证 · 场景特征逐项核对" onClose={() => setModal(null)}>
-          <div className="modal-row"><span>{crossval.reason}。关键维度全部满足才算匹配；带圈的为关键维度。</span></div>
-          {crossval.items.map((it) => (
-            <div key={it.series} className="cv-block">
-              <div className="cv-block-head"><b>{short(it.instance)}</b> · {it.procedure} · <span className="mono">{it.cause}</span> {it.cause_name}</div>
-              <table className="table cv">
-                <thead><tr><th>图谱场景</th>{it.candidates[0]?.checks.map((c) => <th key={c.dim} className="c">{c.dim === 'peer' ? '对端网元' : c.label}</th>)}<th className="r">匹配度</th></tr></thead>
-                <tbody>
-                  {it.candidates.filter((c) => c.checks.length).map((c) => (
-                    <tr key={c.scenario_id} className={c.matched ? 'matched' : ''}>
-                      <td>{c.name}</td>
-                      {it.candidates[0].checks.map((ref) => {
-                        const k = c.checks.find((x) => x.dim === ref.dim)
-                        if (!k) return <td key={ref.dim} className="c dash">·</td>
-                        return (
-                          <td key={ref.dim} className="c" title={`应${k.expect === 'high' ? '聚集' : '不聚集'}${k.key ? '（关键）' : ''}，观测 ${pct(k.observed)}`}>
-                            <span className={`mark ${k.pass ? 'ok' : 'no'} ${k.key ? 'key' : ''}`}><Icon name={k.pass ? 'check' : 'x'} size={12} /></span>
-                          </td>
-                        )
-                      })}
-                      <td className="r">{pct(c.match_score)}</td>
-                    </tr>
+        <Modal xwide title="知识图谱 · 本次故障的推理路径已点亮" onClose={() => setModal(null)}>
+          <div className="kg-modal">
+            <FullKg kg={kg} crossval={crossval} />
+            <aside className="kg-side">
+              <h4>推理路径</h4>
+              <ol className="kg-steps">
+                <li><b>现象</b>：{kg.causes.length} 个原因码突增
+                  <div className="kg-codes">{kg.causes.map((c) => <span key={c.code} className={`code-chip ${rootCodes.includes(c.code) ? 'root' : ''}`} title={c.name}>{c.code}</span>)}</div></li>
+                <li><b>沿传导关系追溯</b>：{derivedCodes.join('、') || '无'} {derivedCodes.length ? '由下游失败传导而来，' : ''}根因侧为 {rootCodes.join('、')}</li>
+                <li><b>沿“可能由…产生”展开</b>：根因侧原因码共 {new Set(kg.causes.filter((c) => rootCodes.includes(c.code)).flatMap((c) => c.scenarios.map((x) => x.id))).size} 个候选场景</li>
+                <li><b>与聚类特征核对后命中</b>
+                  <ul>{kg.causes.filter((c) => rootCodes.includes(c.code)).map((c) => {
+                    const hit = c.scenarios.filter((x) => matchedIds.has(x.id))
+                    return <li key={c.code}><span className="mono">{c.code}</span> → {hit.length ? hit.map((x) => shortScenario(x.name)).join('；') : '未命中'}</li>
+                  })}</ul></li>
+              </ol>
+              <details className="fold">
+                <summary>原因码详情</summary>
+                <div className="cause-list">
+                  {kg.causes.map((c) => (
+                    <details key={c.code} className="cause">
+                      <summary><span className="mono">{c.code}</span><b>{c.name}</b></summary>
+                      <dl>
+                        <dt>位置</dt><dd>{c.nf_type} · {c.procedure} · {c.interface}</dd>
+                        <dt>说明</dt><dd>{c.desc}</dd>
+                        <dt>协议</dt><dd>{c.protocol}</dd>
+                        <dt>代码</dt><dd className="mono">{c.code_ref}</dd>
+                      </dl>
+                    </details>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+                </div>
+              </details>
+            </aside>
+          </div>
         </Modal>
       )}
     </div>

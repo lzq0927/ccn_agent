@@ -25,7 +25,7 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
   // 故障恢复后，感知页回到常态展示；分析与结论页仍保留最近一次故障的结果
   const p = incident?.status === 'active' ? state.perception : null
   const [group, setGroup] = useState(0)
-  const [modal, setModal] = useState<'series' | 'denoise' | null>(null)
+  const [modal, setModal] = useState<'series' | null>(null)
   useEffect(() => { setGroup(0) }, [p])
   const cols = useCols(1600, 3, 2)
 
@@ -69,24 +69,38 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
             : <div className="empty">{tick ? '等待数据…' : '点击右上角“开始”'}</div>}
         </Section>
 
-        <Section title="降噪前后对比" tone="accent" takeaway={p ? <>滤除 <b>{p.stats.filtered_pct}%</b></> : undefined}
-          action={p ? { label: '明细', onClick: () => setModal('denoise') } : undefined}>
+        <Section title="降噪前后对比" tone="accent" takeaway={p ? <>滤除 <b>{p.stats.filtered_pct}%</b></> : undefined} extra={groupSelect}>
           {!p || !pie ? <div className="empty">当前未见异常，无需降噪。发现持续突增后自动执行。</div> : (
             <div className="denoise">
-              <div className="denoise-left">
+              <div className="ratio-line">
                 <div className="ratio-bar">
                   <i className="kept" style={{ width: `${100 - p.stats.filtered_pct}%` }} />
                   <i className="dropped" style={{ width: `${p.stats.filtered_pct}%` }} />
                 </div>
-                <div className="ratio-legend">
-                  <span><i className="sw kept" />保留 <b>{num(p.stats.kept)}</b> 条</span>
-                  <span><i className="sw dropped" />滤除 <b>{num(p.stats.filtered)}</b> 条</span>
-                </div>
-                {groupSelect}
+                <span><i className="sw kept" />保留 <b>{num(p.stats.kept)}</b></span>
+                <span><i className="sw dropped" />滤除 <b>{num(p.stats.filtered)}</b></span>
               </div>
-              <Donut title="降噪前" slices={toSlices(pie.before, colors)} size={104} />
-              <div className="pie-arrow" aria-hidden><Icon name="arrowRight" size={18} /></div>
-              <Donut title={pie.after_total ? '降噪后' : '降噪后 · 无残留'} slices={toSlices(pie.after, colors)} size={104} />
+              <div className="denoise-main">
+                <Donut title="降噪前" slices={toSlices(pie.before, colors)} size={96} />
+                <div className="pie-arrow" aria-hidden><Icon name="arrowRight" size={16} /></div>
+                <Donut title={pie.after_total ? '降噪后' : '无残留'} slices={toSlices(pie.after, colors)} size={96} />
+                <div className="denoise-table">
+                  <table className="pie-legend">
+                    <thead><tr><th>原因码</th><th className="r">前</th><th className="r">后</th></tr></thead>
+                    <tbody>
+                      {pie.before.map((c) => {
+                        const after = pie.after.find((a) => a.cause === c.cause)?.count ?? 0
+                        return (
+                          <tr key={c.cause} className={after ? 'kept' : ''} title={`${c.cause} ${c.name}`}>
+                            <td><i className="swatch" style={{ background: colors[c.cause] }} /><span className="mono">{c.cause}</span> <span className="cname">{c.name}</span></td>
+                            <td className="r">{c.count}</td><td className="r">{after || '—'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </Section>
@@ -96,33 +110,6 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
         <Modal wide title={`时序异常检测 · ${all.length} 个典型维度${p ? `（共 ${p.stats.n_series} 个，${p.stats.n_anomalous} 个持续突增）` : ''}`} onClose={() => setModal(null)}>
           <div className="legend top"><span><i className="sdot sustained" />持续突增</span><span><i className="sdot transient" />有突增点但未达持续判定</span><span><i className="sdot" />平稳底噪</span></div>
           <div className="series-grid modal-grid">{all.map((s) => <SeriesCard key={s.key} s={s} />)}</div>
-        </Modal>
-      )}
-      {modal === 'denoise' && p && pie && (
-        <Modal wide title="降噪前后对比 · 原因码明细" onClose={() => setModal(null)}>
-          <div className="modal-row">
-            <span>窗口 {p.window.from}–{p.window.to}：共 <b>{num(p.stats.total)}</b> 条，保留 <b>{num(p.stats.kept)}</b> 条，滤除 <b>{p.stats.filtered_pct}%</b></span>
-            {groupSelect}
-          </div>
-          <div className="pie-compare">
-            <Donut title="降噪前" slices={toSlices(pie.before, colors)} size={170} />
-            <div className="pie-arrow" aria-hidden><Icon name="arrowRight" size={18} /></div>
-            <Donut title={pie.after_total ? '降噪后' : '降噪后 · 无残留'} slices={toSlices(pie.after, colors)} size={170} />
-            <table className="pie-legend">
-              <thead><tr><th>原因码</th><th className="r">降噪前</th><th className="r">降噪后</th></tr></thead>
-              <tbody>
-                {pie.before.map((c) => {
-                  const after = pie.after.find((a) => a.cause === c.cause)?.count ?? 0
-                  return (
-                    <tr key={c.cause} className={after ? 'kept' : ''}>
-                      <td><i className="swatch" style={{ background: colors[c.cause] }} /><span className="mono">{c.cause}</span> {c.name}</td>
-                      <td className="r">{c.count}</td><td className="r">{after || '—'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
         </Modal>
       )}
     </div>

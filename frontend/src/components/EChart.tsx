@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import * as echarts from 'echarts/core'
-import { LineChart, PieChart, ScatterChart } from 'echarts/charts'
+import { GraphChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
 import { GridComponent, MarkAreaComponent, MarkLineComponent, TooltipComponent, GraphicComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsCoreOption } from 'echarts/core'
 
-echarts.use([LineChart, PieChart, ScatterChart, GridComponent, MarkAreaComponent, MarkLineComponent,
+echarts.use([GraphChart, LineChart, PieChart, ScatterChart, GridComponent, MarkAreaComponent, MarkLineComponent,
   TooltipComponent, GraphicComponent, CanvasRenderer])
 
 export const TOOLTIP = {
