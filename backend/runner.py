@@ -3,6 +3,8 @@
 两种运行方式：
   StepRunner      默认。按数据时间推进：读取 data 目录中的 CHR，每 step_seconds 秒（默认 1 秒）推进 1 分钟；
                   支持开始、暂停、继续、重新开始。
+                  流程有两种方式：交互（默认）——感知到异常后等待确认才开始分析，分析完成后等待确认才进入
+                  决策执行；自动——各阶段连续执行，不等待。
   RealtimeRunner  按服务器真实时间每分钟处理一次，增量读取持续追加的 CHR 文件（python -m backend --realtime）。
 
 运行器维护一份“当前状态快照”，新连接的前端先拿到快照，再接收后续事件。
@@ -44,7 +46,8 @@ class BaseRunner:
         return {"steps": {}, "activeStage": "perception", "logs": deque(maxlen=self.s.log_keep),
                 "agentLogs": deque(maxlen=self.s.log_keep), "tick": None,
                 "trend": deque(maxlen=self.s.trend_minutes), "incident": None, "incidents": deque(maxlen=20),
-                "run": {"mode": self.mode, "status": "running", "minute": 0, "total": None, "time": None},
+                "run": {"mode": self.mode, "status": "running", "minute": 0, "total": None, "time": None,
+                        "flow": "auto", "pending": None},
                 **{k: None for k in ANALYSIS_KEYS}}
 
     def _apply(self, ev: dict) -> None:
@@ -125,8 +128,10 @@ class StepRunner(BaseRunner):
     """按数据时间推进：每 step_seconds 秒处理 1 分钟的 CHR。启动后等待“开始”。"""
     mode = "step"
 
-    def __init__(self, settings: Settings | None = None):
+    def __init__(self, settings: Settings | None = None, flow: str = "interactive"):
         super().__init__(settings)
+        self.flow = "auto" if flow == "auto" else "interactive"
+        self.pending: str | None = None    # 正在等待确认的闸门：analysis | decision
         self.raw = read_raw(self.s.data_dir)
         self.t0 = self.raw["arrival"].min().floor("min")
         self.raw["arrival_minute"] = ((self.raw["arrival"] - self.t0).dt.total_seconds() // 60).astype(int)
@@ -142,12 +147,13 @@ class StepRunner(BaseRunner):
 
     def _run_info(self) -> dict:
         return {"mode": self.mode, "status": self.status, "minute": self.pos, "total": self.n_minutes,
-                "time": self.engine.hhmm(self.pos)}
+                "time": self.engine.hhmm(self.pos), "flow": self.flow, "pending": self.pending}
 
     def _reset(self) -> None:
         """回到起点：重建引擎与状态，并把新的快照推给所有已连接的前端。"""
         self.engine = Engine(self.s, self.t0)
         self.pos = 0
+        self.pending = None
         with self._lock:
             self.state = self._empty_state()
             self.state["run"] = self._run_info()
@@ -167,11 +173,34 @@ class StepRunner(BaseRunner):
             self.status = "paused"
         elif action == "restart":
             self._restart = True
+        elif action == "proceed" and self.pending:
+            self.pending = None                 # 主循环发现闸门已放行后继续
+            return self._run_info()
+        elif action in ("interactive", "auto"):
+            self.flow = action                  # 切到自动时，正在等待的闸门随即放行
         else:
             return self._run_info()
         if action != "restart":
             self._publish_run()
         return self._run_info()
+
+    GATE_TEXT = {"analysis": ("感知", "感知到异常，等待确认后开始分析", "已确认，开始分析"),
+                 "decision": ("分析", "分析完成，等待确认后进入决策执行", "已确认，进入决策执行")}
+
+    def _wait_gate(self, gate: str) -> None:
+        """交互方式下在阶段交界处等待确认；自动方式直接通过。"""
+        if self.flow != "interactive":
+            return
+        stage, waiting, confirmed = self.GATE_TEXT[gate]
+        self.pending = gate
+        self.emit(self.engine._log(stage, self.pos + 1, waiting, "warn"))
+        self._publish_run()
+        while self.pending and self.flow == "interactive" and not self._restart and not self._stop.is_set():
+            self._stop.wait(0.05)
+        self.pending = None
+        if not self._restart and not self._stop.is_set():
+            self.emit(self.engine._log(stage, self.pos + 1, confirmed if self.flow == "interactive" else "已切换为自动，继续执行"))
+            self._publish_run()
 
     def _run(self) -> None:
         s = self.s
@@ -194,9 +223,13 @@ class StepRunner(BaseRunner):
                 for ev in self.engine.process_minute(self.pos, self.raw[self.raw["arrival_minute"] == self.pos]):
                     while self.status == "paused" and not self._restart and not self._stop.is_set():
                         self._stop.wait(0.05)             # 暂停时停在当前步骤
+                    if ev["type"] == "gate":
+                        self._wait_gate(ev["gate"])
                     if self._restart or self._stop.is_set():
                         aborted = True
                         break
+                    if ev["type"] == "gate":
+                        continue
                     delay = ev.get("delay", 0)
                     self.emit(ev)
                     if delay and s.step_seconds > 0:
@@ -286,6 +319,8 @@ class RealtimeRunner(BaseRunner):
             try:
                 self._poll()
                 for ev in self.engine.process_minute(nxt, self._take(nxt)):
+                    if ev["type"] == "gate":            # 真实时间方式不等待确认
+                        continue
                     delay = ev.get("delay", 0)
                     self.emit(ev)
                     if delay:
@@ -295,5 +330,5 @@ class RealtimeRunner(BaseRunner):
             nxt += 1
 
 
-def create_runner(settings: Settings | None = None, mode: str = "step") -> BaseRunner:
-    return RealtimeRunner(settings) if mode == "realtime" else StepRunner(settings)
+def create_runner(settings: Settings | None = None, mode: str = "step", flow: str = "interactive") -> BaseRunner:
+    return RealtimeRunner(settings) if mode == "realtime" else StepRunner(settings, flow)

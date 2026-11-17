@@ -6,6 +6,7 @@
   tick      每分钟感知结果   {minute, time, window, total, n_series, trend_point, series, node_status, incident, ...}
   incident  故障生命周期     {event: opened|updated|recovered, incident}
   result    各步骤产出       {key: perception|flows|clustering|kg|crossval|agent|conclusion, data}
+  gate      阶段闸门         {gate: analysis|decision}：感知→分析、分析→决策执行的交界，由运行器决定是否等待人工确认
 事件带 delay（秒）：建议的停顿，供上层控制前端步骤高亮的节奏。
 
 故障生命周期：
@@ -180,7 +181,7 @@ class Engine:
         tick = minute + 1
         stamp = self.t0 + pd.Timedelta(minutes=tick)
         self.incident = {"id": f"INC-{stamp.strftime('%Y%m%d-%H%M')}", "status": "active", "opened_at": self.hhmm(tick),
-                         "onset_label": self.hhmm(minute), "recovered_at": None, "title": "分析中", "definitive": None,
+                         "onset_label": self.hhmm(minute), "recovered_at": None, "title": "待分析", "definitive": None,
                          "series": set(), "last_analysis": minute}
         yield {"type": "incident", "event": "opened", "incident": self.public_incident(), "delay": 0}
         for ev in self._analyze(window, counts, minute):
@@ -191,7 +192,7 @@ class Engine:
     def _reanalyze(self, window: pd.DataFrame, counts: pd.DataFrame, minute: int, fresh: list[str]) -> Iterator[dict]:
         tick = minute + 1
         inc = self.incident
-        events = list(self._analyze(window, counts, minute))
+        events = [e for e in self._analyze(window, counts, minute) if e["type"] != "gate"]     # 重新分析不再等待确认
         new = next(e["data"] for e in events if e["type"] == "result" and e["key"] == "conclusion")
         inc["last_analysis"] = minute
         if inc["definitive"] and not new["definitive"]:
@@ -236,6 +237,8 @@ class Engine:
                                      f"窗口 {dn['total']:,} 条 CHR 滤除 {dn['filtered_pct']}%，保留 {dn['kept']:,} 条", "ok")
         yield {"type": "result", "key": "perception", "data": perception, "delay": 0.2}
         yield self._step("perception", "denoise", "done", delay=0.9)
+        # 闸门：感知完成，等待进入分析（交互方式下由人确认，自动方式直接通过）
+        yield {"type": "gate", "gate": "analysis", "delay": 0}
 
         # ---- 2.1 还原用户级业务流
         yield self._step("analysis", "flows", "running", delay=0.5)
@@ -300,6 +303,8 @@ class Engine:
         conclusion["incident_id"] = inc["id"]
         conclusion["handoff"].update(incident_id=inc["id"], detected_at=inc["opened_at"])
         conclusion["node_stats"] = self._node_stats(window, clustering, rates)
+        # 闸门：分析完成，等待进入决策执行
+        yield {"type": "gate", "gate": "decision", "delay": 0}
         yield self._step("decision", "conclusion", "running", delay=0.5)
         yield self._log("决策", tick, f"结论：{conclusion['title']}（置信度 {conclusion['confidence']:.0%}）",
                         "alert" if conclusion["definitive"] else "warn")

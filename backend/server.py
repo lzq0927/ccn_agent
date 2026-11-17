@@ -3,7 +3,7 @@
     python -m backend --port 8000 [--data-dir <CHR 目录>] [--realtime]
 
 GET  /api/meta             运行配置概览
-POST /api/control          运行控制：action=start|pause|resume|restart（按数据时间推进时可用）
+POST /api/control          运行控制：action=start|pause|resume|restart，proceed（确认进入下一阶段），interactive|auto（切换流程方式）
 GET  /api/topology         拓扑
 GET  /api/knowledge-graph  知识图谱全量
 GET  /api/state            当前状态快照（JSON）
@@ -31,7 +31,7 @@ runner: BaseRunner | None = None
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     global runner
-    runner = create_runner(mode=os.environ.get("CCN_MODE", "step"))
+    runner = create_runner(mode=os.environ.get("CCN_MODE", "step"), flow=os.environ.get("CCN_FLOW", "interactive"))
     runner.start()
     yield
     runner.stop()
@@ -65,7 +65,7 @@ def meta():
 
 
 @app.post("/api/control")
-def control(action: str = Query(..., pattern="^(start|pause|resume|restart)$")):
+def control(action: str = Query(..., pattern="^(start|pause|resume|restart|proceed|interactive|auto)$")):
     return runner.control(action)
 
 

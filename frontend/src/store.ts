@@ -67,8 +67,8 @@ function reducer(state: AppState, ev: Ev): AppState {
   }
 }
 
-/** 运行控制：开始 / 暂停 / 继续 / 重新开始。 */
-export const control = (action: 'start' | 'pause' | 'resume' | 'restart') =>
+/** 运行控制：开始 / 暂停 / 继续 / 重新开始；确认进入下一阶段；切换交互 / 自动。 */
+export const control = (action: 'start' | 'pause' | 'resume' | 'restart' | 'proceed' | 'interactive' | 'auto') =>
   fetch(`/api/control?action=${action}`, { method: 'POST' }).catch(() => undefined)
 
 /** 订阅后端事件流（SSE）。连接建立后先收到一份状态快照，断线由浏览器自动重连。 */

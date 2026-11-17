@@ -31,13 +31,21 @@ function Ring({ value }: { value: number }) {
   )
 }
 
-export function DecisionView({ state, topo }: { state: AppState; topo: Topo }) {
+export function DecisionView({ state, topo, onProceed }: { state: AppState; topo: Topo; onProceed?: () => void }) {
   const c = state.conclusion
   const inc = state.incident
   const [node, setNode] = useState<string | null>(null)
   const [modal, setModal] = useState<'evidence' | 'recovery' | null>(null)
 
-  if (!c) return <div className="view fit"><div className="card grow-card"><div className="empty tall"><Icon name="zap" size={22} /><div>当前未见异常。分析完成后在这里给出结论与恢复方案</div></div></div></div>
+  if (!c) {
+    return (
+      <div className="view fit"><div className="card grow-card"><div className="empty tall">
+        <Icon name="zap" size={22} />
+        {onProceed ? <><div>分析已完成，等待确认</div><button className="btn primary" onClick={onProceed}>进入决策执行<Icon name="arrowRight" size={14} /></button></>
+          : <div>当前未见异常。分析完成后在这里给出结论与恢复方案</div>}
+      </div></div></div>
+    )
+  }
   const stat = node ? c.node_stats[node] : null
   const note = node ? c.topology.nodes[node]?.note : ''
 

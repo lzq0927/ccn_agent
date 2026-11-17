@@ -20,6 +20,7 @@ python -m backend --port 8000
 | `--data-dir` | `CCN_DATA_DIR` | CHR 文件目录，默认 `data/` |
 | `--topo` | `CCN_TOPO_FILE` | 拓扑文件，默认 `topo/topo.csv` |
 | `--kg` | `CCN_KG_FILE` | 知识图谱文件，默认 `chr-knowledge-graph/graph.json` |
+| `--auto` | `CCN_FLOW=auto` | 启动即为自动方式（默认交互方式） |
 | `--realtime` | `CCN_MODE=realtime` | 改为按服务器真实时间运行，见下文 |
 | `--host` / `--port` | — | 监听地址与端口，默认 `0.0.0.0:8000` |
 
@@ -32,15 +33,23 @@ python -m backend --port 8000
 | 开始 | 服务启动后处于待开始状态，点击后开始推进 |
 | 暂停 / 继续 | 停在当前分钟（分析过程中则停在当前步骤），继续后从原处接着走 |
 | 重新开始 | 清空状态回到起点并立即运行；数据处理完后也用它再跑一遍 |
+| 交互 / 自动 | 切换流程方式，见下 |
 
-运行状态在服务端，所有打开页面的人看到同一进度；也可用 `POST /api/control?action=start|pause|resume|restart` 控制。
+流程有两种方式，在页面右上角切换，默认交互：
+
+- **交互**：感知到异常并完成降噪后停下，页面提示“感知到异常”，点「开始分析」才执行分析；分析完成后再次停下，点「进入决策执行」才给出结论与恢复方案。等待期间数据时间不推进。也可以直接点工作流条上高亮的阶段卡片。
+- **自动**：各阶段连续执行，不等待确认。等待中切到自动会立即继续。`python -m backend --auto` 可让服务启动即为自动方式。
+
+故障期间出现新的突增维度引起的重新分析不会再次等待确认。
+
+运行状态在服务端，所有打开页面的人看到同一进度；也可用 `POST /api/control?action=...` 控制：`start|pause|resume|restart`、`proceed`（确认进入下一阶段）、`interactive|auto`（切换流程方式）。
 
 **可选：按真实时间运行**（`python -m backend --realtime`）。
 
 - 数据接入：各网元把 CHR 逐条追加到 `<data-dir>/chr_<网元类型>.csv`。系统记住每个文件已读到的位置，只读新增的完整行；文件被截断或轮转时从头重读，新出现的文件自动纳入。
 - 节拍：以服务器本地时钟为准，每分钟结束后等待 5 秒（容纳晚到的记录），处理刚结束的这一分钟。CHR 时间戳需为服务器同一时区的本地时间。
 - 启动预热：用数据源中最近 30 分钟的历史数据建立基线，不产生告警。
-- 该方式下没有开始/暂停/重新开始，页面显示下次感知的倒计时。
+- 该方式下没有开始/暂停/重新开始，也不等待确认（始终自动），页面显示下次感知的倒计时。
 
 **两种方式共用的处理逻辑**
 
@@ -111,7 +120,7 @@ python -m backend --port 8000
 | 接口 | 说明 |
 |---|---|
 | `GET /api/stream` | 事件流（SSE）：快照 + 后续事件 |
-| `POST /api/control` | 运行控制：`action=start\|pause\|resume\|restart` |
+| `POST /api/control` | 运行控制：`action=start\|pause\|resume\|restart\|proceed\|interactive\|auto` |
 | `GET /api/state` | 当前状态快照（JSON） |
 | `GET /api/meta` | 运行配置概览 |
 | `GET /api/topology` | 拓扑 |

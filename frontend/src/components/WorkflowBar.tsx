@@ -19,11 +19,14 @@ interface Props {
   view: Stage
   onView: (s: Stage) => void
   summaries: Record<Stage, string | null>
+  /** 交互方式下正在等待确认进入的阶段 */
+  pending?: Stage | null
+  onProceed?: () => void
 }
 
 const SR: Record<StepStatus, string> = { idle: '未开始', running: '进行中', done: '已完成', skipped: '未触发' }
 
-export function WorkflowBar({ steps, activeStage, connected, view, onView, summaries }: Props) {
+export function WorkflowBar({ steps, activeStage, connected, view, onView, summaries, pending, onProceed }: Props) {
   const pill = (stage: Stage, s: StepDef) => {
     const st = steps[`${stage}.${s.id}`] ?? 'idle'
     return (
@@ -49,13 +52,15 @@ export function WorkflowBar({ steps, activeStage, connected, view, onView, summa
         const { live, done } = stageState(stage.id)
         return (
           <div key={stage.id} className={`wf-wrap s-${stage.id}`}>
-            <button className={`wf-stage ${live ? 'live' : ''} ${done ? 'done' : ''} ${view === stage.id ? 'viewing' : ''}`}
-              onClick={() => onView(stage.id)} aria-pressed={view === stage.id}>
+            <button className={`wf-stage ${live ? 'live' : ''} ${done ? 'done' : ''} ${view === stage.id ? 'viewing' : ''} ${pending === stage.id ? 'pending' : ''}`}
+              onClick={() => (pending === stage.id ? onProceed?.() : onView(stage.id))} aria-pressed={view === stage.id}>
               <div className="wf-head">
                 <span className="wf-icon"><Icon name={done ? 'check' : stage.icon} size={15} /></span>
                 <span className="wf-name">{stage.name}</span>
                 {live && <span className="wf-live"><i />{summaries[stage.id] ? '' : stage.id === 'perception' ? '感知中' : '进行中'}</span>}
-                {summaries[stage.id] && <span className="wf-sum">{summaries[stage.id]}</span>}
+                {pending === stage.id
+                  ? <span className="wf-cta">{stage.id === 'analysis' ? '点击开始分析' : '点击进入决策执行'}<Icon name="arrowRight" size={12} /></span>
+                  : summaries[stage.id] && <span className="wf-sum">{summaries[stage.id]}</span>}
               </div>
               <div className="wf-steps">
                 {stage.steps.map((s, i) => (

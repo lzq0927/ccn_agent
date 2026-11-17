@@ -218,7 +218,7 @@ def _wait(cond, timeout=60.0):
 
 
 def test_step_runner_start_pause_resume_restart():
-    r = StepRunner(Settings(step_seconds=0))            # 0 表示不停顿，尽快推进
+    r = StepRunner(Settings(step_seconds=0), flow="auto")   # 0 表示不停顿，尽快推进
     r.start()
     try:
         q, snap = r.subscribe()
@@ -246,5 +246,47 @@ def test_step_runner_start_pause_resume_restart():
                 assert last["conclusion"] is None and last["incident"] is None
         assert _wait(lambda: r.status == "finished")
         assert r.snapshot()["conclusion"]["title"] == "SMF:smf_2 后端部分链路丢包"
+    finally:
+        r.stop()
+
+
+def test_interactive_flow_waits_for_confirmation():
+    r = StepRunner(Settings(step_seconds=0))            # 默认交互方式
+    r.start()
+    try:
+        assert r.snapshot()["run"]["flow"] == "interactive"
+        r.control("start")
+        # 感知到异常并完成降噪后停住，等待确认开始分析
+        assert _wait(lambda: r.pending == "analysis")
+        time.sleep(0.3)
+        st = r.snapshot()
+        assert st["run"]["pending"] == "analysis" and st["tick"]["time"] == "10:24"
+        assert st["perception"] is not None and st["flows"] is None and st["conclusion"] is None
+        assert r.pos == 23                               # 等待期间时间不再推进
+
+        r.control("proceed")
+        assert _wait(lambda: r.pending == "decision")    # 分析完成后再次停住
+        st = r.snapshot()
+        assert st["crossval"]["decision"] == "conclusion" and st["conclusion"] is None
+        assert st["steps"].get("decision.conclusion") is None
+
+        r.control("proceed")
+        assert _wait(lambda: r.snapshot()["conclusion"] is not None)
+        assert _wait(lambda: r.status == "finished")
+        st = r.snapshot()
+        assert st["conclusion"]["root"]["ne"] == "SMF:smf_2" and st["run"]["pending"] is None
+
+        # 切到自动后重新开始：不再等待
+        r.control("auto")
+        r.control("restart")
+        assert _wait(lambda: r.status == "finished" and r.pos == 40)
+        assert r.snapshot()["conclusion"] is not None and r.pending is None
+
+        # 等待中切到自动：闸门随即放行
+        r.control("interactive")
+        r.control("restart")
+        assert _wait(lambda: r.pending == "analysis")
+        r.control("auto")
+        assert _wait(lambda: r.status == "finished")
     finally:
         r.stop()

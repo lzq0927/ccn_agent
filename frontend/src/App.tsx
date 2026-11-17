@@ -53,24 +53,34 @@ export default function App() {
   const analyzing = state.activeStage !== 'perception' && Object.entries(state.steps).some(([k, v]) => !k.startsWith('perception.') && v === 'running')
   const agentStep = state.steps['analysis.agent']
   const agentState = agentStep === 'running' ? '推理中' : agentStep === 'skipped' ? '未触发' : agentStep === 'done' ? '已完成' : '待命'
+  const pending = state.run?.pending ?? null
   const summaries: Record<Stage, string | null> = {
     perception: inc?.status === 'active' && state.perception ? `${state.perception.stats.n_anomalous} 个维度突增 · 降噪 ${Math.round(state.perception.stats.filtered_pct)}%`
       : state.tick ? '未见异常' : null,
     analysis: state.crossval ? (state.crossval.decision === 'conclusion' ? '唯一结论' : '转慢推理') : null,
     decision: c ? `${short(c.root.ne) || '待确认'} · 置信度 ${Math.round(c.confidence * 100)}%` : null,
   }
+  // 交互方式下的引导：感知到异常后确认开始分析，分析完成后确认进入决策执行
+  const proceed = () => { if (pending) { setView(pending); control('proceed') } }
+  const guide = pending === 'analysis' && state.perception
+    ? { title: '感知到异常', text: `${state.perception.stats.n_anomalous} 个维度持续突增，降噪后保留 ${state.perception.stats.kept.toLocaleString('en-US')} 条 CHR`, action: '开始分析', icon: 'alert' }
+    : pending === 'decision' && state.crossval
+      ? { title: '分析完成', text: state.crossval.decision === 'conclusion' ? '交叉验证得到唯一结论，可以给出结论与恢复方案' : `${state.crossval.reason}，已由慢推理给出可能原因`, action: '进入决策执行', icon: 'checkCircle' }
+      : null
   const run = state.run
   const stepMode = (run?.mode ?? meta?.mode) === 'step'
   const going = state.connected && (!stepMode || run?.status === 'running')
   const status = !state.connected ? { cls: 'err', text: '连接中断，重连中' }
-    : analyzing ? { cls: 'alert', text: '发现异常，分析中' }
+    : pending === 'analysis' ? { cls: 'alert', text: '感知到异常 · 待分析' }
+      : pending === 'decision' ? { cls: 'alert', text: '分析完成 · 待决策执行' }
+        : analyzing ? { cls: 'alert', text: '发现异常，分析中' }
       : inc?.status === 'active' ? { cls: 'alert', text: inc.definitive ? '故障进行中 · 根因已定位' : '故障进行中 · 待人工确认' }
         : inc?.status === 'recovered' ? { cls: 'ok', text: `故障已恢复 ${inc.recovered_at ?? ''}` }
           : stepMode && run?.status === 'idle' ? { cls: 'idle', text: '待开始' }
             : { cls: 'ok', text: '运行正常' }
   const d = new Date(now)
   const remain = state.nextAt ? Math.max(0, Math.round((state.nextAt - now) / 1000)) : null
-  const runText = { idle: '待开始', running: '运行中', paused: '已暂停', finished: '已结束' }[run?.status ?? 'idle']
+  const runText = pending && run?.status === 'running' ? '等待确认' : { idle: '待开始', running: '运行中', paused: '已暂停', finished: '已结束' }[run?.status ?? 'idle']
   const pct = run?.total ? Math.min(100, (run.minute / run.total) * 100) : 0
 
   return (
@@ -88,8 +98,12 @@ export default function App() {
           {inc && <span className="inc-id">{inc.id}</span>}
           {stepMode ? (
             <>
-              <span className="clock" title="当前数据时间"><Icon name="clock" size={14} /><b>{run?.time ?? '--:--'}</b></span>
-              <span className={`live-pill ${run?.status === 'running' ? 'on' : run?.status ?? ''}`}><i />{runText}</span>
+              <div className="seg" role="group" aria-label="流程方式">
+                <button className={run?.flow !== 'auto' ? 'on' : ''} onClick={() => control('interactive')} title="感知到异常后确认才分析，分析完成后确认才进入决策执行">交互</button>
+                <button className={run?.flow === 'auto' ? 'on' : ''} onClick={() => control('auto')} title="各阶段自动连续执行">自动</button>
+              </div>
+              <span className="clock" title="当前数据时间"><Icon name="clock" size={14} /><b>{state.tick?.time ?? run?.time ?? '--:--'}</b></span>
+              <span className={`live-pill ${pending ? 'paused' : run?.status === 'running' ? 'on' : run?.status ?? ''}`}><i />{runText}</span>
               {run?.status === 'running'
                 ? <button className="btn" onClick={() => control('pause')}><Icon name="pause" size={13} />暂停</button>
                 : run?.status === 'paused'
@@ -111,8 +125,15 @@ export default function App() {
       </header>
       {stepMode && <div className="progress" aria-hidden><i style={{ width: `${pct}%` }} /></div>}
 
-      <WorkflowBar steps={state.steps} activeStage={state.activeStage} connected={going} view={view} summaries={summaries}
-        onView={setView} />
+      <WorkflowBar steps={state.steps} activeStage={state.activeStage} connected={going && !pending} view={view} summaries={summaries}
+        onView={setView} pending={pending} onProceed={proceed} />
+      {guide && (
+        <div className={`guide g-${pending}`} role="status">
+          <span className="guide-icon"><Icon name={guide.icon} size={16} /></span>
+          <div className="guide-text"><b>{guide.title}</b><span>{guide.text}</span></div>
+          <button className="btn primary guide-btn" onClick={proceed}>{guide.action}<Icon name="arrowRight" size={14} /></button>
+        </div>
+      )}
 
       <div className="body">
         <main className="content">
@@ -120,8 +141,8 @@ export default function App() {
           {meta && topo && (
             <>
               {view === 'perception' && <PerceptionView state={state} topo={topo} meta={meta} />}
-              {view === 'analysis' && <AnalysisView state={state} />}
-              {view === 'decision' && <DecisionView state={state} topo={topo} />}
+              {view === 'analysis' && <AnalysisView state={state} onProceed={pending === 'analysis' ? proceed : undefined} />}
+              {view === 'decision' && <DecisionView state={state} topo={topo} onProceed={pending === 'decision' ? proceed : undefined} />}
             </>
           )}
         </main>

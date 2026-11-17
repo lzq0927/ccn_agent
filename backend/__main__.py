@@ -12,6 +12,7 @@ def main():
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument("--port", type=int, default=8000)
     ap.add_argument("--data-dir", help="CHR 文件目录（chr_*.csv），默认仓库 data/")
+    ap.add_argument("--auto", action="store_true", help="启动即为自动方式（默认交互方式：进入分析、进入决策执行前等待确认）")
     ap.add_argument("--realtime", action="store_true", help="按服务器真实时间每分钟处理一次（默认按数据时间每秒推进 1 分钟）")
     ap.add_argument("--topo", help="拓扑文件，默认 topo/topo.csv")
     ap.add_argument("--kg", help="知识图谱文件，默认 chr-knowledge-graph/graph.json")
@@ -21,6 +22,8 @@ def main():
             os.environ[env] = os.path.abspath(value)
     if args.realtime:
         os.environ["CCN_MODE"] = "realtime"
+    if args.auto:
+        os.environ["CCN_FLOW"] = "auto"
     uvicorn.run("backend.server:app", host=args.host, port=args.port, log_level="warning")
 
 

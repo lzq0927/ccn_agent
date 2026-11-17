@@ -5,7 +5,8 @@ export interface TopoNode { id: string; type: string; name: string }
 export interface TopoEdge { source: string; target: string; interface: string }
 export interface Topo { nodes: TopoNode[]; edges: TopoEdge[] }
 
-export interface Run { mode: 'step' | 'realtime'; status: 'idle' | 'running' | 'paused' | 'finished'; minute: number; total: number | null; time: string | null }
+export interface Run { mode: 'step' | 'realtime'; status: 'idle' | 'running' | 'paused' | 'finished'; minute: number; total: number | null; time: string | null
+  flow: 'interactive' | 'auto'; pending: 'analysis' | 'decision' | null }
 
 export interface Meta {
   mode: 'step' | 'realtime'; instances: number; links: number; started_at: string; files: string[]

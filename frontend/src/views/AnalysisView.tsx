@@ -24,7 +24,7 @@ function PathChips({ p }: { p: FlowPattern }) {
   )
 }
 
-export function AnalysisView({ state }: { state: AppState }) {
+export function AnalysisView({ state, onProceed }: { state: AppState; onProceed?: () => void }) {
   const { flows, clustering, kg, crossval } = state
   const [sel, setSel] = useState<string | null>(null)
   const [modal, setModal] = useState<'flows' | 'cluster' | 'kg' | null>(null)
@@ -45,7 +45,15 @@ export function AnalysisView({ state }: { state: AppState }) {
     return DIM_ORDER.filter((d) => present.has(d)).map((d) => ({ dim: d, label: present.get(d)! }))
   }, [clustering])
 
-  if (!flows) return <div className="view fit"><div className="card grow-card"><div className="empty tall"><Icon name="search" size={22} /><div>当前未见异常。感知发现持续突增后自动进入分析</div></div></div></div>
+  if (!flows) {
+    return (
+      <div className="view fit"><div className="card grow-card"><div className="empty tall">
+        <Icon name="search" size={22} />
+        {onProceed ? <><div>感知已发现异常并完成降噪，等待确认</div><button className="btn primary" onClick={onProceed}>开始分析<Icon name="arrowRight" size={14} /></button></>
+          : <div>当前未见异常。感知发现持续突增后进入分析</div>}
+      </div></div></div>
+    )
+  }
 
   const selSeries = clustering?.series.find((s) => s.key === sel)
   const group = clustering?.groups[selSeries ? `${selSeries.instance}|${selSeries.procedure}` : ''] ?? []

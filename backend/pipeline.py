@@ -25,5 +25,7 @@ class Pipeline:
         files = sorted(self.raw["source_file"].unique())
         yield from self.engine.startup_events(0, files)
         for minute in range(self.n_minutes):
-            yield from self.engine.process_minute(minute, self.raw[self.raw["arrival_minute"] == minute])
+            for ev in self.engine.process_minute(minute, self.raw[self.raw["arrival_minute"] == minute]):
+                if ev["type"] != "gate":            # 离线分析不等待确认
+                    yield ev
         yield {"type": "done", "incidents": len(self.engine.history) + (1 if self.engine.incident else 0), "delay": 0}
