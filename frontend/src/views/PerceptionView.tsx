@@ -12,12 +12,9 @@ export function Kpi({ icon, label, value, hint, tone, bar }:
   { icon?: string; label: string; value: string; hint?: string; tone?: string; bar?: number }) {
   return (
     <div className={`kpi ${tone ?? ''}`}>
-      {icon && <span className="kpi-icon"><Icon name={icon} size={16} /></span>}
-      <div className="kpi-body">
-        <div className="kpi-label">{label}</div>
-        <div className="kpi-value">{value}</div>
-        {bar != null ? <div className="kpi-bar"><i style={{ width: `${bar}%` }} /></div> : hint && <div className="kpi-hint">{hint}</div>}
-      </div>
+      <div className="kpi-label">{icon && <span className="kpi-icon"><Icon name={icon} size={13} /></span>}{label}</div>
+      <div className={`kpi-value ${value.length > 9 ? 'long' : ''}`}>{value}</div>
+      {bar != null ? <div className="kpi-bar"><i style={{ width: `${bar}%` }} /></div> : hint && <div className="kpi-hint" title={hint}>{hint}</div>}
     </div>
   )
 }
@@ -44,7 +41,7 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
   return (
     <div className="view">
       <div className="kpis">
-        <Kpi icon="clock" label={`滑窗 · ${w} 分钟`} value={tick ? `${tick.window.from} – ${tick.window.to}` : '—'} hint="每分钟感知一次" />
+        <Kpi icon="clock" label={`滑窗 · ${w} 分钟`} value={tick ? `${tick.window.from}–${tick.window.to}` : '—'} hint="每分钟感知一次" />
         <Kpi icon="database" label="窗口内 CHR" value={num(tick?.total)} hint={tick ? `已清洗 ${num(tick.preprocess.input - tick.preprocess.output)} 条脏数据` : '条'} />
         <Kpi icon="layers" label="时序维度" value={num(p?.stats.n_series ?? tick?.n_series)} hint="网元实例 × 流程 × 原因码" />
         <Kpi icon="alert" label="持续突增维度" value={num(nAnom)} tone={nAnom ? 'critical' : ''} hint={`${n} 分钟内 ≥${m} 分钟突增`} />

@@ -1,17 +1,17 @@
 import type { Conclusion, NodeRole, Tick, Topo } from '../types'
 
-const W = 760, H = 436
+const W = 700, H = 436
 const CHIP = { w: 80, h: 30 }
 
 // 版式：按网元类型分组，无交叉摆放。dir 表示组内两个实例横排还是竖排。
 // label 表示组标题在上还是在下：放在连线不经过的一侧。
 const GROUPS: Record<string, { x: number; y: number; dir: 'row' | 'col'; name: string; label: 'top' | 'bottom' }> = {
-  AUSF: { x: 130, y: 64, dir: 'row', name: '鉴权', label: 'top' },
-  UDM: { x: 410, y: 64, dir: 'row', name: '签约数据', label: 'top' },
-  AMF: { x: 130, y: 218, dir: 'col', name: '接入移动', label: 'top' },
-  SMF: { x: 410, y: 218, dir: 'col', name: '会话管理', label: 'top' },
-  UPF: { x: 660, y: 218, dir: 'col', name: '用户面', label: 'top' },
-  PCF: { x: 270, y: 380, dir: 'row', name: '策略控制', label: 'bottom' },
+  AUSF: { x: 122, y: 64, dir: 'row', name: '鉴权', label: 'top' },
+  UDM: { x: 372, y: 64, dir: 'row', name: '签约数据', label: 'top' },
+  AMF: { x: 122, y: 218, dir: 'col', name: '接入移动', label: 'top' },
+  SMF: { x: 372, y: 218, dir: 'col', name: '会话管理', label: 'top' },
+  UPF: { x: 606, y: 218, dir: 'col', name: '用户面', label: 'top' },
+  PCF: { x: 247, y: 380, dir: 'row', name: '策略控制', label: 'bottom' },
 }
 const PAD = 26     // 组标题占用的高度
 const ROLE_BADGE: Partial<Record<NodeRole, string>> = { root: '根因', impacted: '受影响', alternative: '可用', suspect: '疑似' }

@@ -54,7 +54,7 @@ export function WorkflowBar({ steps, activeStage, connected, view, onView, summa
               <div className="wf-head">
                 <span className="wf-icon"><Icon name={done ? 'check' : stage.icon} size={15} /></span>
                 <span className="wf-name">{stage.name}</span>
-                {live && <span className="wf-live"><i />{stage.id === 'perception' ? '实时感知' : '进行中'}</span>}
+                {live && <span className="wf-live"><i />{summaries[stage.id] ? '' : stage.id === 'perception' ? '感知中' : '进行中'}</span>}
                 {summaries[stage.id] && <span className="wf-sum">{summaries[stage.id]}</span>}
               </div>
               <div className="wf-steps">

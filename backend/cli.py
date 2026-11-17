@@ -1,4 +1,4 @@
-"""离线分析历史 CHR：python -m backend.cli [--json]"""
+"""命令行分析 data 目录中的 CHR：python -m backend.cli [--json]"""
 from __future__ import annotations
 
 import argparse
@@ -8,7 +8,7 @@ from .pipeline import Pipeline
 
 
 def main():
-    ap = argparse.ArgumentParser(description="对 data 目录中的历史 CHR 做离线分析")
+    ap = argparse.ArgumentParser(description="对 data 目录中的 CHR 做一次完整分析")
     ap.add_argument("--json", action="store_true", help="只输出结论 JSON")
     args = ap.parse_args()
     conclusion = None

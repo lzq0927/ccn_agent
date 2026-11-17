@@ -1,6 +1,7 @@
 """端到端与关键算法测试。data/ 下的样例数据：第 20 分钟起 SMF:smf_2 后端 N7->pcf_2、N4->upf_1 链路丢包。"""
 import csv
 import json
+import time
 from datetime import datetime
 
 import pandas as pd
@@ -14,6 +15,7 @@ from backend.config import ROOT, Settings
 from backend.perception.anomaly import SpikeDetector
 from backend.perception.preprocess import preprocess
 from backend.pipeline import Pipeline
+from backend.runner import StepRunner
 from backend.source import CsvTailSource
 from datagen.generate import Generator, write_batch
 
@@ -202,3 +204,47 @@ def test_tail_source_reads_only_new_complete_lines(tmp_path):
     with open(path, "a", newline="", encoding="utf-8") as f:
         f.write("11,ServiceRequest,3,SMF:smf_2,\n")
     assert list(src.poll()["cause"]) == ["SM-2211"]
+
+
+# ---------------------------------------------------------------- 运行控制（按数据时间推进）
+
+def _wait(cond, timeout=60.0):
+    end = time.time() + timeout
+    while time.time() < end:
+        if cond():
+            return True
+        time.sleep(0.02)
+    return False
+
+
+def test_step_runner_start_pause_resume_restart():
+    r = StepRunner(Settings(step_seconds=0))            # 0 表示不停顿，尽快推进
+    r.start()
+    try:
+        q, snap = r.subscribe()
+        assert snap["run"]["status"] == "idle" and snap["run"]["total"] == 40 and snap["tick"] is None
+
+        r.control("start")
+        assert _wait(lambda: r.pos >= 3)
+        r.control("pause")
+        time.sleep(0.2)
+        held = r.pos
+        time.sleep(0.4)
+        assert r.status == "paused" and r.pos == held          # 暂停期间不再推进
+
+        r.control("resume")
+        assert _wait(lambda: r.status == "finished")
+        st = r.snapshot()
+        assert st["run"]["minute"] == 40 and st["conclusion"]["root"]["ne"] == "SMF:smf_2"
+        assert st["incident"]["status"] == "active" and len(st["trend"]) == 40
+
+        r.control("restart")                                   # 回到起点并立即重新运行
+        assert _wait(lambda: r.status == "running" and r.pos < 20)
+        while not q.empty():
+            last = q.get()
+            if last["type"] == "snapshot":
+                assert last["conclusion"] is None and last["incident"] is None
+        assert _wait(lambda: r.status == "finished")
+        assert r.snapshot()["conclusion"]["title"] == "SMF:smf_2 后端部分链路丢包"
+    finally:
+        r.stop()

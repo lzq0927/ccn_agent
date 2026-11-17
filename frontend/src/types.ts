@@ -5,8 +5,10 @@ export interface TopoNode { id: string; type: string; name: string }
 export interface TopoEdge { source: string; target: string; interface: string }
 export interface Topo { nodes: TopoNode[]; edges: TopoEdge[] }
 
+export interface Run { mode: 'step' | 'realtime'; status: 'idle' | 'running' | 'paused' | 'finished'; minute: number; total: number | null; time: string | null }
+
 export interface Meta {
-  instances: number; links: number; started_at: string; files: string[]
+  mode: 'step' | 'realtime'; instances: number; links: number; started_at: string; files: string[]
   settings: { window_min: number; sustain_n: number; sustain_m: number; z_threshold: number; recover_min: number }
   kg: { nodes: number; edges: number; version: string }
 }
@@ -131,6 +133,7 @@ export interface AppState {
   trend: { label: string; total: number }[]
   incident: Incident | null
   incidents: Incident[]
+  run: Run | null
   nextAt: number | null
   perception: Perception | null
   flows: Flows | null

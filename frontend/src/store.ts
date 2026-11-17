@@ -1,5 +1,5 @@
 import { useEffect, useReducer } from 'react'
-import type { AppState, Incident, LogLine, Stage, StepStatus, Tick } from './types'
+import type { AppState, Incident, LogLine, Run, Stage, StepStatus, Tick } from './types'
 
 const KEEP_LOGS = 400
 const KEEP_TREND = 60
@@ -7,10 +7,10 @@ const ANALYSIS = { perception: null, flows: null, clustering: null, kg: null, cr
 
 export const initialState: AppState = {
   connected: false, steps: {}, activeStage: null, logs: [], agentLogs: [], tick: null, trend: [],
-  incident: null, incidents: [], nextAt: null, ...ANALYSIS,
+  incident: null, incidents: [], run: null, nextAt: null, ...ANALYSIS,
 }
 
-type Snapshot = Omit<AppState, 'connected' | 'nextAt'> & { next_in: number }
+type Snapshot = Omit<AppState, 'connected' | 'nextAt'> & { next_in: number | null }
 type Ev =
   | { type: 'open' }
   | { type: 'closed' }
@@ -19,9 +19,10 @@ type Ev =
   | ({ type: 'log' } & LogLine)
   | ({ type: 'tick' } & Tick)
   | { type: 'result'; key: string; data: unknown }
+  | { type: 'run'; run: Run }
   | { type: 'incident'; event: 'opened' | 'updated' | 'recovered'; incident: Incident }
 
-const deadline = (nextIn?: number) => (nextIn == null ? null : Date.now() + nextIn * 1000)
+const deadline = (nextIn?: number | null) => (nextIn == null ? null : Date.now() + nextIn * 1000)
 
 function reducer(state: AppState, ev: Ev): AppState {
   switch (ev.type) {
@@ -52,6 +53,8 @@ function reducer(state: AppState, ev: Ev): AppState {
     }
     case 'result':
       return { ...state, [ev.key]: ev.data } as AppState
+    case 'run':
+      return { ...state, run: ev.run }
     case 'incident': {
       if (ev.event === 'opened') {
         // 新故障：清空上一轮的分析结果与步骤状态
@@ -64,7 +67,11 @@ function reducer(state: AppState, ev: Ev): AppState {
   }
 }
 
-/** 订阅后端实时事件流（SSE）。连接建立后先收到一份状态快照，断线由浏览器自动重连。 */
+/** 运行控制：开始 / 暂停 / 继续 / 重新开始。 */
+export const control = (action: 'start' | 'pause' | 'resume' | 'restart') =>
+  fetch(`/api/control?action=${action}`, { method: 'POST' }).catch(() => undefined)
+
+/** 订阅后端事件流（SSE）。连接建立后先收到一份状态快照，断线由浏览器自动重连。 */
 export function useLive() {
   const [state, dispatch] = useReducer(reducer, initialState)
   useEffect(() => {

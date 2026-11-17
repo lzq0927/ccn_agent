@@ -19,8 +19,9 @@ class Settings:
     topo_file: Path = field(default_factory=lambda: _path("CCN_TOPO_FILE", ROOT / "topo" / "topo.csv"))
     kg_file: Path = field(default_factory=lambda: _path("CCN_KG_FILE", ROOT / "chr-knowledge-graph" / "graph.json"))
 
-    # 实时运行
-    tick_grace_s: int = 5           # 每分钟结束后等待多少秒再处理，容纳晚到的 CHR
+    # 运行节拍
+    step_seconds: float = 1.0       # 按数据时间推进时，每处理 1 分钟数据占用的真实秒数
+    tick_grace_s: int = 5           # 真实时间方式：每分钟结束后等待多少秒再处理，容纳晚到的 CHR
     reanalyze_gap_min: int = 5      # 故障期间出现新的突增维度时，距上次分析至少多久才重新分析
     recover_min: int = 5            # 故障相关维度连续多少分钟回落到基线视为恢复
     trend_minutes: int = 60         # 趋势图保留的分钟数
