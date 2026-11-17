@@ -100,11 +100,12 @@ export interface CrossVal {
 export type NodeRole = 'normal' | 'root' | 'link_peer' | 'impacted' | 'alternative' | 'suspect'
 export interface Conclusion {
   title: string; summary: string; confidence: number; definitive: boolean
+  chain: { label: string; value: string; sub: string }[]
   onset: string; detected_at: string
   root: { type: string; ne: string; links: { source: string; target: string; interface: string; causes: string[] }[] }
   impact: { procedures: string[]; users: number; failures: number; instances: string[] }
-  evidence: { kind: string; title: string; detail: string }[]
-  recovery: { definitive: boolean; steps: { title: string; detail: string }[] }
+  evidence: { kind: string; title: string; detail: string; metric?: string; unit?: string }[]
+  recovery: { definitive: boolean; steps: { tag?: string; title: string; detail: string }[] }
   topology: { nodes: Record<string, { role: NodeRole; note?: string }>
     edges: { source: string; target: string; role: 'fault' | 'propagation' | 'alternative'; label: string }[] }
   node_stats: Record<string, { labels: string[]; values: number[]

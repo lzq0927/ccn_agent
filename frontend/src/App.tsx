@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Console } from './components/Console'
+import { Icon } from './components/Icon'
 import { WorkflowBar } from './components/WorkflowBar'
+import { short } from './lib/format'
 import { useRun } from './store'
 import type { Meta, Stage, Topo } from './types'
 import { AnalysisView } from './views/AnalysisView'
 import { DecisionView } from './views/DecisionView'
 import { PerceptionView } from './views/PerceptionView'
+
+const SPEEDS = [0.5, 1, 2, 4]
 
 export default function App() {
   const { state, start } = useRun()
@@ -29,32 +33,40 @@ export default function App() {
   const running = state.status === 'running'
   const agentState = state.steps['analysis.agent'] === 'running' ? '推理中'
     : state.steps['analysis.agent'] === 'skipped' ? '未触发' : state.steps['analysis.agent'] === 'done' ? '已完成' : '待命'
+  const c = state.conclusion
+  const summaries: Record<Stage, string | null> = {
+    perception: state.perception ? `${state.perception.stats.n_anomalous} 个持续突增 · 降噪 ${state.perception.stats.filtered_pct}%` : null,
+    analysis: state.crossval ? (state.crossval.decision === 'conclusion' ? '唯一结论' : '转慢推理') : null,
+    decision: c ? `${short(c.root.ne) || '待确认'} · 置信度 ${Math.round(c.confidence * 100)}%` : null,
+  }
+  const status = state.status === 'error' ? { cls: 'err', text: '连接中断' }
+    : running ? (state.perception ? { cls: 'alert', text: '发现异常，分析中' } : { cls: 'run', text: '感知中' })
+      : c ? { cls: 'alert', text: c.definitive ? '根因已定位' : '待人工确认' }
+        : state.status === 'done' ? { cls: 'ok', text: '未发现异常' } : { cls: 'idle', text: '待回放' }
 
   return (
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <span className="logo" aria-hidden />
+          <span className="logo"><Icon name="activity" size={17} /></span>
           <div>
             <h1>CHR 故障感知与分析</h1>
-            <p>5GC 云核心网{meta ? ` · ${meta.raw_rows.toLocaleString('en-US')} 条 CHR · ${meta.start} 起 ${meta.minutes} 分钟` : ''}</p>
+            <p>5GC 云核心网{meta ? ` · ${meta.raw_rows.toLocaleString('en-US')} 条 CHR · ${meta.minutes} 分钟` : ''}</p>
           </div>
         </div>
         <div className="controls">
-          {state.tick && <span className="clock">仿真时间 <b>{state.tick.time}</b></span>}
-          {state.status === 'error' && <span className="err">连接中断</span>}
-          <label className="speed">倍速
-            <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} disabled={running}>
-              <option value={0.5}>0.5×</option><option value={1}>1×</option><option value={2}>2×</option><option value={4}>4×</option>
-            </select>
-          </label>
+          <span className={`status ${status.cls}`}><i />{status.text}</span>
+          <span className="clock"><Icon name="clock" size={14} /><b>{state.tick?.time ?? '--:--'}</b></span>
+          <div className="seg" role="group" aria-label="回放倍速">
+            {SPEEDS.map((s) => <button key={s} className={s === speed ? 'on' : ''} disabled={running} onClick={() => setSpeed(s)}>{s}×</button>)}
+          </div>
           <button className="primary" onClick={run} disabled={running || !meta}>
-            {running ? '回放中…' : state.status === 'idle' ? '开始回放' : '重新回放'}
+            <Icon name="play" size={13} />{running ? '回放中' : state.status === 'idle' ? '开始回放' : '重新回放'}
           </button>
         </div>
       </header>
 
-      <WorkflowBar steps={state.steps} activeStage={state.activeStage} running={running} view={view}
+      <WorkflowBar steps={state.steps} activeStage={state.activeStage} running={running} view={view} summaries={summaries}
         onView={(s) => { setView(s); setFollow(false) }} />
 
       <div className="body">

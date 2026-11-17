@@ -3,7 +3,7 @@ import { EChart, TOOLTIP } from '../components/EChart'
 import { INK, STATUS } from '../lib/colors'
 import type { SeriesChart as S } from '../types'
 
-const STATUS_TEXT = { sustained: '持续突增', transient: '未达持续判定', normal: '平稳' }
+const STATUS_TEXT = { sustained: '持续突增', transient: '未达持续', normal: '平稳' }
 
 /** 单个时序维度（网元实例 + 流程 + 原因码）的小图：每分钟 CHR 条数、阈值线、突增点。 */
 export function SeriesCard({ s }: { s: S }) {
@@ -31,7 +31,8 @@ export function SeriesCard({ s }: { s: S }) {
         axisLabel: { color: INK.muted, fontSize: 10 }, splitLine: { lineStyle: { color: INK.grid } },
       },
       series: [{
-        type: 'line', smooth: false, lineStyle: { width: 2, color: STATUS.accent }, areaStyle: { color: STATUS.accent, opacity: 0.08 },
+        type: 'line', smooth: false, lineStyle: { width: 2, color: s.status === 'sustained' ? STATUS.critical : STATUS.accent },
+        areaStyle: { color: s.status === 'sustained' ? STATUS.critical : STATUS.accent, opacity: 0.08 },
         showSymbol: true,
         data: s.values.map((v, i) => s.flags[i]
           ? { value: v, symbol: 'circle', symbolSize: 9, itemStyle: { color: STATUS.critical, borderColor: '#fff', borderWidth: 2 } }
@@ -49,12 +50,12 @@ export function SeriesCard({ s }: { s: S }) {
     <div className={`series-card ${s.status}`}>
       <div className="series-head">
         <div>
-          <div className="series-title">{s.instance} · {s.procedure}</div>
+          <div className="series-title">{s.instance.split(':')[1]} · {s.procedure}</div>
           <div className="series-sub"><span className="mono">{s.cause}</span> {s.cause_name}</div>
         </div>
         <span className={`tag ${s.status}`}><i />{STATUS_TEXT[s.status]}</span>
       </div>
-      <EChart option={option} height={112} ariaLabel={`${s.key} 每分钟 CHR 条数`} />
+      <EChart option={option} height={104} ariaLabel={`${s.key} 每分钟 CHR 条数`} />
     </div>
   )
 }

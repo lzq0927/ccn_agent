@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react'
 import type { LogLine } from '../types'
+import { Icon } from './Icon'
+
+const STAGE_CLS: Record<string, string> = { 感知: 'perception', 分析: 'analysis', 决策: 'decision', Agent: 'agent', 系统: 'system' }
 
 function Lines({ lines, empty }: { lines: LogLine[]; empty: string }) {
   const box = useRef<HTMLDivElement>(null)
@@ -14,7 +17,7 @@ function Lines({ lines, empty }: { lines: LogLine[]; empty: string }) {
       {lines.map((l, i) => (
         <div key={i} className={`log-line ${l.level}`}>
           <span className="log-time">{l.time}</span>
-          <span className="log-stage">{l.stage}</span>
+          <span className={`log-stage ${STAGE_CLS[l.stage] ?? 'system'}`}>{l.stage}</span>
           <span className="log-text">{l.text}</span>
         </div>
       ))}
@@ -26,11 +29,11 @@ export function Console({ logs, agentLogs, agentState }: { logs: LogLine[]; agen
   return (
     <aside className="console">
       <section className="console-main">
-        <header><h3>执行过程</h3><span className="count">{logs.length} 条</span></header>
-        <Lines lines={logs} empty="开始回放后，这里按时间顺序记录每一步的执行情况。" />
+        <header><h3><Icon name="layers" size={14} />执行过程</h3><span className="count">{logs.length}</span></header>
+        <Lines lines={logs} empty="开始回放后，这里记录每一步的执行情况。" />
       </section>
       <section className="console-agent">
-        <header><h3>Agent</h3><span className="chip">{agentState}</span></header>
+        <header><h3><Icon name="cpu" size={14} />Agent</h3><span className={`chip st-${agentState}`}>{agentState}</span></header>
         <Lines lines={agentLogs} empty="慢推理 Agent 的输出显示在这里。" />
       </section>
     </aside>

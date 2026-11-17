@@ -43,9 +43,9 @@ def build(ctx: dict) -> dict:
     r = rates[lead["key"]]
     evidence.append({
         "kind": "时序", "title": f"{hhmm(onset)} 起 {len(clustering['series'])} 个维度持续突增",
-        "detail": f"{lead['instance']} · {lead['procedure']} · {lead['cause']}（{lead['cause_name']}）由基线 "
-                  f"{r['baseline']:.1f} 条/分钟升至 {r['current']:.1f} 条/分钟；"
-                  f"{hhmm(ctx['minute'] + 1)} 满足“{ctx['settings'].sustain_n} 分钟内 ≥{ctx['settings'].sustain_m} 分钟异常”触发分析。",
+        "metric": f"{r['baseline']:.1f} → {r['current']:.1f}", "unit": "条/分",
+        "detail": f"{lead['instance']} · {lead['cause']} {lead['cause_name']}；"
+                  f"{hhmm(ctx['minute'] + 1)} 满足 {ctx['settings'].sustain_n} 分钟内 ≥{ctx['settings'].sustain_m} 分钟异常。",
     })
 
     if group["category"] == "link":
@@ -62,6 +62,14 @@ def build(ctx: dict) -> dict:
                    + (f"，并向 {'、'.join(impacted)} 传导" if impacted else "") + "。"
                    + (f"{local} 的其余后端链路未见异常。" if partial else ""))
         root = {"type": f"link_{group['mode']}", "ne": local, "links": links}
+        chain = [
+            {"label": "根因", "value": f"{local.split(':')[1]} 后端链路{symptom}",
+             "sub": " · ".join(f"{l['interface']} → {l['target'].split(':')[1]}" for l in links)},
+            {"label": "表现", "value": f"{len(root_series)} 个原因码{'超时' if loss else ''}突增",
+             "sub": " · ".join(sorted({s["cause"] for s in root_series}))},
+            {"label": "影响", "value": f"{len(procedures)} 类流程失败",
+             "sub": "传导至 " + "、".join(i.split(":")[1] for i in impacted) if impacted else "未向上游传导"},
+        ]
 
         nodes[local] = {"role": "root", "note": title}
         for l in links:
@@ -78,17 +86,18 @@ def build(ctx: dict) -> dict:
             quiet = all(d["grade"] in ("none", "low") for s in group_series for d in s["dims"]
                         if d["dim"] in ("user", "ran", "cell", "tac", "pod"))
             evidence.append({
-                "kind": "聚集性", "title": f"{'、'.join(l['causes'])} 的增量集中在 {local} 与 {l['target']}",
-                "detail": f"涉及 {'、'.join(l['procedures'])}：本端网元聚集度 ≥{_pct(loc)}，"
-                          f"对端 {nf_type(l['target'])} 聚集度 ≥{_pct(peer)}"
-                          + ("；用户/基站/小区/区域/POD 维度均无聚集。" if quiet else "。"),
+                "kind": "聚集性", "title": f"{l['interface']} 失败集中在 {local.split(':')[1]} ↔ {l['target'].split(':')[1]}",
+                "metric": f"≥{_pct(min(loc, peer))}", "unit": "聚集度",
+                "detail": f"{'、'.join(l['causes'])}：本端 ≥{_pct(loc)}，对端 ≥{_pct(peer)}"
+                          + ("；用户/基站/区域/POD 均不聚集。" if quiet else "。"),
             })
         # ---- 证据 3：图谱
         codes = "、".join(sorted({s["cause"] for s in root_series}))
+        n_cand = sum(len(it["candidates"]) for it in cv["items"])
         evidence.append({
-            "kind": "图谱", "title": "图谱场景与聚类特征唯一匹配",
-            "detail": f"{codes} 在图谱中均存在“链路{symptom}/对端过载/对端故障/单POD异常”等多种产生场景；"
-                      f"只有“{ '；'.join(group['scenarios']) }”同时满足本端聚集、对端聚集、POD 与用户不聚集。",
+            "kind": "图谱", "title": f"仅“链路{symptom}”场景与聚类特征吻合",
+            "metric": f"{len(root_series)} / {n_cand}", "unit": "匹配 / 候选场景",
+            "detail": "对端过载、对端故障、单 POD 异常等候选场景的关键特征均不满足。",
         })
         # ---- 证据 4：排除
         anomalous_instances = {s["instance"] for s in clustering["series"]}
@@ -106,7 +115,8 @@ def build(ctx: dict) -> dict:
         if partial:
             healthy = [n for n in backend if n not in peers]
             excl.append(f"{local} 至 {'、'.join(healthy)} 的链路无突增，故障仅限部分链路")
-        evidence.append({"kind": "排除", "title": "其它可能已排除", "detail": "；".join(excl) + "。"})
+        evidence.append({"kind": "排除", "title": "其它可能已排除", "metric": str(len(excl)), "unit": "项",
+                         "detail": "；".join(excl) + "。"})
 
         # ---- 恢复方案：选可用路径
         for l in links:
@@ -115,18 +125,18 @@ def build(ctx: dict) -> dict:
                 nodes[a] = {"role": "alternative", "note": f"可用路径：{local} → {a}"}
                 edges.append({"source": local, "target": a, "role": "alternative", "label": "可用"})
             if alts:
-                steps.append({"title": f"{l['interface']} 选路切换",
+                steps.append({"tag": "首选", "title": f"{l['interface']} 选路切换",
                               "detail": f"在 {local} 上将 {nf_type(l['target'])} 选路由 {l['target']} 切换到 {'、'.join(alts)}"
                                         f"（{local} → {alts[0]} 链路窗口内无突增，可用）。"})
                 actions.append({"type": "reroute", "ne": local, "interface": l["interface"],
                                 "avoid": l["target"], "prefer": alts})
         if others:
-            steps.append({"title": "备选：降低网元选择权重",
+            steps.append({"tag": "备选", "title": "降低网元选择权重",
                           "detail": f"若无法按对端调整选路，在 NRF/AMF 侧调低 {local} 的权重，新建会话优先由 {'、'.join(others)} 承载"
                                     f"（{'、'.join(others)} 无异常）。"})
             actions.append({"type": "deprioritize", "ne": local, "prefer": others, "optional": True})
         ifaces = "/".join(sorted({l["interface"] for l in links}))
-        steps.append({"title": "修复与回切",
+        steps.append({"tag": "后续", "title": "修复与回切",
                       "detail": f"排查 {local} 后端 {ifaces} 承载网络（网卡、vSwitch、交换机端口的丢包/误码计数）；"
                                 f"修复后恢复原选路，确认 {codes} 回落到基线。"})
         actions.append({"type": "inspect", "ne": local, "interfaces": sorted({l["interface"] for l in links}),
@@ -135,6 +145,8 @@ def build(ctx: dict) -> dict:
         title = f"{group['anchor']} {CATEGORY_TITLE.get(group['category'], group['category'])}"
         summary = f"匹配场景：{'；'.join(group['scenarios'])}。涉及流程：{'、'.join(procedures)}。"
         root = {"type": group["category"], "ne": group["anchor"], "links": []}
+        chain = [{"label": "根因", "value": title, "sub": "；".join(group["scenarios"])},
+                 {"label": "影响", "value": f"{len(procedures)} 类流程失败", "sub": "、".join(procedures)}]
         if topo.has(group["anchor"]):
             nodes[group["anchor"]] = {"role": "root", "note": title}
         for s in root_series:
@@ -142,7 +154,7 @@ def build(ctx: dict) -> dict:
                              "detail": f"{s['best']['label']}聚集度 {_pct(s['best']['score'])}（{'、'.join(s['best']['set'])}）。"})
         rec = next((c["recovery"] for it in cv["items"] if it["best"] for c in [it["best"]] if c["recovery"]), "")
         if rec:
-            steps.append({"title": "处理", "detail": rec + "。"})
+            steps.append({"tag": "首选", "title": "处理", "detail": rec + "。"})
             actions.append({"type": group["category"], "target": group["anchor"], "advice": rec})
 
     # ---- 证据 5：业务流 / 传导
@@ -151,6 +163,7 @@ def build(ctx: dict) -> dict:
         top = flows["patterns"][0] if flows["patterns"] else None
         evidence.append({
             "kind": "业务流", "title": "上游网元的失败是传导结果",
+            "metric": _pct(min(d["explained_ratio"] for d in cv["derived"])), "unit": "可由下游解释",
             "detail": (f"还原出 {flows['total_flows']} 条用户级失败路径，涉及 {flows['total_users']} 个用户，"
                        f"最多的路径为“{top['path']}”（{top['flows']} 条）。" if top else "") + d_txt + "。",
         })
@@ -167,7 +180,7 @@ def build(ctx: dict) -> dict:
     kept = ctx["kept"]
     detected = hhmm(ctx["minute"] + 1)
     return {
-        "title": title, "summary": summary, "confidence": confidence, "definitive": True,
+        "title": title, "summary": summary, "chain": chain, "confidence": confidence, "definitive": True,
         "root": root, "onset": hhmm(onset), "detected_at": detected,
         "impact": {"procedures": procedures, "users": int(kept.loc[kept["imsi"] != "", "imsi"].nunique()),
                    "failures": int(len(kept)), "instances": impacted},

@@ -10,6 +10,13 @@ export function ClusterScatter({ points, selected, onSelect }: Props) {
   const option = useMemo(() => {
     const sorted = [...points].sort((a, b) => Number(a.anomalous) - Number(b.anomalous))
     const maxY = Math.max(...points.map((p) => p.group_total), 10)
+    // 相邻的突增点把标签分别放到上下，避免互相遮挡
+    const hot = points.filter((p) => p.anomalous)
+    const labelPos = (p: ClusterPoint) => {
+      const near = hot.find((o) => o.key !== p.key && Math.abs(o.share - p.share) < 0.12 && Math.abs(o.group_total - p.group_total) < maxY * 0.14)
+      if (near) return (p.group_total - near.group_total || p.key.localeCompare(near.key)) > 0 ? 'top' : 'bottom'
+      return p.share > 0.8 ? 'left' : 'right'
+    }
     return {
       animation: false,
       grid: { left: 52, right: 30, top: 24, bottom: 40 },
@@ -42,11 +49,16 @@ export function ClusterScatter({ points, selected, onSelect }: Props) {
             borderColor: p.key === selected ? INK.primary : '#fff', borderWidth: 2,
           },
           label: {
-            show: p.anomalous, formatter: `${p.instance.split(':')[1]} ${p.cause}`, position: p.share > 0.8 ? 'left' : 'right', distance: 6,
+            show: p.anomalous, formatter: `${p.instance.split(':')[1]} ${p.cause}`, position: labelPos(p), distance: 6,
             color: INK.secondary, fontSize: 10,
           },
         })),
         labelLayout: { moveOverlap: 'shiftY' },
+        markArea: {
+          silent: true, itemStyle: { color: 'rgba(208,59,59,0.045)' },
+          label: { show: true, position: 'insideTopRight', color: '#c26a6a', fontSize: 11, fontWeight: 600, formatter: '根因候选区' },
+          data: [[{ xAxis: 40, yAxis: Math.ceil(maxY * 1.12 / 10) * 10 * 0.35 }, { xAxis: 100, yAxis: Math.ceil(maxY * 1.12 / 10) * 10 }]],
+        },
       }],
     }
   }, [points, selected])

@@ -132,16 +132,15 @@ class Pipeline:
 
             dropped = st["input"] - st["output"]
             yield self._log("感知", tick,
-                            f"窗口 {self.hhmm(w_minutes[0])}–{self.hhmm(tick)} · 新增 {st['output']} 条"
-                            + (f"（清洗 {dropped}）" if dropped else "")
-                            + f" · 窗口内 {len(window):,} 条 / {len(counts)} 个时序维度 · 突增点 {len(flagged)}")
+                            f"新增 {st['output']} 条" + (f"（清洗 {dropped}）" if dropped else "")
+                            + f" · 窗口 {len(window):,} 条 · {len(counts)} 维度 · 突增点 {len(flagged)}")
             for k in sorted(flagged, key=lambda k: -points[k].z)[:3]:
                 if k in sustained or points[k].z < 6:
                     continue
                 p, n_recent = points[k], len(det.recent_flags(k, minute))
                 yield self._log("感知", tick,
-                                f"{k.replace('|', ' · ')} 突增 {int(p.value)} 条/分（基线 {p.baseline:.1f}，z={p.z:.1f}）"
-                                f"— 近 {s.sustain_n} 分钟 {n_recent} 分钟异常，未达 {s.sustain_m} 分钟，继续观察", "warn")
+                                f"{k.replace('|', ' · ')} 突增 {int(p.value)} 条/分（基线 {p.baseline:.1f}）"
+                                f"，近 {s.sustain_n} 分钟仅 {n_recent} 分钟异常，继续观察", "warn")
             yield {
                 "type": "tick", "minute": tick, "time": self.hhmm(tick),
                 "window": {"from": self.hhmm(w_minutes[0]), "to": self.hhmm(tick)},
@@ -188,7 +187,7 @@ class Pipeline:
         for k in sorted(onsets, key=lambda k: -counts.loc[k].iloc[-1]):
             mu = det.baseline[k][0]
             yield self._log("感知", tick, f"  ↑ {k.replace('|', ' · ')}  基线 {mu:.1f} → {int(counts.loc[k].iloc[-1])} 条/分，"
-                                         f"自 {self.hhmm(onsets[k])} 起", "alert")
+                                         f"自 {self.hhmm(onsets[k])} 起", "warn")
         yield self._log("感知", tick, f"CHR 降噪：窗口内 {dn['total']:,} 条，保留 {dn['kept']:,} 条，"
                                      f"滤除 {dn['filtered_pct']}%（常态底噪与瞬时毛刺）", "ok")
         yield {"type": "result", "key": "perception", "data": perception, "delay": 0.2}
@@ -211,10 +210,10 @@ class Pipeline:
         for x in clustering["series"]:
             b = x["best"]
             lvl = {"high": "强聚集", "mid": "中聚集", "low": "弱聚集", "none": "无聚集"}[b["grade"]]
-            yield self._log("分析", tick, f"聚类 {x['key'].replace('|', ' · ')}：{b['label']} {'、'.join(b['set']) or '-'} "
-                                         f"聚集度 {b['score']:.0%}（{lvl}）"
-                                         + ("，经用户粒度下钻得到" if x["fallback"] else ""),
-                            "alert" if b["grade"] == "high" else "warn" if b["grade"] == "mid" else "info")
+            yield self._log("分析", tick, f"聚类 {x['instance'].split(':')[1]} · {x['cause']}：{b['label']} "
+                                         f"{'、'.join(v.split(':')[-1] for v in b['set']) or '-'} {b['score']:.0%}（{lvl}）"
+                                         + (" · 用户粒度下钻" if x["fallback"] else ""),
+                            "info")
         yield {"type": "result", "key": "clustering", "data": clustering, "delay": 0.2}
         yield self._step("analysis", "cluster", "done", delay=0.6)
 
@@ -224,8 +223,9 @@ class Pipeline:
             clustering["series"], kept, self.kg,
             {x["key"]: rates[x["key"]]["baseline"] * (minute - x["onset"] + 1) for x in clustering["series"]})
         for c in kg_result["causes"]:
-            names = "；".join(f"{sc['name']}({sc['weight']:.2f})" for sc in c["scenarios"][:4])
-            yield self._log("分析", tick, f"图谱 {c['code']} {c['name']} → {names or '图谱中无此原因码'}")
+            top = c["scenarios"][0] if c["scenarios"] else None
+            yield self._log("分析", tick, f"图谱 {c['code']} {c['name']} → {len(c['scenarios'])} 种场景"
+                                         + (f"，先验最高：{top['name']}（{top['weight']:.2f}）" if top else "，图谱中无此原因码"))
         for ch in kg_result["chains"]:
             if ch["derived"]:
                 yield self._log("分析", tick, f"图谱 {ch['series'].replace('|', ' · ')} 为传导结果，"
@@ -238,8 +238,8 @@ class Pipeline:
         cv = crossval_mod.cross_validate(clustering, kg_result, s)
         for it in cv["items"]:
             if it["best"]:
-                yield self._log("分析", tick, f"交叉验证 {it['instance']} · {it['cause']}：唯一匹配“{it['best']['name']}”"
-                                             f"（匹配度 {it['best']['match_score']:.0%}）", "ok")
+                yield self._log("分析", tick, f"交叉验证 {it['instance'].split(':')[1]} · {it['cause']} → {it['best']['name']}"
+                                             f"（{it['best']['match_score']:.0%}）", "ok")
             else:
                 yield self._log("分析", tick, f"交叉验证 {it['instance']} · {it['cause']}：{'无匹配场景' if it['verdict'] == 'none' else '多个场景接近'}", "warn")
         yield self._log("分析", tick, f"交叉验证结论：{cv['reason']}", "ok" if cv["decision"] == "conclusion" else "warn")
@@ -267,9 +267,8 @@ class Pipeline:
         yield self._step("decision", "conclusion", "running", delay=0.5)
         yield self._log("决策", tick, f"结论：{conclusion['title']}（置信度 {conclusion['confidence']:.0%}）",
                         "alert" if conclusion["definitive"] else "warn")
-        yield self._log("决策", tick, conclusion["summary"])
         for i, st in enumerate(conclusion["recovery"]["steps"], 1):
-            yield self._log("决策", tick, f"恢复方案 {i}. {st['title']}：{st['detail']}")
+            yield self._log("决策", tick, f"恢复方案 {i}. [{st.get('tag', '')}] {st['title']}")
         yield {"type": "result", "key": "conclusion", "data": conclusion, "delay": 0.3}
         yield self._step("decision", "conclusion", "done", delay=0.6)
         yield self._step("decision", "handoff", "running", delay=0.4)
@@ -298,14 +297,15 @@ class Pipeline:
         return {
             "title": title, "definitive": False, "confidence": round(hyps[0]["score"] * 0.6, 2) if hyps else 0.3,
             "summary": cv["reason"] + "。可能原因：" + "；".join(h["hypothesis"] for h in hyps[:3]) + "。",
+            "chain": [{"label": "可能原因", "value": h["hypothesis"], "sub": h["series"].replace("|", " · ")} for h in hyps[:3]],
             "root": {"type": "unknown", "ne": "", "links": []},
             "onset": self.hhmm(min(x["onset"] for x in clustering["series"])), "detected_at": detected,
             "impact": {"procedures": sorted({x["procedure"] for x in clustering["series"]}),
                        "users": int(kept.loc[kept["imsi"] != "", "imsi"].nunique()), "failures": int(len(kept)), "instances": []},
-            "evidence": [{"kind": "慢推理", "title": h["hypothesis"], "detail": f"{h['series'].replace('|', ' · ')}，评分 {h['score']:.2f}"}
+            "evidence": [{"kind": "慢推理", "title": h["hypothesis"], "metric": f"{h['score']:.2f}", "unit": "评分", "detail": f"{h['series'].replace('|', ' · ')}，评分 {h['score']:.2f}"}
                          for h in hyps],
             "recovery": {"definitive": False,
-                         "steps": [{"title": f"建议 {i}", "detail": t} for i, t in enumerate((agent_result or {}).get("suggestions", []), 1)]},
+                         "steps": [{"tag": "建议", "title": f"建议 {i}", "detail": t} for i, t in enumerate((agent_result or {}).get("suggestions", []), 1)]},
             "topology": {"nodes": {n: {"role": "suspect" if any(x["instance"] == n for x in clustering["series"]) else "normal"}
                                    for n in self.topo.nodes}, "edges": []},
             "handoff": {"incident_id": f"INC-{self.t0.strftime('%Y%m%d')}-{detected.replace(':', '')}",

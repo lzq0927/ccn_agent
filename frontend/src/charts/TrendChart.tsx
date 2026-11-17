@@ -43,5 +43,5 @@ export function TrendChart({ trend, windowFrom, alarm, labels }: Props) {
       }],
     }
   }, [trend, windowFrom, alarm, labels])
-  return <EChart option={option} height={268} ariaLabel="全网每分钟 CHR 条数" />
+  return <EChart option={option} height={352} ariaLabel="全网每分钟 CHR 条数" />
 }

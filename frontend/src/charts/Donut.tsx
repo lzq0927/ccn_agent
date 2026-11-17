@@ -46,7 +46,7 @@ export function Donut({ slices, title, size = 168 }: { slices: Slice[]; title: s
   return (
     <div className="donut">
       <EChart option={option} height={size} ariaLabel={title} />
-      <div className="donut-title">{title}</div>
+      {title && <div className="donut-title">{title}</div>}
     </div>
   )
 }
