@@ -70,12 +70,9 @@ class Engine:
         return {k: inc[k] for k in ("id", "status", "opened_at", "onset_label", "recovered_at", "title", "definitive")}
 
     def startup_events(self, minute: int, files: list[str]) -> list[dict]:
-        s = self.s
         return [
-            self._log("系统", minute, f"加载拓扑 {len(self.topo.nodes)} 个网元实例 / {len(self.topo.edges)} 条连接；"
-                                     f"知识图谱 {len(self.kg.nodes)} 节点 / {len(self.kg.edges)} 关系"),
-            self._log("系统", minute, f"CHR 数据源 {len(files)} 个文件。每分钟感知一次，滑窗 {s.window_min} 分钟，"
-                                     f"{s.sustain_n} 分钟内 ≥{s.sustain_m} 分钟突增判为异常"),
+            self._log("系统", minute, f"已加载拓扑 {len(self.topo.nodes)} 个网元实例、知识图谱 {len(self.kg.nodes)} 个节点、"
+                                     f"CHR 数据源 {len(files)} 个文件"),
             self._log("系统", minute, "慢推理 Agent 待命（仅在交叉验证无法得到唯一结论时启用）", channel="agent"),
         ]
 
@@ -128,20 +125,17 @@ class Engine:
         for k in sustained:
             node_status[k.split("|")[0]]["sustained"] += 1
 
-        dropped = st["input"] - st["output"]
         if minute in self.gaps:
             yield self._log("感知", tick, "本分钟未收到任何 CHR，按数据缺口处理（不参与基线与判定），请检查数据源", "warn")
-        yield self._log("感知", tick,
-                        f"新增 {st['output']} 条" + (f"（清洗 {dropped}）" if dropped else "")
-                        + f" · 窗口 {len(window):,} 条 · {len(counts)} 维度 · 突增点 {len(flagged)}")
+        # 只记录新出现的明显突增（同一维度连续突增不重复记录）
         known = self.incident["series"] if self.incident else set()
-        for k in sorted(flagged, key=lambda k: -points[k].z)[:3]:
-            if k in sustained or k in known or points[k].z < 6:
-                continue
-            p, n_recent = points[k], len(det.recent_flags(k, minute))
-            yield self._log("感知", tick,
-                            f"{k.replace('|', ' · ')} 突增 {int(p.value)} 条/分（基线 {p.baseline:.1f}）"
-                            f"，近 {s.sustain_n} 分钟仅 {n_recent} 分钟异常，继续观察", "warn")
+        fresh_spikes = [k for k in sorted(flagged, key=lambda k: -points[k].z)
+                        if k not in sustained and k not in known and points[k].z >= 6 and len(det.recent_flags(k, minute)) == 1]
+        if fresh_spikes:
+            k, p = fresh_spikes[0], points[fresh_spikes[0]]
+            more = f"等 {len(fresh_spikes)} 个维度同时" if len(fresh_spikes) > 1 else ""
+            yield self._log("感知", tick, f"{k.replace('|', ' · ')} {more}出现突增（{int(p.value)} 条/分，基线 {p.baseline:.1f}），"
+                                         "未达持续判定，继续观察", "warn")
         yield {
             "type": "tick", "minute": tick, "time": self.hhmm(tick),
             "window": {"from": self.hhmm(counts.columns[0]), "to": self.hhmm(tick)},
@@ -157,7 +151,7 @@ class Engine:
         inc = self.incident
         if inc is None:
             if sustained:
-                yield self._log("感知", tick, f"发现异常：{len(sustained)} 个维度满足 {s.sustain_n} 分钟内 ≥{s.sustain_m} 分钟突增，"
+                yield self._log("感知", tick, f"发现异常：{len(sustained)} 个维度持续突增（{s.sustain_n} 分钟内 ≥{s.sustain_m} 分钟），"
                                              "启动降噪与分析", "alert", delay=0.5)
                 yield from self._open(window, counts, minute)
             else:
@@ -238,26 +232,17 @@ class Engine:
             "series": charts, "pies": pie_compare(window, kept, self.cause_names),
             "anomalous": [{"key": k, "onset": self.hhmm(v)} for k, v in sorted(onsets.items())],
         }
-        yield self._log("感知", tick, f"时序异常检测：共分析 {dn['n_series']} 个维度（网元实例×流程×原因码），"
-                                     f"{dn['n_anomalous']} 个持续突增"
-                                     + (f"（含 {dn['n_co']} 个同期连续突增并入）" if dn["n_co"] else "")
-                                     + f"，{dn['n_transient']} 个有突增点但未达持续判定（已抑制）")
-        for k in sorted(onsets, key=lambda k: -counts.loc[k].iloc[-1]):
-            mu = det.baseline[k][0]
-            yield self._log("感知", tick, f"  ↑ {k.replace('|', ' · ')}  基线 {mu:.1f} → {int(counts.loc[k].iloc[-1])} 条/分，"
-                                         f"自 {self.hhmm(onsets[k])} 起", "warn")
-        yield self._log("感知", tick, f"CHR 降噪：窗口内 {dn['total']:,} 条，保留 {dn['kept']:,} 条，"
-                                     f"滤除 {dn['filtered_pct']}%（常态底噪与瞬时毛刺）", "ok")
+        yield self._log("感知", tick, f"降噪：{dn['n_series']} 个维度中 {dn['n_anomalous']} 个持续突增；"
+                                     f"窗口 {dn['total']:,} 条 CHR 滤除 {dn['filtered_pct']}%，保留 {dn['kept']:,} 条", "ok")
         yield {"type": "result", "key": "perception", "data": perception, "delay": 0.2}
         yield self._step("perception", "denoise", "done", delay=0.9)
 
         # ---- 2.1 还原用户级业务流
         yield self._step("analysis", "flows", "running", delay=0.5)
         kept, flows, fsum = restore_flows(kept, self.kg, s)
-        yield self._log("分析", tick, f"业务流还原：{fsum['total_flows']} 条用户级失败路径，涉及 {fsum['total_users']} 个用户，"
-                                     f"其中 {fsum['multi_hop_flows']} 条跨网元")
-        for p in fsum["patterns"][:4]:
-            yield self._log("分析", tick, f"  路径 {p['path']}（{p['smf_id'] or '-'}）× {p['flows']}")
+        top_path = fsum["patterns"][0]["path"] if fsum["patterns"] else "-"
+        yield self._log("分析", tick, f"业务流还原：{fsum['total_flows']} 条失败路径 / {fsum['total_users']} 个用户，"
+                                     f"最多的是 {top_path}")
         yield {"type": "result", "key": "flows", "data": {"summary": fsum, "flows": flows[:400]}, "delay": 0.2}
         yield self._step("analysis", "flows", "done", delay=0.8)
 
@@ -265,12 +250,10 @@ class Engine:
         yield self._step("analysis", "cluster", "running")
         yield self._step("analysis", "kg", "running", delay=0.5)
         clustering = clustering_mod.analyze(window, kept, onsets, minute, self.topo, self.kg, s)
-        for x in clustering["series"]:
-            b = x["best"]
-            lvl = {"high": "强聚集", "mid": "中聚集", "low": "弱聚集", "none": "无聚集"}[b["grade"]]
-            yield self._log("分析", tick, f"聚类 {x['instance'].split(':')[1]} · {x['cause']}：{b['label']} "
-                                         f"{'、'.join(v.split(':')[-1] for v in b['set']) or '-'} {b['score']:.0%}（{lvl}）"
-                                         + (" · 用户粒度下钻" if x["fallback"] else ""))
+        strong = [x for x in clustering["series"] if x["grade"] == "high"]
+        where = sorted({v.split(":")[-1] for x in strong for v in x["best"]["set"]})
+        yield self._log("分析", tick, f"特征聚类：{len(clustering['series'])} 个突增维度中 {len(strong)} 个强聚集"
+                                     + (f"，集中在 {'、'.join(where)}" if where else ""))
         yield {"type": "result", "key": "clustering", "data": clustering, "delay": 0.2}
         yield self._step("analysis", "cluster", "done", delay=0.6)
 
@@ -281,28 +264,17 @@ class Engine:
             clustering["series"], kept, self.kg,
             {x["key"]: rates[x["key"]]["baseline"] * (minute - max(x["onset"], int(counts.columns[0])) + 1)
              for x in clustering["series"]})
-        for c in kg_result["causes"]:
-            top = c["scenarios"][0] if c["scenarios"] else None
-            yield self._log("分析", tick, f"图谱 {c['code']} {c['name']} → {len(c['scenarios'])} 种场景"
-                                         + (f"，先验最高：{top['name']}（{top['weight']:.2f}）" if top else "，图谱中无此原因码"))
-        for ch in kg_result["chains"]:
-            if ch["derived"]:
-                yield self._log("分析", tick, f"图谱 {ch['series'].replace('|', ' · ')} 为传导结果，"
-                                             f"{ch['explained_ratio']:.0%} 可由下游 {'/'.join(ch['sources'])} 解释")
+        n_root = sum(1 for r in kg_result["roles"].values() if r == "root")
+        yield self._log("分析", tick, f"图谱推理：{n_root} 个根因侧维度，{len(kg_result['roles']) - n_root} 个为下游失败的传导结果")
         yield {"type": "result", "key": "kg", "data": kg_result, "delay": 0.2}
         yield self._step("analysis", "kg", "done", delay=0.8)
 
         # ---- 2.3 交叉验证
         yield self._step("analysis", "crossval", "running", delay=0.5)
         cv = crossval_mod.cross_validate(clustering, kg_result, s)
-        for it in cv["items"]:
-            if it["best"]:
-                yield self._log("分析", tick, f"交叉验证 {it['instance'].split(':')[1]} · {it['cause']} → {it['best']['name']}"
-                                             f"（{it['best']['match_score']:.0%}）", "ok")
-            else:
-                yield self._log("分析", tick, f"交叉验证 {it['instance']} · {it['cause']}："
-                                             f"{'无匹配场景' if it['verdict'] == 'none' else '多个场景接近'}", "warn")
-        yield self._log("分析", tick, f"交叉验证结论：{cv['reason']}", "ok" if cv["decision"] == "conclusion" else "warn")
+        matched = sorted({it["best"]["name"] for it in cv["items"] if it["best"]})
+        yield self._log("分析", tick, "交叉验证：" + (f"唯一匹配 {'；'.join(matched)}" if cv["decision"] == "conclusion" else cv["reason"]),
+                        "ok" if cv["decision"] == "conclusion" else "warn")
         yield {"type": "result", "key": "crossval", "data": cv, "delay": 0.2}
         yield self._step("analysis", "crossval", "done", delay=0.8)
 
@@ -331,12 +303,12 @@ class Engine:
         yield self._step("decision", "conclusion", "running", delay=0.5)
         yield self._log("决策", tick, f"结论：{conclusion['title']}（置信度 {conclusion['confidence']:.0%}）",
                         "alert" if conclusion["definitive"] else "warn")
-        for i, st in enumerate(conclusion["recovery"]["steps"], 1):
-            yield self._log("决策", tick, f"恢复方案 {i}. [{st.get('tag', '')}] {st['title']}")
+        yield self._log("决策", tick, "恢复方案：" + "；".join(
+            f"{'（' + st['tag'] + '）' if st.get('tag') in ('备选', '后续') else ''}{st['title']}" for st in conclusion["recovery"]["steps"]))
         yield {"type": "result", "key": "conclusion", "data": conclusion, "delay": 0.3}
         yield self._step("decision", "conclusion", "done", delay=0.6)
         yield self._step("decision", "handoff", "running", delay=0.4)
-        yield self._log("决策", tick, f"已生成移交载荷 {inc['id']}，交决策执行模块（本系统不执行）", "ok")
+        yield self._log("决策", tick, f"已移交决策执行模块：{inc['id']}", "ok")
         yield self._step("decision", "handoff", "done")
 
     # ------------------------------------------------------------ 展示数据

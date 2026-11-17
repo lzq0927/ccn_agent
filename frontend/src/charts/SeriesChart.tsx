@@ -11,7 +11,7 @@ export function SeriesCard({ s }: { s: S }) {
     const peak = Math.max(...s.values, s.threshold ?? 0, 4)
     return {
       animation: false,
-      grid: { left: 30, right: 34, top: 10, bottom: 20 },
+      grid: { left: 28, right: 30, top: 8, bottom: 16 },
       tooltip: {
         ...TOOLTIP, trigger: 'axis', axisPointer: { type: 'line', lineStyle: { color: INK.axis } },
         formatter: (ps: { dataIndex: number }[]) => {
@@ -47,15 +47,12 @@ export function SeriesCard({ s }: { s: S }) {
   }, [s])
 
   return (
-    <div className={`series-card ${s.status}`}>
+    <div className={`series-card ${s.status}`} title={`${s.instance} · ${s.procedure} · ${s.cause} ${s.cause_name}`}>
       <div className="series-head">
-        <div>
-          <div className="series-title">{s.instance.split(':')[1]} · {s.procedure}</div>
-          <div className="series-sub"><span className="mono">{s.cause}</span> {s.cause_name}</div>
-        </div>
-        <span className={`tag ${s.status}`}><i />{STATUS_TEXT[s.status]}</span>
+        <div className="series-title"><b>{s.instance.split(':')[1]}</b> · {s.procedure} · <span className="mono">{s.cause}</span></div>
+        <i className={`sdot ${s.status}`} title={STATUS_TEXT[s.status]} />
       </div>
-      <EChart option={option} height={104} ariaLabel={`${s.key} 每分钟 CHR 条数`} />
+      <EChart option={option} height={64} ariaLabel={`${s.key} 每分钟 CHR 条数`} />
     </div>
   )
 }

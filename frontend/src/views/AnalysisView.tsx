@@ -11,13 +11,13 @@ import type { AppState, ClusterSeries, Dim } from '../types'
 const DIM_ORDER = ['user', 'ran', 'cell', 'tac', 'pod', 'local', 'peer_amf', 'peer_smf', 'peer_ausf', 'peer_udm', 'peer_pcf', 'peer_upf', 'flow_smf', 'flow_amf']
 const allDims = (s: ClusterSeries): Dim[] => [...s.dims, ...(s.fallback?.dims ?? [])]
 
-function StepCard({ no, icon, title, value, unit, sub, state, href }:
-  { no: string; icon: string; title: string; value: string; unit?: string; sub?: string; state: 'wait' | 'ok' | 'warn'; href: string }) {
+function StepCard({ icon, title, value, sub, state, href }:
+  { icon: string; title: string; value: string; sub?: string; state: 'wait' | 'ok' | 'warn'; href: string }) {
   return (
-    <a className={`stepcard ${state}`} href={href}>
-      <div className="stepcard-head"><span className="stepcard-icon"><Icon name={icon} size={15} /></span><span>{no} {title}</span></div>
-      <div className="stepcard-value">{value}{unit && <small>{unit}</small>}</div>
-      <div className="stepcard-sub">{sub}</div>
+    <a className={`stepcard ${state}`} href={href} title={sub}>
+      <span className="stepcard-icon"><Icon name={icon} size={14} /></span>
+      <span className="stepcard-title">{title}</span>
+      <b className="stepcard-value">{value}</b>
     </a>
   )
 }
@@ -55,16 +55,15 @@ export function AnalysisView({ state }: { state: AppState }) {
   return (
     <div className="view">
       <div className="stepcards">
-        <StepCard no="2.1" icon="route" title="业务流还原" href="#sec-flows" state="ok"
-          value={num(flows.summary.total_flows)} unit="条失败路径" sub={`${num(flows.summary.total_users)} 个用户 · ${num(flows.summary.multi_hop_flows)} 条跨网元`} />
-        <StepCard no="2.2.1" icon="target" title="特征聚类" href="#sec-cluster" state={clustering ? 'ok' : 'wait'}
-          value={clustering ? String(nHigh) : '…'} unit={clustering ? '个强聚集维度' : ''}
-          sub={clustering ? `共 ${clustering.series.length} 个突增维度` : '分析中'} />
-        <StepCard no="2.2.2" icon="graph" title="图谱推理" href="#sec-kg" state={kg ? 'ok' : 'wait'}
-          value={kg ? String(nRoot) : '…'} unit={kg ? '个根因侧维度' : ''} sub={kg ? `${roles.length - nRoot} 个为传导结果` : '推理中'} />
-        <StepCard no="2.3" icon="shield" title="交叉验证" href="#sec-cv" state={!crossval ? 'wait' : crossval.decision === 'conclusion' ? 'ok' : 'warn'}
+        <StepCard icon="route" title="业务流还原" href="#sec-flows" state="ok"
+          value={`${num(flows.summary.total_flows)} 条路径`} sub={`${num(flows.summary.total_users)} 个用户，${num(flows.summary.multi_hop_flows)} 条跨网元`} />
+        <StepCard icon="target" title="特征聚类" href="#sec-cluster" state={clustering ? 'ok' : 'wait'}
+          value={clustering ? `${nHigh} 个强聚集` : '…'} sub={clustering ? `共 ${clustering.series.length} 个突增维度` : undefined} />
+        <StepCard icon="graph" title="图谱推理" href="#sec-kg" state={kg ? 'ok' : 'wait'}
+          value={kg ? `${nRoot} 根因 · ${roles.length - nRoot} 传导` : '…'} />
+        <StepCard icon="shield" title="交叉验证" href="#sec-cv" state={!crossval ? 'wait' : crossval.decision === 'conclusion' ? 'ok' : 'warn'}
           value={!crossval ? '…' : crossval.decision === 'conclusion' ? '唯一结论' : '转慢推理'}
-          sub={!crossval ? '等待中' : focus ? `${short(focus.anchor)} · ${focus.links.map((l) => `${l.interface}→${short(l.target)}`).join(' · ')}` : crossval.reason} />
+          sub={focus ? `${short(focus.anchor)} · ${focus.links.map((l) => `${l.interface}→${short(l.target)}`).join(' · ')}` : crossval?.reason} />
       </div>
 
       <Section id="sec-flows" no="2.1" title="用户级业务流" hint="同一用户同一流程的跨网元 CHR 串成失败路径"

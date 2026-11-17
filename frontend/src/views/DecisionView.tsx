@@ -49,14 +49,13 @@ export function DecisionView({ state, topo }: { state: AppState; topo: Topo }) {
             {inc && <span className="mono">{inc.id}</span>} 故障起始 <b>{c.onset}</b> · 感知 <b>{c.detected_at}</b></div>
           <h2>{c.title}</h2>
           <div className="chain">
-            {c.chain.flatMap((x, i) => [
-              i > 0 ? <span key={`a${i}`} className="chain-arrow"><Icon name="arrowRight" size={16} /></span> : null,
-              <div key={i} className={`chain-item c${i}`}>
-                <div className="chain-label">{x.label}</div>
+            {c.chain.map((x, i) => (
+              <div key={i} className="chain-cell">
+                <div className="chain-label"><span className="chain-no">{i + 1}</span>{x.label}</div>
                 <div className="chain-value">{x.value}</div>
                 <div className="chain-sub">{x.sub}</div>
-              </div>,
-            ])}
+              </div>
+            ))}
           </div>
         </div>
         <div className="hero-side">
