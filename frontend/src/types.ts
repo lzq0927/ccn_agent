@@ -22,7 +22,7 @@ export interface LogLine { channel: 'system' | 'agent'; stage: string; time: str
 
 export interface SeriesChart {
   key: string; instance: string; procedure: string; cause: string; cause_name: string
-  labels: string[]; values: number[]; flags: boolean[]
+  labels: string[]; values: number[]; flags: boolean[]; thresholds: (number | null)[]
   baseline: number | null; threshold: number | null; status: 'sustained' | 'transient' | 'normal'
 }
 

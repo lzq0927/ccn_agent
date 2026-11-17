@@ -313,15 +313,31 @@ class Engine:
 
     # ------------------------------------------------------------ 展示数据
     def _series_chart(self, key: str, counts: pd.DataFrame, minute: int) -> dict:
-        det = self.det
+        """单个时序维度的展示数据：最近 chart_minutes 分钟的逐分钟条数、突增点，以及逐分钟的动态阈值。
+
+        动态阈值取每一分钟判定时实际使用的阈值（由当时的基线与离散度算出），基线冻结期间保持不变。
+        """
+        det, s = self.det, self.s
         instance, procedure, cause = key.split("|")
-        minutes = list(counts.columns)
+        first = max(self.first_minute if self.first_minute is not None else minute, minute - s.chart_minutes + 1)
+        minutes = list(range(first, minute + 1))
+        hist = self.buf.loc[self.buf["series"] == key, "minute"].value_counts()
         flags = det.flags.get(key, set())
+        points = det.points.get(key, {})
+
+        def threshold_at(m: int) -> float | None:
+            p = points.get(m)
+            if p is None or not p.judged:
+                return None
+            return round(float(max(p.baseline + s.z_threshold * p.sigma, p.baseline + s.min_delta)), 2)
+
         mu = det.baseline.get(key, (None, None))[0]
-        status = "sustained" if det.sustained(key, minute) else ("transient" if any(m in flags for m in minutes) else "normal")
+        in_window = set(counts.columns)
+        status = "sustained" if det.sustained(key, minute) else ("transient" if any(m in flags for m in in_window) else "normal")
         return {"key": key, "instance": instance, "procedure": procedure, "cause": cause,
                 "cause_name": self.cause_names.get(cause, cause), "labels": [self.hhmm(m) for m in minutes],
-                "values": [int(v) for v in counts.loc[key]], "flags": [m in flags for m in minutes],
+                "values": [int(hist.get(m, 0)) for m in minutes], "flags": [m in flags for m in minutes],
+                "thresholds": [threshold_at(m) for m in minutes],
                 "baseline": mu, "threshold": det.threshold(key), "status": status}
 
     def _pick_series(self, counts: pd.DataFrame, minute: int) -> list[dict]:

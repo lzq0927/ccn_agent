@@ -6,7 +6,6 @@ import { Modal } from '../components/Modal'
 import { Section } from '../components/Section'
 import { Topology, TopologyLegend } from '../components/Topology'
 import { num } from '../lib/format'
-import { useCols } from '../lib/useCols'
 import type { AppState, Meta, Topo } from '../types'
 
 /** 一行式指标：图标 + 名称 + 数值。 */
@@ -27,11 +26,11 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
   const [group, setGroup] = useState(0)
   const [modal, setModal] = useState<'series' | null>(null)
   useEffect(() => { setGroup(0) }, [p])
-  const cols = useCols(1600, 3, 2)
 
-  const all = p?.series ?? tick?.series ?? []
+  // 小图始终用最新一分钟的数据，故障期间也持续滚动
+  const all = tick?.series ?? p?.series ?? []
   const hot = all.filter((s) => s.status === 'sustained')
-  const shown = (hot.length ? hot : all).slice(0, cols * 2)      // 一屏内两行
+  const shown = (hot.length ? hot : all).slice(0, 4)             // 固定展示 4 个：2 × 2
   const pie = p?.pies[group]
   const colors = useMemo(() => colorMap(pie ? pie.before.map((c) => c.cause) : []), [pie])
   const nAnom = p?.stats.n_anomalous ?? tick?.n_sustained ?? 0
@@ -61,10 +60,10 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
           <TopologyLegend mode="live" />
         </Section>
 
-        <Section title="时序异常检测" hint="网元实例 + 流程 + 原因码" tone={hot.length ? 'critical' : undefined}
-          takeaway={p ? <><b>{p.stats.n_anomalous}</b> 个持续突增 / {p.stats.n_series}</> : undefined}
+        <Section title="时序异常检测" hint="虚线为动态阈值" tone={hot.length ? 'critical' : undefined}
+          takeaway={p ? <><b>{p.stats.n_anomalous}</b> 个持续突增</> : undefined}
           action={all.length ? { label: `全部 ${all.length} 个`, onClick: () => setModal('series') } : undefined}>
-          {shown.length ? <div className="series-grid fit" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+          {shown.length ? <div className="series-grid fit">
             {shown.map((s) => <SeriesCard key={s.key} s={s} fill />)}</div>
             : <div className="empty">{tick ? '等待数据…' : '点击右上角“开始”'}</div>}
         </Section>
@@ -108,7 +107,8 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
 
       {modal === 'series' && (
         <Modal wide title={`时序异常检测 · ${all.length} 个典型维度${p ? `（共 ${p.stats.n_series} 个，${p.stats.n_anomalous} 个持续突增）` : ''}`} onClose={() => setModal(null)}>
-          <div className="legend top"><span><i className="sdot sustained" />持续突增</span><span><i className="sdot transient" />有突增点但未达持续判定</span><span><i className="sdot" />平稳底噪</span></div>
+          <div className="legend top"><span><i className="lg line-hot" />持续突增维度</span><span><i className="lg line-norm" />其它维度</span>
+            <span><i className="sdot sustained" />突增点</span><span><i className="lg line-thr" />动态阈值（随基线变化，故障期间基线冻结）</span></div>
           <div className="series-grid modal-grid">{all.map((s) => <SeriesCard key={s.key} s={s} />)}</div>
         </Modal>
       )}

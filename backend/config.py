@@ -35,6 +35,7 @@ class Settings:
     min_delta: float = 3.0          # 相对基线的最小绝对增量（条/分钟）
     min_baseline_points: int = 5    # 估计基线所需的最少正常点数
     max_series_charts: int = 9      # 前端展示的典型时序数
+    chart_minutes: int = 30         # 时序图展示的最长时间（分钟）；数据缓冲为 2 个滑窗，不宜超过它
 
     # 分析
     corr_window_s: int = 3          # 同一用户跨网元 CHR 的关联时间窗（秒）
