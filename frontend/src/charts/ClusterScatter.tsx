@@ -3,10 +3,10 @@ import { EChart, TOOLTIP } from '../components/EChart'
 import { GRADE_COLOR, GRADE_LABEL, INK } from '../lib/colors'
 import type { ClusterPoint } from '../types'
 
-interface Props { points: ClusterPoint[]; selected: string | null; onSelect: (key: string) => void }
+interface Props { points: ClusterPoint[]; selected: string | null; onSelect: (key: string) => void; height?: number | string }
 
 /** 横轴：原因码在“网元实例+流程”内的占比；纵轴：该“网元实例+流程”的 CHR 总数。越靠右上越可能是根因。 */
-export function ClusterScatter({ points, selected, onSelect }: Props) {
+export function ClusterScatter({ points, selected, onSelect, height = 320 }: Props) {
   const option = useMemo(() => {
     const sorted = [...points].sort((a, b) => Number(a.anomalous) - Number(b.anomalous))
     const maxY = Math.max(...points.map((p) => p.group_total), 10)
@@ -19,7 +19,7 @@ export function ClusterScatter({ points, selected, onSelect }: Props) {
     }
     return {
       animation: false,
-      grid: { left: 52, right: 30, top: 24, bottom: 40 },
+      grid: { left: 48, right: 26, top: 18, bottom: 36 },
       tooltip: {
         ...TOOLTIP, trigger: 'item',
         formatter: (p: { data: { p: ClusterPoint } }) => {
@@ -30,7 +30,7 @@ export function ClusterScatter({ points, selected, onSelect }: Props) {
         },
       },
       xAxis: {
-        type: 'value', min: 0, max: 100, name: '原因码在 网元实例+流程 内的占比', nameLocation: 'middle', nameGap: 26,
+        type: 'value', min: 0, max: 100, name: '原因码在 网元实例+流程 内的占比', nameLocation: 'middle', nameGap: 22,
         nameTextStyle: { color: INK.muted, fontSize: 11 }, axisLabel: { color: INK.muted, fontSize: 11, formatter: '{value}%' },
         axisLine: { lineStyle: { color: INK.axis } }, axisTick: { show: false }, splitLine: { lineStyle: { color: INK.grid } },
       },
@@ -62,6 +62,6 @@ export function ClusterScatter({ points, selected, onSelect }: Props) {
       }],
     }
   }, [points, selected])
-  return <EChart option={option} height={320} ariaLabel="原因码占比与总量散点图"
+  return <EChart option={option} height={height} ariaLabel="原因码占比与总量散点图"
     onClick={(p) => { const d = (p.data as { p?: ClusterPoint })?.p; if (d?.anomalous) onSelect(d.key) }} />
 }

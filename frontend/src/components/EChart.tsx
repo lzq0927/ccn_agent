@@ -15,7 +15,7 @@ export const TOOLTIP = {
 
 interface Props {
   option: EChartsCoreOption
-  height: number
+  height: number | string
   onClick?: (params: { data?: unknown; dataIndex?: number; name?: string }) => void
   ariaLabel?: string
 }

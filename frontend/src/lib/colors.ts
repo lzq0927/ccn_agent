@@ -1,7 +1,7 @@
 // 图表配色：分类色按固定顺序分配（不循环），状态色只用于聚集程度/异常语义
 export const SERIES = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#6250d6', '#e34948']
 export const OTHER = '#c5cad6'
-export const INK = { primary: '#101828', secondary: '#475467', muted: '#98a2b3', grid: '#eef0f4', axis: '#d0d5dd', surface: '#ffffff' }
+export const INK = { primary: '#101828', secondary: '#344054', muted: '#667085', grid: '#eef0f4', axis: '#d0d5dd', surface: '#ffffff' }
 export const STATUS = { critical: '#d03b3b', serious: '#ec835a', warning: '#fab219', good: '#0ca30c', accent: '#2a78d6' }
 
 export const GRADE_COLOR: Record<string, string> = {

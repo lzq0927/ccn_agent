@@ -29,6 +29,7 @@ def build(ctx: dict) -> dict:
     hhmm = ctx["hhmm"]
     onset = min(s["onset"] for s in clustering["series"])
     local = group["anchor"]
+    kept = ctx["kept"]
 
     nodes = {n: {"role": "normal"} for n in topo.nodes}
     edges: list[dict] = []
@@ -68,7 +69,8 @@ def build(ctx: dict) -> dict:
             {"label": "表现", "value": f"{len(root_series)} 个原因码{'超时' if loss else ''}突增",
              "sub": " · ".join(sorted({s["cause"] for s in root_series}))},
             {"label": "影响", "value": f"{len(procedures)} 类流程失败",
-             "sub": "传导至 " + "、".join(i.split(":")[1] for i in impacted) if impacted else "未向上游传导"},
+             "sub": f"{int(kept.loc[kept['imsi'] != '', 'imsi'].nunique())} 用户"
+                    + (" · 传导至 " + "、".join(i.split(":")[1] for i in impacted) if impacted else "")},
         ]
 
         nodes[local] = {"role": "root", "note": title}
@@ -177,7 +179,6 @@ def build(ctx: dict) -> dict:
     match = sum(group["scores"]) / len(group["scores"])
     explain = (sum(d["explained_ratio"] for d in cv["derived"]) / len(cv["derived"])) if cv["derived"] else 1.0
     confidence = round(0.7 * match + 0.3 * explain, 2)
-    kept = ctx["kept"]
     detected = hhmm(ctx["minute"] + 1)
     return {
         "title": title, "summary": summary, "chain": chain, "confidence": confidence, "definitive": True,

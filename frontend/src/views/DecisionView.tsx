@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Icon } from '../components/Icon'
+import { Modal } from '../components/Modal'
 import { Section } from '../components/Section'
 import { Topology, TopologyLegend } from '../components/Topology'
 import { GRADE_LABEL } from '../lib/colors'
@@ -34,29 +35,29 @@ export function DecisionView({ state, topo }: { state: AppState; topo: Topo }) {
   const c = state.conclusion
   const inc = state.incident
   const [node, setNode] = useState<string | null>(null)
-  useEffect(() => setNode(c?.root.ne || null), [c])
+  const [modal, setModal] = useState<'evidence' | 'recovery' | null>(null)
 
-  if (!c) return <div className="view"><div className="card"><div className="empty tall"><Icon name="zap" size={22} /><div>当前未见异常。分析完成后在这里给出结论与恢复方案</div></div></div></div>
+  if (!c) return <div className="view fit"><div className="card grow-card"><div className="empty tall"><Icon name="zap" size={22} /><div>当前未见异常。分析完成后在这里给出结论与恢复方案</div></div></div></div>
   const stat = node ? c.node_stats[node] : null
   const note = node ? c.topology.nodes[node]?.note : ''
 
   return (
-    <div className="view">
+    <div className="view fit">
       <section className={`hero ${c.definitive ? 'definitive' : 'tentative'} ${inc?.status === 'recovered' ? 'recovered' : ''}`}>
         <div className="hero-main">
           <div className="hero-kicker"><span className="hero-badge"><Icon name="target" size={13} />{c.definitive ? '根因已定位' : '可能原因'}</span>
             {inc?.status === 'recovered' && <span className="hero-recovered"><Icon name="checkCircle" size={13} />已恢复 {inc.recovered_at}</span>}
-            {inc && <span className="mono">{inc.id}</span>} 故障起始 <b>{c.onset}</b> · 感知 <b>{c.detected_at}</b></div>
+            <span>起始 <b>{c.onset}</b></span><span>感知 <b>{c.detected_at}</b></span></div>
           <h2>{c.title}</h2>
-          <div className="chain">
-            {c.chain.map((x, i) => (
-              <div key={i} className="chain-cell">
-                <div className="chain-label"><span className="chain-no">{i + 1}</span>{x.label}</div>
-                <div className="chain-value">{x.value}</div>
-                <div className="chain-sub">{x.sub}</div>
-              </div>
-            ))}
-          </div>
+        </div>
+        <div className="chain">
+          {c.chain.map((x, i) => (
+            <div key={i} className="chain-cell" title={`${x.label}：${x.value}（${x.sub}）`}>
+              <div className="chain-label"><span className="chain-no">{i + 1}</span>{x.label}</div>
+              <div className="chain-value">{x.value}</div>
+              <div className="chain-sub">{x.sub}</div>
+            </div>
+          ))}
         </div>
         <div className="hero-side">
           <Ring value={c.confidence} />
@@ -68,68 +69,94 @@ export function DecisionView({ state, topo }: { state: AppState; topo: Topo }) {
         </div>
       </section>
 
-      <Section title="拓扑定位" hint="点击网元查看详情">
-        <div className="grid-topo">
-          <div>
-            <Topology topo={topo} overlay={c.topology} selected={node} onSelect={setNode} />
-            <TopologyLegend mode="conclusion" />
-          </div>
-          <div className="node-detail">
-            {stat && node ? (
-              <>
-                <div className="detail-title">{node}</div>
-                <div className="detail-sub">{note || '未见异常'}</div>
-                <Spark values={stat.values} />
-                <div className="spark-axis"><span>{stat.labels[0]}</span><span>CHR 条/分钟</span><span>{stat.labels[stat.labels.length - 1]}</span></div>
-                {stat.series.length === 0 ? <div className="muted small">窗口内没有持续突增的维度。</div> : (
-                  <ul className="node-series">
-                    {stat.series.map((s) => (
-                      <li key={`${s.procedure}${s.cause}`}>
-                        <div className="ns-top"><span><span className="mono">{s.cause}</span> {s.cause_name}</span>
-                          <span className="ns-rate">{s.baseline} → <b>{s.current}</b></span></div>
-                        <div className="ns-sub">{s.procedure} · {s.best.label} {s.best.set.map(short).join('、')} {pct(s.best.score)}
-                          <span className={`gtag ${s.best.grade}`}>{GRADE_LABEL[s.best.grade]}</span></div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            ) : <div className="muted small">选择一个网元。</div>}
-          </div>
-        </div>
-      </Section>
+      <div className="dv-grid">
+        <Section title="拓扑定位" hint="点击网元查看详情" className="dv-topo">
+          <div className="topo-fill"><Topology topo={topo} overlay={c.topology} selected={node} onSelect={setNode} /></div>
+          <TopologyLegend mode="conclusion" />
+        </Section>
 
-      <Section title="关键证据" hint="悬停卡片查看完整说明">
-        <div className="ev-grid">
-          {c.evidence.map((e, i) => (
-            <div key={i} className={`ev-card k-${e.kind}`}>
-              <div className="ev-head"><span className="ev-icon"><Icon name={EV_ICON[e.kind] ?? 'check'} size={14} /></span>{e.kind}</div>
-              {e.metric && <div className="ev-metric">{e.metric}<small>{e.unit}</small></div>}
-              <div className="ev-title">{e.title}</div>
-              <div className="ev-detail">{e.detail}</div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="恢复方案" hint={c.recovery.definitive ? '结论明确，优先切换到可用路径' : '结论不确定，以下为处理建议'} tone="good"
-        takeaway={<><Icon name="tool" size={13} />{c.recovery.steps.length} 步</>}>
-        <ol className="steps">
-          {c.recovery.steps.map((s, i) => (
-            <li key={i} className={`t-${s.tag ?? ''}`}>
-              <span className="step-no">{i + 1}</span>
-              <div className="step-body">
-                <div className="step-title">{s.title}{s.tag && <span className="step-tag">{s.tag}</span>}</div>
-                <div className="step-detail">{s.detail}</div>
+        <Section title="关键证据" action={{ label: '详情', onClick: () => setModal('evidence') }}>
+          <div className="rows">
+            {c.evidence.map((e, i) => (
+              <div key={i} className={`row-item ev-row k-${e.kind}`} title={e.detail} onClick={() => setModal('evidence')}>
+                <span className="ev-icon"><Icon name={EV_ICON[e.kind] ?? 'check'} size={13} /></span>
+                <span className="ev-kind">{e.kind}</span>
+                <span className="row-name">{e.title}</span>
+                {e.metric && <b className="ev-num">{e.metric}<small>{e.unit}</small></b>}
               </div>
-            </li>
-          ))}
-        </ol>
-        <details className="fold">
-          <summary>移交决策执行模块的载荷（本系统不执行）</summary>
-          <pre>{JSON.stringify(c.handoff, null, 2)}</pre>
-        </details>
-      </Section>
+            ))}
+          </div>
+        </Section>
+
+        <Section title="恢复方案" hint={c.recovery.definitive ? '优先切换到可用路径' : '处理建议'} tone="good"
+          takeaway={<><Icon name="tool" size={13} />{c.recovery.steps.length} 步</>}
+          action={{ label: '详情', onClick: () => setModal('recovery') }}>
+          <div className="rows">
+            {c.recovery.steps.map((s, i) => (
+              <div key={i} className={`row-item step-row t-${s.tag ?? ''}`} title={s.detail} onClick={() => setModal('recovery')}>
+                <span className="step-no">{i + 1}</span>
+                <span className="row-name"><b>{s.title}</b></span>
+                {s.tag && <span className="step-tag">{s.tag}</span>}
+              </div>
+            ))}
+          </div>
+        </Section>
+      </div>
+
+      {stat && node && (
+        <Modal title={<>{node} <span className="modal-sub">{note || '未见异常'}</span></>} onClose={() => setNode(null)}>
+          <Spark values={stat.values} />
+          <div className="spark-axis"><span>{stat.labels[0]}</span><span>CHR 条/分钟</span><span>{stat.labels[stat.labels.length - 1]}</span></div>
+          {stat.series.length === 0 ? <div className="small">窗口内没有持续突增的维度。</div> : (
+            <ul className="node-series">
+              {stat.series.map((s) => (
+                <li key={`${s.procedure}${s.cause}`}>
+                  <div className="ns-top"><span><span className="mono">{s.cause}</span> {s.cause_name}</span>
+                    <span className="ns-rate">{s.baseline} → <b>{s.current}</b> 条/分</span></div>
+                  <div className="ns-sub">{s.procedure} · {s.best.label} {s.best.set.map(short).join('、')} {pct(s.best.score)}
+                    <span className={`gtag ${s.best.grade}`}>{GRADE_LABEL[s.best.grade]}</span></div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Modal>
+      )}
+
+      {modal === 'evidence' && (
+        <Modal wide title="关键证据" onClose={() => setModal(null)}>
+          <div className="modal-row"><span>{c.summary}</span></div>
+          <div className="ev-grid">
+            {c.evidence.map((e, i) => (
+              <div key={i} className={`ev-card k-${e.kind}`}>
+                <div className="ev-head"><span className="ev-icon"><Icon name={EV_ICON[e.kind] ?? 'check'} size={14} /></span>{e.kind}</div>
+                {e.metric && <div className="ev-metric">{e.metric}<small>{e.unit}</small></div>}
+                <div className="ev-title">{e.title}</div>
+                <div className="ev-detail">{e.detail}</div>
+              </div>
+            ))}
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'recovery' && (
+        <Modal wide title="恢复方案" onClose={() => setModal(null)}>
+          <ol className="steps">
+            {c.recovery.steps.map((s, i) => (
+              <li key={i} className={`t-${s.tag ?? ''}`}>
+                <span className="step-no">{i + 1}</span>
+                <div className="step-body">
+                  <div className="step-title">{s.title}{s.tag && <span className="step-tag">{s.tag}</span>}</div>
+                  <div className="step-detail">{s.detail}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <details className="fold" open>
+            <summary>移交决策执行模块的载荷（本系统不执行）</summary>
+            <pre>{JSON.stringify(c.handoff, null, 2)}</pre>
+          </details>
+        </Modal>
+      )}
     </div>
   )
 }

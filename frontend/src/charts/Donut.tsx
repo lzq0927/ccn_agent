@@ -32,7 +32,7 @@ export function Donut({ slices, title, size = 168 }: { slices: Slice[]; title: s
       formatter: (p: { name: string; value: number; percent: number; data: { label: string } }) =>
         `<b>${p.name}</b> ${p.data.label}<br/>${p.value} 条 · ${p.percent}%` },
     graphic: [
-      { type: 'text', left: 'center', top: '40%', style: { text: total.toLocaleString('en-US'), fontSize: 20, fontWeight: 600, fill: INK.primary } },
+      { type: 'text', left: 'center', top: '38%', style: { text: total.toLocaleString('en-US'), fontSize: size < 120 ? 16 : 20, fontWeight: 600, fill: INK.primary } },
       { type: 'text', left: 'center', top: '56%', style: { text: '条 CHR', fontSize: 11, fill: INK.muted } },
     ],
     series: [{

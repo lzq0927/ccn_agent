@@ -194,7 +194,7 @@ export function TopologyLegend({ mode }: { mode: 'live' | 'conclusion' }) {
       <span><i className="lg line-prop" />失败传导</span>
       <span><i className="lg chip-impacted" />受影响</span>
       <span><i className="lg line-alt" />可用路径</span>
-      <span><i className="lg chip-peer" />链路对端（自身正常）</span>
+      <span><i className="lg chip-peer" />链路对端</span>
     </div>
   )
 }

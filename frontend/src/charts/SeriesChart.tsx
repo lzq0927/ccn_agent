@@ -6,7 +6,7 @@ import type { SeriesChart as S } from '../types'
 const STATUS_TEXT = { sustained: '持续突增', transient: '未达持续', normal: '平稳' }
 
 /** 单个时序维度（网元实例 + 流程 + 原因码）的小图：每分钟 CHR 条数、阈值线、突增点。 */
-export function SeriesCard({ s }: { s: S }) {
+export function SeriesCard({ s, fill }: { s: S; fill?: boolean }) {
   const option = useMemo(() => {
     const peak = Math.max(...s.values, s.threshold ?? 0, 4)
     return {
@@ -47,12 +47,12 @@ export function SeriesCard({ s }: { s: S }) {
   }, [s])
 
   return (
-    <div className={`series-card ${s.status}`} title={`${s.instance} · ${s.procedure} · ${s.cause} ${s.cause_name}`}>
+    <div className={`series-card ${s.status} ${fill ? 'fill' : ''}`} title={`${s.instance} · ${s.procedure} · ${s.cause} ${s.cause_name}`}>
       <div className="series-head">
         <div className="series-title"><b>{s.instance.split(':')[1]}</b> · {s.procedure} · <span className="mono">{s.cause}</span></div>
         <i className={`sdot ${s.status}`} title={STATUS_TEXT[s.status]} />
       </div>
-      <EChart option={option} height={64} ariaLabel={`${s.key} 每分钟 CHR 条数`} />
+      <div className="series-plot"><EChart option={option} height={fill ? '100%' : 84} ariaLabel={`${s.key} 每分钟 CHR 条数`} /></div>
     </div>
   )
 }
