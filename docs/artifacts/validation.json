@@ -1,0 +1,8 @@
+{
+  "base_branch": "main-chr-gpt",
+  "base_commit": "419d94d40a938339194e89ebbc1cf1f535127cf4",
+  "backend_tests": 22,
+  "browser_tests": 2,
+  "default_seed": 42,
+  "data_rows": 7064
+}

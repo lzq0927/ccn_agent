@@ -1,0 +1,219 @@
+{
+  "version": "1.0.0",
+  "provenance": "公开协议语义 + 人工编写的实验室规则；不是已分析内网产品代码的图谱",
+  "codes": [
+    {
+      "id": "5GMM:7",
+      "name": "5GS services not allowed",
+      "layer": "NAS / 5GMM",
+      "standard": true,
+      "source": "3GPP TS 24.501 §9.11.3.2 / Annex A",
+      "scenarios": ["subscription"],
+      "signals": []
+    },
+    {
+      "id": "5GMM:22",
+      "name": "Congestion",
+      "layer": "NAS / 5GMM",
+      "standard": true,
+      "source": "3GPP TS 24.501 §9.11.3.2 / Annex A",
+      "scenarios": ["nf_overload"],
+      "signals": ["resource_signal"]
+    },
+    {
+      "id": "5GMM:90",
+      "name": "Payload was not forwarded",
+      "layer": "NAS / 5GMM",
+      "standard": true,
+      "source": "3GPP TS 24.501 §9.11.3.2 / Annex A",
+      "scenarios": ["backend_packet_loss", "nf_overload"],
+      "signals": []
+    },
+    {
+      "id": "5GSM:26",
+      "name": "Insufficient resources",
+      "layer": "NAS / 5GSM",
+      "standard": true,
+      "source": "3GPP TS 24.501 §9.11.4.2 / Annex B",
+      "scenarios": ["nf_overload"],
+      "signals": ["resource_signal"]
+    },
+    {
+      "id": "5GSM:27",
+      "name": "Missing or unknown DNN",
+      "layer": "NAS / 5GSM",
+      "standard": true,
+      "source": "3GPP TS 24.501 §9.11.4.2 / Annex B",
+      "scenarios": ["configuration"],
+      "signals": ["configuration_signal"]
+    },
+    {
+      "id": "5GSM:29",
+      "name": "User authentication or authorization failed",
+      "layer": "NAS / 5GSM",
+      "standard": true,
+      "source": "3GPP TS 24.501 §9.11.4.2 / Annex B",
+      "scenarios": ["subscription"],
+      "signals": []
+    },
+    {
+      "id": "5GSM:38",
+      "name": "Network failure",
+      "layer": "NAS / 5GSM",
+      "standard": true,
+      "source": "3GPP TS 24.501 §9.11.4.2 / Annex B",
+      "scenarios": ["backend_packet_loss", "nf_overload"],
+      "signals": []
+    },
+    {
+      "id": "SIM_SBI_TIMEOUT",
+      "name": "SBI 后端响应超时",
+      "layer": "模拟内部 CHR",
+      "standard": false,
+      "source": "simulation/spec-v1：SBI 请求等待响应超出定时器",
+      "scenarios": [
+        "backend_packet_loss",
+        "peer_overload",
+        "nf_overload",
+        "configuration"
+      ],
+      "signals": []
+    },
+    {
+      "id": "SIM_TRANSPORT_RETRANS_EXHAUSTED",
+      "name": "传输重传耗尽，业务流程失败",
+      "layer": "模拟内部 CHR",
+      "standard": false,
+      "source": "simulation/spec-v1：传输栈重传耗尽的模拟错误点",
+      "scenarios": ["backend_packet_loss", "peer_overload"],
+      "signals": ["retransmission_signal"]
+    },
+    {
+      "id": "SIM_AMF_UPSTREAM_FAILURE",
+      "name": "AMF 收到下游会话处理失败",
+      "layer": "模拟内部 CHR",
+      "standard": false,
+      "source": "simulation/spec-v1：下游失败传播到 AMF",
+      "scenarios": ["backend_packet_loss", "nf_overload", "configuration"],
+      "signals": []
+    },
+    {
+      "id": "SIM_AUTH_REJECT",
+      "name": "鉴权拒绝",
+      "layer": "模拟内部 CHR",
+      "standard": false,
+      "source": "simulation/spec-v1",
+      "scenarios": ["subscription"],
+      "signals": []
+    },
+    {
+      "id": "SIM_SUBSCRIPTION_NOT_FOUND",
+      "name": "签约数据未找到",
+      "layer": "模拟内部 CHR",
+      "standard": false,
+      "source": "simulation/spec-v1",
+      "scenarios": ["subscription"],
+      "signals": []
+    },
+    {
+      "id": "SIM_POLICY_REJECT",
+      "name": "策略请求拒绝",
+      "layer": "模拟内部 CHR",
+      "standard": false,
+      "source": "simulation/spec-v1",
+      "scenarios": ["configuration"],
+      "signals": ["configuration_signal"]
+    },
+    {
+      "id": "SIM_PFCP_TIMEOUT",
+      "name": "PFCP 请求超时",
+      "layer": "模拟内部 CHR",
+      "standard": false,
+      "source": "simulation/spec-v1",
+      "scenarios": ["backend_packet_loss", "peer_overload"],
+      "signals": []
+    }
+  ],
+  "facts": {
+    "source_enrichment": "异常来源实例在跨实例对照中显著富集",
+    "pod_enrichment": "异常集中于实例内的一个 POD，且相对背景显著",
+    "diverse_subscribers": "涉及至少 20 用户、8 基站及 3 区域",
+    "multiple_peer_types": "异常涉及两个及以上后端网元类型",
+    "path_propagation": "有 TRACE_ID 精确关联的下游到上游失败传播",
+    "retransmission_signal": "异常包含传输重传耗尽原因码",
+    "resource_signal": "异常包含资源不足或拥塞原因码",
+    "both_pods": "同实例多个 POD 均有较多异常，未出现单 POD 聚集",
+    "peer_concentration": "80% 以上异常指向单一下游实例",
+    "multiple_sources": "同一下游被两个以上异常源实例调用",
+    "configuration_signal": "异常包含 DNN/策略配置相关原因码",
+    "subscriber_enrichment": "单用户异常相对其背景分布显著"
+  },
+  "scenarios": [
+    {
+      "id": "backend_packet_loss",
+      "title": "后端部分链路丢包",
+      "applies_to": ["SMF", "UPF"],
+      "requirements": [
+        "source_enrichment",
+        "pod_enrichment",
+        "diverse_subscribers",
+        "multiple_peer_types",
+        "path_propagation",
+        "retransmission_signal"
+      ],
+      "critical": [
+        "source_enrichment",
+        "pod_enrichment",
+        "retransmission_signal",
+        "multiple_peer_types"
+      ],
+      "recovery_kind": "reroute",
+      "explanation": "单源单 POD、跨用户和接入域、多个后端类型同时超时，并出现重传耗尽与上游失败传播，支持该源后端共享路径的部分丢包。",
+      "limitations": "CHR 不能直接测量丢包率，也不能排除所有传输拥塞/主机网络栈问题；上线需结合链路探测确认。"
+    },
+    {
+      "id": "peer_overload",
+      "title": "后端服务无响应或过载",
+      "applies_to": ["SMF", "AMF", "UPF"],
+      "requirements": [
+        "peer_concentration",
+        "multiple_sources",
+        "path_propagation"
+      ],
+      "critical": ["peer_concentration", "multiple_sources"],
+      "recovery_kind": "reroute",
+      "explanation": "多个源实例同时指向同一后端，优先怀疑该后端服务或其入口。",
+      "limitations": "需要后端服务时延/资源证据。"
+    },
+    {
+      "id": "nf_overload",
+      "title": "网元资源不足或过载",
+      "applies_to": ["AMF", "SMF"],
+      "requirements": ["source_enrichment", "resource_signal", "both_pods"],
+      "critical": ["resource_signal", "both_pods"],
+      "recovery_kind": "reroute",
+      "explanation": "资源类错误及跨 POD 影响支持实例整体容量不足。",
+      "limitations": "需要资源与容量指标进一步确认。"
+    },
+    {
+      "id": "configuration",
+      "title": "DNN 或策略配置异常",
+      "applies_to": ["AMF", "SMF", "PCF"],
+      "requirements": ["source_enrichment", "configuration_signal"],
+      "critical": ["configuration_signal"],
+      "recovery_kind": "rollback",
+      "explanation": "配置类原因码发生持续突增并与实例相关，检查近期配置变更。",
+      "limitations": "缺少配置差异时无法指定安全的回退版本。"
+    },
+    {
+      "id": "subscription",
+      "title": "个别用户签约或鉴权异常",
+      "applies_to": ["AMF", "SMF", "UDM", "AUSF"],
+      "requirements": ["subscriber_enrichment"],
+      "critical": ["subscriber_enrichment"],
+      "recovery_kind": "investigate",
+      "explanation": "只有相对背景显著的用户聚集才支持用户级根因。",
+      "limitations": "需用户跟踪与签约信息核验。"
+    }
+  ]
+}

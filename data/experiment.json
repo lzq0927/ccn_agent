@@ -1,0 +1,10 @@
+{
+  "synthetic": true,
+  "seed": 42,
+  "scenario": "packet_loss",
+  "duration_minutes": 40,
+  "start": "2026-11-16T09:00:00+00:00",
+  "injection_offset_minutes": 20,
+  "fault_instance": "SMF:smf_2",
+  "note": "Experiment annotation only. Inference must not read this file."
+}
