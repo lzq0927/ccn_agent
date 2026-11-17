@@ -32,19 +32,21 @@ function Ring({ value }: { value: number }) {
 
 export function DecisionView({ state, topo }: { state: AppState; topo: Topo }) {
   const c = state.conclusion
+  const inc = state.incident
   const [node, setNode] = useState<string | null>(null)
   useEffect(() => setNode(c?.root.ne || null), [c])
 
-  if (!c) return <div className="view"><div className="card"><div className="empty tall"><Icon name="zap" size={22} /><div>分析完成后给出结论与恢复方案</div></div></div></div>
+  if (!c) return <div className="view"><div className="card"><div className="empty tall"><Icon name="zap" size={22} /><div>当前未见异常。分析完成后在这里给出结论与恢复方案</div></div></div></div>
   const stat = node ? c.node_stats[node] : null
   const note = node ? c.topology.nodes[node]?.note : ''
 
   return (
     <div className="view">
-      <section className={`hero ${c.definitive ? 'definitive' : 'tentative'}`}>
+      <section className={`hero ${c.definitive ? 'definitive' : 'tentative'} ${inc?.status === 'recovered' ? 'recovered' : ''}`}>
         <div className="hero-main">
           <div className="hero-kicker"><span className="hero-badge"><Icon name="target" size={13} />{c.definitive ? '根因已定位' : '可能原因'}</span>
-            故障起始 <b>{c.onset}</b> · 感知 <b>{c.detected_at}</b></div>
+            {inc?.status === 'recovered' && <span className="hero-recovered"><Icon name="checkCircle" size={13} />已恢复 {inc.recovered_at}</span>}
+            {inc && <span className="mono">{inc.id}</span>} 故障起始 <b>{c.onset}</b> · 感知 <b>{c.detected_at}</b></div>
           <h2>{c.title}</h2>
           <div className="chain">
             {c.chain.map((x, i) => (

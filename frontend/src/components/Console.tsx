@@ -30,7 +30,7 @@ export function Console({ logs, agentLogs, agentState }: { logs: LogLine[]; agen
     <aside className="console">
       <section className="console-main">
         <header><h3><Icon name="layers" size={14} />执行过程</h3><span className="count">{logs.length}</span></header>
-        <Lines lines={logs} empty="开始回放后，这里记录每一步的执行情况。" />
+        <Lines lines={logs} empty="这里按时间顺序记录每一步的执行情况。" />
       </section>
       <section className="console-agent">
         <header><h3><Icon name="cpu" size={14} />Agent</h3><span className={`chip st-${agentState}`}>{agentState}</span></header>

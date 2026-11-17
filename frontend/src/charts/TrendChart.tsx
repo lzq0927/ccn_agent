@@ -4,13 +4,12 @@ import { INK, STATUS } from '../lib/colors'
 
 interface Props {
   trend: { label: string; total: number }[]
-  totalMinutes: number
   windowFrom?: string
   alarm?: string | null
   labels: string[]
 }
 
-/** 全网每分钟 CHR 条数；浅色带为当前 15 分钟滑窗。 */
+/** 全网每分钟 CHR 条数（最近一小时滚动）；浅色带为当前滑窗。 */
 export function TrendChart({ trend, windowFrom, alarm, labels }: Props) {
   const option = useMemo(() => {
     const last = trend[trend.length - 1]?.label
@@ -21,7 +20,7 @@ export function TrendChart({ trend, windowFrom, alarm, labels }: Props) {
         valueFormatter: (v: number) => `${v} 条/分` },
       xAxis: {
         type: 'category', data: labels, boundaryGap: false, axisTick: { show: false },
-        axisLine: { lineStyle: { color: INK.axis } }, axisLabel: { color: INK.muted, fontSize: 11, interval: 4 },
+        axisLine: { lineStyle: { color: INK.axis } }, axisLabel: { color: INK.muted, fontSize: 11, interval: Math.max(0, Math.ceil(labels.length / 9) - 1) },
       },
       yAxis: {
         type: 'value', min: 0, splitNumber: 3, axisLabel: { color: INK.muted, fontSize: 11 },
@@ -33,7 +32,7 @@ export function TrendChart({ trend, windowFrom, alarm, labels }: Props) {
         markArea: windowFrom && last ? {
           silent: true, itemStyle: { color: 'rgba(11,11,11,0.035)' },
           label: { show: true, position: 'insideTopLeft', color: INK.muted, fontSize: 10, formatter: '当前滑窗' },
-          data: [[{ xAxis: windowFrom }, { xAxis: last }]],
+          data: [[{ xAxis: labels.includes(windowFrom) ? windowFrom : labels[0] }, { xAxis: last }]],
         } : undefined,
         markLine: alarm ? {
           silent: true, symbol: 'none', lineStyle: { color: STATUS.critical, width: 1, type: 'solid' },

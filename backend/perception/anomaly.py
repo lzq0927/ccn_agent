@@ -8,6 +8,8 @@
   突增点      : z = (x - mu) / sigma >= z_threshold 且 x - mu >= min_delta
 已判为突增的点不参与后续基线估计；窗口内正常点不足时沿用上一次基线（基线冻结），
 这样故障持续期间基线不会被故障数据抬高。
+整分钟没有任何 CHR 的时段视为数据缺口（数据源中断或刚启动），不当作 0 条参与基线，
+否则缺口之后恢复的正常流量会被全部误判为突增。
 
 持续性：最近 sustain_n 分钟内至少 sustain_m 分钟为突增点，才认定该维度异常，
 用于滤除瞬时毛刺并给后续分析积累足够数据。
@@ -39,10 +41,15 @@ class SpikeDetector:
         self.baseline: dict[str, tuple[float, float]] = {}  # series -> (mu, sigma)
         self.points: dict[str, dict[int, Point]] = {}    # series -> minute -> Point
 
-    def update(self, counts: pd.DataFrame, minute: int) -> dict[str, Point]:
-        """用窗口计数矩阵（index=series, columns=窗口内各分钟）评估最新一分钟。"""
+    def update(self, counts: pd.DataFrame, minute: int, gaps: set[int] | frozenset = frozenset()) -> dict[str, Point]:
+        """用窗口计数矩阵（index=series, columns=窗口内各分钟）评估最新一分钟。
+
+        gaps：数据缺口（整分钟没有收到任何 CHR）。缺口不是“0 条”，不参与基线；最新一分钟是缺口时不做判定。
+        """
         result = {}
-        prev = [m for m in counts.columns if m < minute]
+        if minute in gaps:
+            return result
+        prev = [m for m in counts.columns if m < minute and m not in gaps]
         values = counts.to_numpy(dtype=float)
         col = {m: i for i, m in enumerate(counts.columns)}
         for row, series in enumerate(counts.index):
@@ -81,9 +88,27 @@ class SpikeDetector:
         return all(m in flags for m in range(minute - self.s.sustain_m + 2, minute + 1))
 
     def onset(self, series: str, minute: int) -> int | None:
-        """本次持续突增的起始分钟。"""
+        """本次持续突增的起始分钟：从最近的突增点向前回溯，相邻突增点间隔不超过 2 分钟视为同一段。"""
         recent = self.recent_flags(series, minute)
-        return recent[0] if recent else None
+        if not recent:
+            return None
+        flags = self.flags[series]
+        start = recent[0]
+        while True:
+            earlier = [m for m in flags if start - 3 <= m < start]
+            if not earlier:
+                return start
+            start = min(earlier)
+
+    def prune(self, minute: int) -> None:
+        """长期运行时清理过期的突增标记与逐点记录。"""
+        keep_from = minute - 4 * self.s.window_min
+        for series in list(self.flags):
+            self.flags[series] = {m for m in self.flags[series] if m >= keep_from}
+            pts = self.points.get(series)
+            if pts:
+                for m in [m for m in pts if m < keep_from]:
+                    del pts[m]
 
     def threshold(self, series: str) -> float | None:
         if series not in self.baseline:

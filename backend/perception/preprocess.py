@@ -35,31 +35,36 @@ def _canon(name: str) -> str:
     return re.sub(r"[\s\-]+", "_", str(name).strip().lower())
 
 
+RAW_COLS = ["ts", "cause", "procedure", "instance"] + DIM_COLS + ["source_file"]
+
+
+def normalize_columns(df: pd.DataFrame, source_file: str) -> pd.DataFrame:
+    """把一个 CHR 文件的列名归一成规范列名，缺失的列补空。"""
+    rename = {}
+    for col in df.columns:
+        c = _canon(col)
+        m = PEER_RE.match(c)
+        if m and m.group(1) in PEER_TYPES:
+            rename[col] = f"peer_{m.group(1)}"
+            continue
+        for canon, names in ALIASES.items():
+            if c in names:
+                rename[col] = canon
+    df = df.rename(columns=rename)
+    df["source_file"] = source_file
+    for col in RAW_COLS:
+        if col not in df:
+            df[col] = ""
+    return df[RAW_COLS].fillna("")
+
+
 def read_raw(data_dir: Path) -> pd.DataFrame:
     """读取 data/ 下所有 chr_*.csv，按规范列名纵向合并（全部按字符串读入，不做清洗）。"""
-    frames = []
-    for path in sorted(Path(data_dir).glob("chr_*.csv")):
-        df = pd.read_csv(path, dtype=str, keep_default_na=False)
-        rename = {}
-        for col in df.columns:
-            c = _canon(col)
-            m = PEER_RE.match(c)
-            if m and m.group(1) in PEER_TYPES:
-                rename[col] = f"peer_{m.group(1)}"
-                continue
-            for canon, names in ALIASES.items():
-                if c in names:
-                    rename[col] = canon
-        df = df.rename(columns=rename)
-        df["source_file"] = path.name
-        frames.append(df)
+    frames = [normalize_columns(pd.read_csv(path, dtype=str, keep_default_na=False), path.name)
+              for path in sorted(Path(data_dir).glob("chr_*.csv"))]
     if not frames:
         raise FileNotFoundError(f"{data_dir} 下没有 chr_*.csv")
     raw = pd.concat(frames, ignore_index=True)
-    for col in ["ts", "cause", "procedure", "instance"] + DIM_COLS:
-        if col not in raw:
-            raw[col] = ""
-    raw = raw.fillna("")
     # 到达时间：时间戳非法的记录按文件内前一条的时间到达（模拟流式上报）
     parsed = pd.to_datetime(raw["ts"], errors="coerce", format="%Y-%m-%d %H:%M:%S")
     raw["arrival"] = parsed.groupby(raw["source_file"]).ffill().fillna(parsed.min())
@@ -85,14 +90,16 @@ def preprocess(raw: pd.DataFrame, topo: Topology, t0: pd.Timestamp) -> tuple[pd.
     stats["missing_key"] = int(missing.sum())
     df = df[~missing]
 
-    norm = df["instance"].map(topo.normalize)
+    norm = df["instance"].map(topo.normalize).astype(str)
     stats["normalized_instance"] = int((norm != df["instance"]).sum())
     df["instance"] = norm
     for col in PEER_COLS:
         df[col] = df[col].map(topo.normalize)
-    unknown = ~df["instance"].map(topo.has)
+    unknown = ~df["instance"].map(topo.has).astype(bool)
     stats["unknown_instance"] = int(unknown.sum())
     df = df[~unknown]
+    if df.empty:                       # 本批全部被清洗掉
+        return pd.DataFrame(columns=COLUMNS), {**stats, "output": 0}
 
     before = len(df)
     df = df.drop_duplicates(subset=["ts", "cause", "procedure", "instance", "imsi", "pod"])

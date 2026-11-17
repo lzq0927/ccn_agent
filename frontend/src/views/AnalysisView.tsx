@@ -40,7 +40,7 @@ export function AnalysisView({ state }: { state: AppState }) {
     return DIM_ORDER.filter((d) => present.has(d)).map((d) => ({ dim: d, label: present.get(d)! }))
   }, [clustering])
 
-  if (!flows) return <div className="view"><div className="card"><div className="empty tall"><Icon name="search" size={22} /><div>感知阶段发现异常后进入分析</div></div></div></div>
+  if (!flows) return <div className="view"><div className="card"><div className="empty tall"><Icon name="search" size={22} /><div>当前未见异常。感知发现持续突增后自动进入分析</div></div></div></div>
 
   const selSeries = clustering?.series.find((s) => s.key === sel)
   const group = clustering?.groups[selSeries ? `${selSeries.instance}|${selSeries.procedure}` : ''] ?? []

@@ -2,7 +2,7 @@
 
 交叉验证得不到唯一结论时进入：汇总候选假设，调用用户跟踪/拨测染色等工具补充证据，
 给出“可能原因 + 处理建议”（非确切结论）。当前为规则化的桩实现，保留与 LLM Agent 对接的接口：
-替换 SlowReasoningAgent.run 即可，输入输出结构不变。当前仿真数据案例不会走到这里。
+替换 SlowReasoningAgent.run 即可，输入输出结构不变。
 """
 from __future__ import annotations
 

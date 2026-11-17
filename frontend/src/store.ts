@@ -1,26 +1,38 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react'
-import type { AppState, LogLine, Stage, StepStatus, Tick } from './types'
+import { useEffect, useReducer } from 'react'
+import type { AppState, Incident, LogLine, Stage, StepStatus, Tick } from './types'
+
+const KEEP_LOGS = 400
+const KEEP_TREND = 60
+const ANALYSIS = { perception: null, flows: null, clustering: null, kg: null, crossval: null, agent: null, conclusion: null }
 
 export const initialState: AppState = {
-  status: 'idle', steps: {}, activeStage: null, logs: [], agentLogs: [], tick: null, trend: [], alarmLabel: null,
-  perception: null, flows: null, clustering: null, kg: null, crossval: null, agent: null, conclusion: null,
+  connected: false, steps: {}, activeStage: null, logs: [], agentLogs: [], tick: null, trend: [],
+  incident: null, incidents: [], nextAt: null, ...ANALYSIS,
 }
 
+type Snapshot = Omit<AppState, 'connected' | 'nextAt'> & { next_in: number }
 type Ev =
-  | { type: 'reset' }
-  | { type: 'error' }
+  | { type: 'open' }
+  | { type: 'closed' }
+  | ({ type: 'snapshot' } & Snapshot)
   | { type: 'step'; stage: Stage; step: string; status: StepStatus }
   | ({ type: 'log' } & LogLine)
   | ({ type: 'tick' } & Tick)
   | { type: 'result'; key: string; data: unknown }
-  | { type: 'done'; incident: boolean }
+  | { type: 'incident'; event: 'opened' | 'updated' | 'recovered'; incident: Incident }
+
+const deadline = (nextIn?: number) => (nextIn == null ? null : Date.now() + nextIn * 1000)
 
 function reducer(state: AppState, ev: Ev): AppState {
   switch (ev.type) {
-    case 'reset':
-      return { ...initialState, status: 'running', activeStage: 'perception' }
-    case 'error':
-      return { ...state, status: 'error' }
+    case 'open':
+      return { ...state, connected: true }
+    case 'closed':
+      return { ...state, connected: false }
+    case 'snapshot': {
+      const { type: _t, next_in, ...rest } = ev
+      return { ...rest, connected: true, nextAt: deadline(next_in) }
+    }
     case 'step': {
       const steps = { ...state.steps, [`${ev.stage}.${ev.step}`]: ev.status }
       return { ...state, steps, activeStage: ev.status === 'running' ? ev.stage : state.activeStage }
@@ -28,52 +40,39 @@ function reducer(state: AppState, ev: Ev): AppState {
     case 'log': {
       const { type: _t, ...line } = ev
       return line.channel === 'agent'
-        ? { ...state, agentLogs: [...state.agentLogs, line] }
-        : { ...state, logs: [...state.logs, line] }
+        ? { ...state, agentLogs: [...state.agentLogs, line].slice(-KEEP_LOGS) }
+        : { ...state, logs: [...state.logs, line].slice(-KEEP_LOGS) }
     }
     case 'tick': {
       const { type: _t, ...tick } = ev
-      return { ...state, tick, trend: [...state.trend, { label: tick.trend_point.label, total: tick.trend_point.total }] }
+      return {
+        ...state, tick, nextAt: deadline(tick.next_in) ?? state.nextAt,
+        trend: [...state.trend, { label: tick.trend_point.label, total: tick.trend_point.total }].slice(-KEEP_TREND),
+      }
     }
-    case 'result': {
-      const next = { ...state, [ev.key]: ev.data } as AppState
-      if (ev.key === 'perception' && state.tick) next.alarmLabel = state.trend[state.trend.length - 1]?.label ?? null
-      return next
+    case 'result':
+      return { ...state, [ev.key]: ev.data } as AppState
+    case 'incident': {
+      if (ev.event === 'opened') {
+        // 新故障：清空上一轮的分析结果与步骤状态
+        const steps = Object.fromEntries(Object.entries(state.steps).filter(([k]) => k.startsWith('perception.')))
+        return { ...state, ...ANALYSIS, steps, incident: ev.incident }
+      }
+      const incidents = ev.event === 'recovered' ? [ev.incident, ...state.incidents].slice(0, 20) : state.incidents
+      return { ...state, incident: ev.incident, incidents }
     }
-    case 'done':
-      return { ...state, status: 'done' }
   }
 }
 
-/** 订阅后端回放事件流（SSE）。 */
-export function useRun() {
+/** 订阅后端实时事件流（SSE）。连接建立后先收到一份状态快照，断线由浏览器自动重连。 */
+export function useLive() {
   const [state, dispatch] = useReducer(reducer, initialState)
-  const source = useRef<EventSource | null>(null)
-
-  const stop = useCallback(() => {
-    source.current?.close()
-    source.current = null
+  useEffect(() => {
+    const es = new EventSource('/api/stream')
+    es.onopen = () => dispatch({ type: 'open' })
+    es.onmessage = (m) => dispatch(JSON.parse(m.data) as Ev)
+    es.onerror = () => dispatch({ type: 'closed' })
+    return () => es.close()
   }, [])
-
-  const start = useCallback((speed: number) => {
-    stop()
-    dispatch({ type: 'reset' })
-    const es = new EventSource(`/api/run/stream?speed=${speed}`)
-    source.current = es
-    es.onmessage = (m) => {
-      const ev = JSON.parse(m.data) as Ev
-      dispatch(ev)
-      if (ev.type === 'done') stop()
-    }
-    es.onerror = () => {
-      // EventSource 默认会自动重连并重新开始回放，这里显式关闭
-      if (source.current === es) {
-        stop()
-        dispatch({ type: 'error' })
-      }
-    }
-  }, [stop])
-
-  useEffect(() => stop, [stop])
-  return { state, start }
+  return state
 }

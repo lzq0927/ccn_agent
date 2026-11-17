@@ -6,9 +6,14 @@ export interface TopoEdge { source: string; target: string; interface: string }
 export interface Topo { nodes: TopoNode[]; edges: TopoEdge[] }
 
 export interface Meta {
-  start: string; minutes: number; raw_rows: number; files: Record<string, number>
-  settings: { window_min: number; sustain_n: number; sustain_m: number; z_threshold: number }
+  instances: number; links: number; started_at: string; files: string[]
+  settings: { window_min: number; sustain_n: number; sustain_m: number; z_threshold: number; recover_min: number }
   kg: { nodes: number; edges: number; version: string }
+}
+
+export interface Incident {
+  id: string; status: 'active' | 'recovered'; opened_at: string; onset_label: string
+  recovered_at: string | null; title: string; definitive: boolean | null
 }
 
 export interface LogLine { channel: 'system' | 'agent'; stage: string; time: string; level: string; text: string }
@@ -26,6 +31,8 @@ export interface Tick {
   series: SeriesChart[]
   node_status: Record<string, { count: number; flagged: number; sustained: number }>
   preprocess: Record<string, number>
+  incident: Incident | null
+  next_in?: number
 }
 
 export interface CauseCount { cause: string; name: string; count: number; anomalous?: boolean }
@@ -115,14 +122,16 @@ export interface Conclusion {
 }
 
 export interface AppState {
-  status: 'idle' | 'running' | 'done' | 'error'
+  connected: boolean
   steps: Record<string, StepStatus>
   activeStage: Stage | null
   logs: LogLine[]
   agentLogs: LogLine[]
   tick: Tick | null
   trend: { label: string; total: number }[]
-  alarmLabel: string | null
+  incident: Incident | null
+  incidents: Incident[]
+  nextAt: number | null
   perception: Perception | null
   flows: Flows | null
   clustering: Clustering | null

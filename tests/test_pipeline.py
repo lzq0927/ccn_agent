@@ -1,5 +1,7 @@
-"""端到端与关键算法测试。默认仿真数据：第 20 分钟起 SMF:smf_2 后端 N7->pcf_2、N4->upf_1 链路丢包。"""
+"""端到端与关键算法测试。data/ 下的样例数据：第 20 分钟起 SMF:smf_2 后端 N7->pcf_2、N4->upf_1 链路丢包。"""
+import csv
 import json
+from datetime import datetime
 
 import pandas as pd
 import pytest
@@ -12,6 +14,8 @@ from backend.config import ROOT, Settings
 from backend.perception.anomaly import SpikeDetector
 from backend.perception.preprocess import preprocess
 from backend.pipeline import Pipeline
+from backend.source import CsvTailSource
+from datagen.generate import Generator, write_batch
 
 
 @pytest.fixture(scope="module")
@@ -120,3 +124,81 @@ def test_slow_reasoning_when_no_scenario_matches(run):
     assert cv["decision"] == "slow_reasoning"
     msgs = list(SlowReasoningAgent(Tools(pd.DataFrame(columns=["imsi", "ts"]))).run(cv, clustering))
     assert msgs[-1]["kind"] == "final" and msgs[-1]["result"]["definitive"] is False
+
+
+# ---------------------------------------------------------------- 持续运行相关
+
+def test_incident_stays_open_while_fault_persists(run):
+    events, _ = run
+    inc = [e for e in events if e["type"] == "incident"]
+    assert [e["event"] for e in inc] == ["opened", "updated"]            # 故障持续到数据结束，只开启一次
+    assert inc[-1]["incident"]["status"] == "active" and inc[-1]["incident"]["definitive"] is True
+    late_ticks = [e for e in events if e["type"] == "tick" and e["minute"] > 30]
+    assert late_ticks and all(t["n_sustained"] > 0 for t in late_ticks)   # 基线冻结，故障期间持续判为突增
+
+
+def test_incident_recovers_after_fault_clears(tmp_path):
+    gen = Generator(7, datetime(2026, 11, 16, 10, 0, 0), fault_from=20, fault_to=28, end_min=45)
+    write_batch(gen, tmp_path, 45)
+    events = list(Pipeline(Settings(data_dir=tmp_path / "data")).run())
+    inc = [e for e in events if e["type"] == "incident"]
+    assert [e["event"] for e in inc] == ["opened", "updated", "recovered"]
+    assert inc[1]["incident"]["title"] == "SMF:smf_2 后端部分链路丢包"
+    assert inc[2]["incident"]["status"] == "recovered"
+    assert "10:32" <= inc[2]["incident"]["recovered_at"] <= "10:35"      # 故障 10:28 结束，连续 5 分钟回落后恢复
+    after = [e for e in events if e["type"] == "tick" and e["time"] > inc[2]["incident"]["recovered_at"]]
+    assert after and all(t["incident"] is None and t["n_sustained"] == 0 for t in after)
+
+
+def test_reanalysis_keeps_conclusion():
+    p = Pipeline(Settings(reanalyze_gap_min=1))
+    events, dropped = [], None
+    for ev in p.run():
+        events.append(ev)
+        if ev["type"] == "incident" and ev["event"] == "updated" and dropped is None:
+            # 从故障记录里拿掉一个传导侧维度，下一分钟它会作为“新增突增维度”触发重新分析
+            dropped = next(k for k in p.engine.incident["series"] if k.startswith("AMF:"))
+            p.engine.incident["series"].discard(dropped)
+    logs = [e["text"] for e in events if e["type"] == "log"]
+    assert any("故障范围变化" in t for t in logs)
+    conclusions = [e["data"] for e in events if e["type"] == "result" and e["key"] == "conclusion"]
+    assert len(conclusions) >= 2
+    assert all(c["root"]["ne"] == "SMF:smf_2" and c["definitive"] for c in conclusions)
+    assert len({c["incident_id"] for c in conclusions}) == 1 and len({c["detected_at"] for c in conclusions}) == 1
+    assert dropped in p.engine.incident["series"]
+
+
+def test_data_gap_is_not_treated_as_zero():
+    s = Settings()
+    def feed(det, gaps):
+        values = [30, 28, 31, 29, 30, 0, 0, 0, 0, 0, 0, 30, 29, 31, 30, 28]     # 中间 6 分钟数据源中断
+        flagged = []
+        for minute, _ in enumerate(values):
+            lo = max(0, minute - 14)
+            counts = pd.DataFrame([values[lo:minute + 1]], index=["s"], columns=range(lo, minute + 1))
+            det.update(counts, minute, gaps)
+            if minute in det.flags.get("s", ()):
+                flagged.append(minute)
+        return flagged
+    assert feed(SpikeDetector(s), frozenset(range(5, 11))) == []          # 按缺口处理：恢复后的正常流量不告警
+    assert feed(SpikeDetector(s), frozenset()) != []                      # 当作 0 条则会被误判为突增
+
+
+def test_tail_source_reads_only_new_complete_lines(tmp_path):
+    path = tmp_path / "chr_smf.csv"
+    cols = ["Timestamp", "Inner_Cause", "Procedure", "IMSI", "NE_Instance", "Serving_PCF_ID"]
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(cols)
+        w.writerow(["2026-11-16 10:00:01", "SM-2101", "PDU会话建立", "1", "SMF:smf_2", "PCF:pcf_2"])
+    src = CsvTailSource(tmp_path)
+    first = src.poll()
+    assert len(first) == 1 and first.iloc[0]["cause"] == "SM-2101" and first.iloc[0]["peer_pcf"] == "PCF:pcf_2"
+    assert src.poll().empty
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        f.write("2026-11-16 10:00:02,SM-2201,PDU会话建立,2,SMF:smf_2,\n2026-11-16 10:00:03,SM-22")   # 第二行未写完
+    second = src.poll()
+    assert list(second["cause"]) == ["SM-2201"]
+    with open(path, "a", newline="", encoding="utf-8") as f:
+        f.write("11,ServiceRequest,3,SMF:smf_2,\n")
+    assert list(src.poll()["cause"]) == ["SM-2211"]

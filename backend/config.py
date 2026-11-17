@@ -1,17 +1,30 @@
 """全局配置。算法阈值集中在这里，便于内网替换时调整。"""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
+def _path(env: str, default: Path) -> Path:
+    return Path(os.environ[env]) if os.environ.get(env) else default
+
+
 @dataclass
 class Settings:
-    data_dir: Path = ROOT / "data"
-    topo_file: Path = ROOT / "topo" / "topo.csv"
-    kg_file: Path = ROOT / "chr-knowledge-graph" / "graph.json"
+    # 输入位置可用环境变量覆盖：CCN_DATA_DIR / CCN_TOPO_FILE / CCN_KG_FILE
+    data_dir: Path = field(default_factory=lambda: _path("CCN_DATA_DIR", ROOT / "data"))
+    topo_file: Path = field(default_factory=lambda: _path("CCN_TOPO_FILE", ROOT / "topo" / "topo.csv"))
+    kg_file: Path = field(default_factory=lambda: _path("CCN_KG_FILE", ROOT / "chr-knowledge-graph" / "graph.json"))
+
+    # 实时运行
+    tick_grace_s: int = 5           # 每分钟结束后等待多少秒再处理，容纳晚到的 CHR
+    reanalyze_gap_min: int = 5      # 故障期间出现新的突增维度时，距上次分析至少多久才重新分析
+    recover_min: int = 5            # 故障相关维度连续多少分钟回落到基线视为恢复
+    trend_minutes: int = 60         # 趋势图保留的分钟数
+    log_keep: int = 400             # 保留的日志条数
 
     # 感知
     window_min: int = 15            # 滑窗长度（分钟）

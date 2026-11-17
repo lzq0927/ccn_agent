@@ -23,18 +23,15 @@ export function Kpi({ icon, label, value, hint, tone, bar }:
 }
 
 export function PerceptionView({ state, topo, meta }: { state: AppState; topo: Topo; meta: Meta }) {
-  const { tick, perception: p, trend, alarmLabel } = state
+  const { tick, trend, incident } = state
+  // 故障恢复后，感知页回到常态展示；分析与结论页仍保留最近一次故障的结果
+  const p = incident?.status === 'active' ? state.perception : null
+  const alarmLabel = incident?.status === 'active' && trend.some((t) => t.label === incident.onset_label) ? incident.onset_label : null
   const [group, setGroup] = useState(0)
   const [showAll, setShowAll] = useState(false)
   useEffect(() => { setGroup(0); setShowAll(false) }, [p])
 
-  const labels = useMemo(() => {
-    const [h, m] = meta.start.split(' ')[1].split(':').map(Number)
-    return Array.from({ length: meta.minutes }, (_, i) => {
-      const t = h * 60 + m + i
-      return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`
-    })
-  }, [meta])
+  const labels = useMemo(() => trend.map((t) => t.label), [trend])
 
   const all = p?.series ?? tick?.series ?? []
   const hot = all.filter((s) => s.status === 'sustained')
@@ -52,12 +49,12 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
         <Kpi icon="layers" label="时序维度" value={num(p?.stats.n_series ?? tick?.n_series)} hint="网元实例 × 流程 × 原因码" />
         <Kpi icon="alert" label="持续突增维度" value={num(nAnom)} tone={nAnom ? 'critical' : ''} hint={`${n} 分钟内 ≥${m} 分钟突增`} />
         <Kpi icon="filter" label="降噪滤除" value={p ? `${p.stats.filtered_pct}%` : '—'} tone={p ? 'accent' : ''}
-          bar={p ? p.stats.filtered_pct : undefined} hint="发现异常后执行" />
+          bar={p ? p.stats.filtered_pct : undefined} hint="发现异常后自动执行" />
       </div>
 
       <div className="grid-2 wide-left">
-        <Section title="全网 CHR 趋势" hint="条/分钟" takeaway={alarmLabel ? <><Icon name="alert" size={13} />{tick?.time} 触发分析</> : undefined} tone="critical">
-          <TrendChart trend={trend} labels={labels} totalMinutes={meta.minutes} windowFrom={tick?.window.from} alarm={alarmLabel} />
+        <Section title="全网 CHR 趋势" hint="条/分钟" takeaway={incident?.status === 'active' ? <><Icon name="alert" size={13} />{incident.opened_at} 触发分析</> : undefined} tone="critical">
+          <TrendChart trend={trend} labels={labels} windowFrom={tick?.window.from} alarm={alarmLabel} />
         </Section>
         <Section title="网元状态" hint="最近一分钟">
           <Topology topo={topo} live={tick?.node_status} />
@@ -79,7 +76,7 @@ export function PerceptionView({ state, topo, meta }: { state: AppState; topo: T
 
       <Section no="1.2" title="降噪前后对比" hint="只保留持续突增维度自起始之后的 CHR" tone="accent"
         takeaway={p ? <>滤除 <b>{p.stats.filtered_pct}%</b></> : undefined}>
-        {!p || !pie ? <div className="empty">发现异常后执行降噪。</div> : (
+        {!p || !pie ? <div className="empty">当前未见异常，无需降噪。发现持续突增后自动执行。</div> : (
           <>
             <div className="ratio">
               <div className="ratio-bar">

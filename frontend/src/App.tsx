@@ -1,24 +1,28 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Console } from './components/Console'
 import { Icon } from './components/Icon'
 import { WorkflowBar } from './components/WorkflowBar'
 import { short } from './lib/format'
-import { useRun } from './store'
+import { useLive } from './store'
 import type { Meta, Stage, Topo } from './types'
 import { AnalysisView } from './views/AnalysisView'
 import { DecisionView } from './views/DecisionView'
 import { PerceptionView } from './views/PerceptionView'
 
-const SPEEDS = [0.5, 1, 2, 4]
+function useNow() {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
+  return now
+}
+const two = (n: number) => String(n).padStart(2, '0')
 
 export default function App() {
-  const { state, start } = useRun()
+  const state = useLive()
+  const now = useNow()
   const [meta, setMeta] = useState<Meta | null>(null)
   const [topo, setTopo] = useState<Topo | null>(null)
   const [loadError, setLoadError] = useState(false)
-  const [speed, setSpeed] = useState(1)
   const [view, setView] = useState<Stage>('perception')
-  const [follow, setFollow] = useState(true)
 
   useEffect(() => {
     Promise.all([fetch('/api/meta').then((r) => r.json()), fetch('/api/topology').then((r) => r.json())])
@@ -26,23 +30,40 @@ export default function App() {
       .catch(() => setLoadError(true))
   }, [])
 
-  // 回放过程中视图跟随当前执行阶段；手动切换后停止跟随
-  useEffect(() => { if (follow && state.activeStage) setView(state.activeStage) }, [follow, state.activeStage])
+  // 发现异常进入分析/决策时自动切到对应页面；回到常态感知后保留用户当前所在页面
+  const prevStage = useRef<Stage | null>(null)
+  useEffect(() => {
+    const s = state.activeStage
+    if (s && s !== prevStage.current && s !== 'perception') setView(s)
+    prevStage.current = s
+  }, [state.activeStage])
+  // 打开页面时若已有进行中的故障，直接展示结论
+  const opened = useRef(false)
+  useEffect(() => {
+    if (!opened.current && state.connected) {
+      opened.current = true
+      if (state.conclusion && state.incident?.status === 'active') setView('decision')
+    }
+  }, [state.connected, state.conclusion, state.incident])
 
-  const run = () => { setFollow(true); setView('perception'); start(speed) }
-  const running = state.status === 'running'
-  const agentState = state.steps['analysis.agent'] === 'running' ? '推理中'
-    : state.steps['analysis.agent'] === 'skipped' ? '未触发' : state.steps['analysis.agent'] === 'done' ? '已完成' : '待命'
+  const inc = state.incident
   const c = state.conclusion
+  const analyzing = state.activeStage !== 'perception' && Object.entries(state.steps).some(([k, v]) => !k.startsWith('perception.') && v === 'running')
+  const agentStep = state.steps['analysis.agent']
+  const agentState = agentStep === 'running' ? '推理中' : agentStep === 'skipped' ? '未触发' : agentStep === 'done' ? '已完成' : '待命'
   const summaries: Record<Stage, string | null> = {
-    perception: state.perception ? `${state.perception.stats.n_anomalous} 个持续突增 · 降噪 ${state.perception.stats.filtered_pct}%` : null,
+    perception: inc?.status === 'active' && state.perception ? `${state.perception.stats.n_anomalous} 个持续突增 · 降噪 ${state.perception.stats.filtered_pct}%`
+      : state.tick ? '未见异常' : null,
     analysis: state.crossval ? (state.crossval.decision === 'conclusion' ? '唯一结论' : '转慢推理') : null,
     decision: c ? `${short(c.root.ne) || '待确认'} · 置信度 ${Math.round(c.confidence * 100)}%` : null,
   }
-  const status = state.status === 'error' ? { cls: 'err', text: '连接中断' }
-    : running ? (state.perception ? { cls: 'alert', text: '发现异常，分析中' } : { cls: 'run', text: '感知中' })
-      : c ? { cls: 'alert', text: c.definitive ? '根因已定位' : '待人工确认' }
-        : state.status === 'done' ? { cls: 'ok', text: '未发现异常' } : { cls: 'idle', text: '待回放' }
+  const status = !state.connected ? { cls: 'err', text: '连接中断，重连中' }
+    : analyzing ? { cls: 'alert', text: '发现异常，分析中' }
+      : inc?.status === 'active' ? { cls: 'alert', text: inc.definitive ? '故障进行中 · 根因已定位' : '故障进行中 · 待人工确认' }
+        : inc?.status === 'recovered' ? { cls: 'ok', text: `故障已恢复 ${inc.recovered_at ?? ''}` }
+          : { cls: 'ok', text: '运行正常' }
+  const d = new Date(now)
+  const remain = state.nextAt ? Math.max(0, Math.round((state.nextAt - now) / 1000)) : null
 
   return (
     <div className="app">
@@ -51,27 +72,24 @@ export default function App() {
           <span className="logo"><Icon name="activity" size={17} /></span>
           <div>
             <h1>CHR 故障感知与分析</h1>
-            <p>5GC 云核心网{meta ? ` · ${meta.raw_rows.toLocaleString('en-US')} 条 CHR · ${meta.minutes} 分钟` : ''}</p>
+            <p>5GC 云核心网{meta ? ` · ${meta.instances} 个网元实例 · 每分钟感知` : ''}</p>
           </div>
         </div>
         <div className="controls">
           <span className={`status ${status.cls}`}><i />{status.text}</span>
-          <span className="clock"><Icon name="clock" size={14} /><b>{state.tick?.time ?? '--:--'}</b></span>
-          <div className="seg" role="group" aria-label="回放倍速">
-            {SPEEDS.map((s) => <button key={s} className={s === speed ? 'on' : ''} disabled={running} onClick={() => setSpeed(s)}>{s}×</button>)}
-          </div>
-          <button className="primary" onClick={run} disabled={running || !meta}>
-            <Icon name="play" size={13} />{running ? '回放中' : state.status === 'idle' ? '开始回放' : '重新回放'}
-          </button>
+          {inc && <span className="inc-id">{inc.id}</span>}
+          <span className="next">下次感知 <b>{remain == null ? '--' : `${two(Math.floor(remain / 60))}:${two(remain % 60)}`}</b></span>
+          <span className="clock"><Icon name="clock" size={14} /><b>{two(d.getHours())}:{two(d.getMinutes())}:{two(d.getSeconds())}</b></span>
+          <span className={`live-pill ${state.connected ? 'on' : ''}`}><i />实时</span>
         </div>
       </header>
 
-      <WorkflowBar steps={state.steps} activeStage={state.activeStage} running={running} view={view} summaries={summaries}
-        onView={(s) => { setView(s); setFollow(false) }} />
+      <WorkflowBar steps={state.steps} activeStage={state.activeStage} connected={state.connected} view={view} summaries={summaries}
+        onView={setView} />
 
       <div className="body">
         <main className="content">
-          {loadError && <div className="card"><div className="empty tall">无法连接后端服务，请确认已启动：uvicorn backend.server:app --port 8000</div></div>}
+          {loadError && <div className="card"><div className="empty tall">无法连接后端服务，请确认服务已启动。</div></div>}
           {meta && topo && (
             <>
               {view === 'perception' && <PerceptionView state={state} topo={topo} meta={meta} />}

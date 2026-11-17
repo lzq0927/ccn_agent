@@ -1,7 +1,7 @@
 {
  "meta": {
-  "version": "sim-0.1",
-  "source": "simulator/catalog.py（示例，后续由产品代码分析结果替换）",
+  "version": "0.1",
+  "source": "样例图谱，由产品代码分析结果替换",
   "relations": [
    "RAISED_BY",
    "OCCURS_IN",

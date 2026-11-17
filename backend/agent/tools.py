@@ -17,4 +17,4 @@ class Tools:
 
     def dial_test(self, source: str, target: str) -> dict:
         """拨测染色：沿 source -> target 发起染色拨测（桩：未接入，返回未执行）。"""
-        return {"source": source, "target": target, "executed": False, "note": "拨测染色工具未接入，仿真环境不执行"}
+        return {"source": source, "target": target, "executed": False, "note": "拨测染色工具未接入，未执行"}
